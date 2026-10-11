@@ -123,3 +123,7 @@ Version-control database migrations. Provide consistent backup/restore commands;
 ## 6. Details to refine during implementation
 
 Follow the confirmed product semantics in this document. Specific API wire schemas, login session library, SQLite driver, component library, and deployment image are not yet installed or implemented. At each milestone, choose the smallest solution meeting requirements and record the decision, without adding extension frameworks in advance.
+
+## Implementation decisions
+
+- M2: Template/Checklist share the `documents` and `entries` relational tables, distinguished by kind. This reuses the same editing structure without changing effective-reference or history rules. Template revisions are stored separately and UPDATE is prohibited. SQLite uses the built-in Node 24 driver.
