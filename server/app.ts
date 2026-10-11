@@ -5,6 +5,7 @@ import swagger from '@fastify/swagger';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Store, Problem, requireThat, id, hash, verify } from './db.js';
+import { registerHistory } from './history.js';
 import { registerGroups } from './groups.js';
 import { registerDocuments } from './documents.js';
 import { randomBytes } from 'node:crypto';
@@ -48,7 +49,7 @@ export async function app(store:Store){
  route('POST','/categories',categoryBody,(req:any)=>store.tx(()=>saveCategory(req)));
  route('PUT','/categories/:id',{...categoryBody,required:[...categoryBody.required,'version']},(req:any)=>store.tx(()=>saveCategory(req)));
  route('DELETE','/categories/:id',obj({version},['version']),(req:any)=>store.tx(()=>{const key=req.params.id;store.version(store.resource('categories',key),req.body.version);const refs=[...store.all('SELECT id,name,\'Category\' AS kind FROM categories WHERE parentId=?',key),...store.all('SELECT i.id,i.name,\'Item\' AS kind FROM items i JOIN item_categories r ON i.id=r.itemId WHERE r.categoryId=?',key)];refs.push(...store.all('SELECT d.id,d.name,d.kind FROM documents d JOIN groups g ON g.documentId=d.id WHERE g.categoryId=?',key));if(refs.length)throw new Problem(409,'Category is referenced',refs);store.run('DELETE FROM categories WHERE id=?',key);return {ok:true};}));
- registerDocuments(api,store);registerGroups(api,store);
+ registerDocuments(api,store);registerGroups(api,store);registerHistory(api,store);
  const web=resolve('dist/web');if(existsSync(web)){await api.register(staticFiles,{root:web});}
  return api;
 }
