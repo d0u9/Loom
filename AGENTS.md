@@ -27,6 +27,9 @@ Loom is a personal Web application centered on Checklist. The API is a formal pr
 - An archived Checklist is read-only and can be queried, restored, copied, or converted to a Template. Copying resets checked states; conversion to a template omits checked states. Restoring the original checklist retains its checked states.
 - Require explicit confirmation before deleting a Template, and delete its revisions. Source information and snapshots of existing Checklists remain queryable.
 
+- Checklist has an optional use date `useDate` (YYYY-MM-DD or null), with no time/timezone; Template has no date. Archive/restore preserve the date; copies and template instances default to unscheduled. The calendar filters checklists of all statuses by date, and date dots include archived records.
+- Clicking Checklist navigation must clear the date filter and show all checklists; only clicking a calendar day filters to that day. Creating a Checklist with a selected date defaults to that date. Date editing autosaves and obeys structural version and safe-retry rules.
+
 ## Implementation Defaults
 
 The following defaults were chosen to implement the design. To adjust them, update the design documents first, then change the implementation.
@@ -42,6 +45,16 @@ The following defaults were chosen to implement the design. To adjust them, upda
 - Creation, instantiation, copying, conversion to template, template saving, historical restore, and checking use persistent requestId deduplication. Request results and business writes share a transaction; retries return the original result, the same ID with different content returns a conflict, and v1 does not automatically expire records.
 - Initialize the single account through the initialization command. Web uses secure sessions; external API access uses revocable tokens.
 - Delete a Category only when it has no child categories, members, or active category-group references; historical snapshots do not block deletion.
+
+## Web UI and Component Constraints
+
+- Reference Memos fonts, sizes, proportions, and compact hierarchy, starting with a light theme. Retain warm gray backgrounds, white cards, and green accents. Do not change the palette without user request; proportion adjustments must not sneak in theme changes.
+- All four pages must share AppLayout (sidebar, calendar, mobile navigation, right-side container) and Page (title, create button) from `web/layout.tsx`. Do not implement individual headers or position buttons per page. Create buttons on all four list pages must have aligned top/right edges; they may be hidden in detail editing.
+- Item/Category share the catalog editing structure, and Checklist/Template share the Documents editor. Separate shared layout from business editors; different domains do not have to use identical fields.
+- Center the right-side area outside the sidebar, with a maximum width of 960px and adaptation to narrow screens. Keep font sizes, weights, spacing, and control heights consistent. Retain mobile touch targets; do not sacrifice usability to reduce proportions.
+- The desktop sidebar shares a calendar; mobile provides a collapsible calendar using the same Calendar component. Navigation clicks obey unsaved-change prompts and do not bypass leave protection.
+- Ordinary business input/textarea fields use `data-1p-ignore="true"` and `autoComplete="off"`. Login fields retain username/current-password autofill; do not disable password managers on the login page.
+- Dialogs share Modal, focusing the first control on opening and restoring focus to the trigger after Escape closes them. Close the native dialog before removing its DOM. Keyboard focus must be clearly visible.
 
 ## Verification and Delivery
 

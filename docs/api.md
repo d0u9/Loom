@@ -39,3 +39,7 @@ Group fields: `id,categoryId,originalCategoryId,name,members,excluded,expected?`
 Resource writes include the expected version; stale versions return 409. 404 means the resource does not exist, 400 invalid input, 401/403 authentication/CSRF failure, and 429 excessive login attempts. Error body: `{message,details?}`. Do not automatically replace the version with the latest after 409 and resend: this would overwrite edits from other devices.
 
 Writes requiring deduplication include a UUID requestId. After a timeout, retry with the same ID and identical content; the server persists results, so restarting does not repeat execution. The same ID with different content returns 409. Confirm the old request result before sending modified content with a new ID. Previously committed results may represent an older resource state; GET details again after retrying if needed.
+
+## Use Date
+
+POST `/documents` and PUT `/documents/:id` may include `useDate: "2026-10-11" | null`. Only Checklist permits a nonempty date; invalid Gregorian dates return 400. GET list/detail responses return useDate. Omission on PUT preserves the previous value; null clears it. Writes follow version and idempotency constraints. Archive/restore retain the date; copy and template instantiation default to null.

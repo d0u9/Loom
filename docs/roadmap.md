@@ -71,3 +71,20 @@ CLI client, collaboration, offline synchronization, recurring checklist generati
 - `pnpm install --frozen-lockfile`, `pnpm test` (10 tests), `pnpm run build`, and `pnpm run test:e2e` (4 tests) passed.
 - Frozen installation, tests, and build passed in an independent temporary directory; after `pnpm prune --prod`, compiled API startup and authenticated reads passed, confirming no dependency on tsx/TypeScript or residual old npm installations.
 - Dockerfile is updated; actual container builds remain unverified because no runtime is available. Rollback restores package.json, package-lock.json, Dockerfile, and docs from the pre-migration Git commit, then uses `npm ci`. No SQLite data migration is involved.
+
+### Calendar and use dates (2026-10-11)
+
+- Add a desktop sidebar calendar and mobile collapsible calendar, Checklist use-date editing, date marks/filtering, and creation for the selected date. Synchronize API contract and migration 4; old data defaults to unscheduled.
+- All 17 `pnpm test` tests, type checking, build, and 8 desktop/mobile end-to-end tests passed, covering invalid dates, date preservation for old clients, archive/restore, clearing copied dates, legacy database migration, and repeated startup.
+- Excludes times, reminders, recurring schedules, and external calendar synchronization.
+
+### Interface and calendar decisions since the previous commit (baseline `cea2332`, 2026-10-11)
+
+This section consolidates final rules after the baseline commit without adding milestones; corresponding code/documents ship with this commit.
+
+- Retain warm-gray/white/green colors; adjust fonts, weights, controls, and whitespace proportions using Memos screenshots at the same size. Revert the unrequested blue and pure-white theme adopted during the process.
+- Center right-side content with a final maximum width of 960px; all four pages share AppLayout/Page for consistent sidebar, calendar, title, and New-button position. Catalog and Documents editors retain their business behavior.
+- Add 1Password-ignore attributes to non-login fields, retaining login autofill; fix focus restoration after modal closure.
+- Checklist use dates, calendar dots, filtering, and creation on the selected date are implemented. Archive/restore preserves dates; copy/instantiation clears them. Checklist navigation always returns to all checklists.
+- Verification: 17 API/database tests passed; 10 desktop/mobile end-to-end tests passed after shared-component refactoring, including alignment of New buttons' top/right edges on four pages. Before final commit, reran `pnpm run build`, `pnpm test` (17 tests), and `pnpm run test:e2e` (10 tests); all passed, including Checklist navigation clearing date filters.
+- Desktop/mobile screenshots checked. Actual 1Password extension not tested; reminders, times, recurring schedules, and external calendar synchronization not implemented. Remaining Docker acceptance unchanged.

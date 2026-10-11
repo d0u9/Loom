@@ -13,6 +13,7 @@ export function migrateDocuments(store: Store) {
  `,
   );
   migrateGroups(store);
+  store.migrate(4, "ALTER TABLE documents ADD COLUMN useDate TEXT");
 }
 export function document(store: Store, key: string, live = true): any {
   const d = store.resource("documents", key);
@@ -25,6 +26,7 @@ export function document(store: Store, key: string, live = true): any {
       ...snapshot,
       status: d.status,
       version: d.version,
+      useDate: snapshot.useDate ?? d.useDate ?? null,
     };
   }
   const entries = store
@@ -107,14 +109,17 @@ export function createDocument(
   content: Content,
   source: any = null,
   preserve = false,
+  useDate: string | null = null,
 ) {
+  validateUseDate(kind, useDate);
   const key = id();
   store.run(
-    "INSERT INTO documents(id,kind,name,source) VALUES(?,?,?,?)",
+    "INSERT INTO documents(id,kind,name,source,useDate) VALUES(?,?,?,?,?)",
     key,
     kind,
     name,
     source ? JSON.stringify(source) : null,
+    useDate,
   );
   const copied = reid(content);
   if (!preserve) copied.entries.forEach((e) => (e.checked = false));
@@ -148,6 +153,23 @@ export function saveRevision(store: Store, key: string) {
     JSON.stringify({ schemaVersion: 1, ...snapshot, revision: rev }),
   );
   return rev;
+}
+export const useDateSchema = {
+  anyOf: [
+    { type: "string", pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    { type: "null" },
+  ],
+};
+export function validateUseDate(kind: string, value: string | null) {
+  const date = new Date(value + "T00:00:00Z");
+  requireThat(
+    value === null ||
+      (kind === "checklist" &&
+        !value.startsWith("0000") &&
+        !isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === value),
+    "Invalid checklist use date",
+  );
 }
 const str = { type: "string", maxLength: 10000 };
 const entry = obj(
@@ -186,7 +208,7 @@ export function registerDocuments(route: Route, store: Store) {
   route("GET", "/documents", null, () =>
     store
       .all(
-        "SELECT id,kind,name,version,status,source FROM documents ORDER BY rowid DESC",
+        "SELECT id,kind,name,version,status,source,useDate FROM documents ORDER BY rowid DESC",
       )
       .map((d) => ({ ...d, source: d.source ? JSON.parse(d.source) : null })),
   );
@@ -198,6 +220,7 @@ export function registerDocuments(route: Route, store: Store) {
     "/documents",
     obj(
       {
+        useDate: useDateSchema,
         kind: { enum: ["template", "checklist"], type: "string" },
         name: short,
         requestId: uuid,
@@ -207,7 +230,15 @@ export function registerDocuments(route: Route, store: Store) {
     ),
     (req: any) =>
       store.once("create-document", req.body, () => {
-        return createDocument(store, req.body.kind, req.body.name, req.body);
+        return createDocument(
+          store,
+          req.body.kind,
+          req.body.name,
+          req.body,
+          null,
+          false,
+          req.body.useDate ?? null,
+        );
       }),
   );
   route(
@@ -216,6 +247,7 @@ export function registerDocuments(route: Route, store: Store) {
     obj(
       {
         name: short,
+        useDate: useDateSchema,
         version,
         requestId: uuid,
         ...contentSchema,
@@ -226,9 +258,13 @@ export function registerDocuments(route: Route, store: Store) {
       store.once("save-document:" + req.params.id, req.body, () => {
         const d = active(store, req.params.id);
         store.version(d, req.body.version);
+        const useDate =
+          req.body.useDate === undefined ? d.useDate : req.body.useDate;
+        validateUseDate(d.kind, useDate);
         store.run(
-          "UPDATE documents SET name=?,version=version+1 WHERE id=?",
+          "UPDATE documents SET name=?,useDate=?,version=version+1 WHERE id=?",
           req.body.name,
+          useDate,
           d.id,
         );
         writeEntries(store, d.id, req.body.entries);

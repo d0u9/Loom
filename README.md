@@ -26,6 +26,14 @@ Open http://localhost:5173; API requests automatically proxy to backend port 300
 
 See the [roadmap](docs/roadmap.md) for implementation progress and acceptance records.
 
+## Interface and Calendar
+
+All four pages share the sidebar and page framework, with right-side content centered at a maximum width of 960px. Click Checklist to see all checklists; click a calendar day to see that day. Desktop uses the sidebar calendar; mobile expands the calendar to select a date.
+
+Checklist "Use date" can be set or cleared and autosaves; creating a checklist on the selected date defaults to that day. Archive/restore preserve the date; copies and template instances default to unscheduled. Restarting the service after upgrading automatically migrates the old database, without account reinitialization.
+
+Ordinary business inputs are marked for 1Password to ignore; the login page still supports password autofill. Reminders, recurring scheduling, and external calendar synchronization are currently unavailable.
+
 ## Backup and Restore
 
 ```sh

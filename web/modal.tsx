@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 export function Modal({
   children,
   onClose,
@@ -9,8 +9,10 @@ export function Modal({
   "aria-label": string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    ref.current?.showModal();
+  useLayoutEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
   }, []);
   return (
     <dialog

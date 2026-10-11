@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { Page } from "./layout.js";
 import { Modal } from "./modal.js";
 import React, { useEffect, useState, useRef } from "react";
 import { removeEntry } from "../shared/groups.js";
@@ -8,8 +9,12 @@ export function Documents({
   items,
   categories,
   refreshCatalog,
+  date,
+  onScheduleChange,
 }: {
   kind: string;
+  date: string | null;
+  onScheduleChange: () => Promise<void>;
   items: any[];
   categories: any[];
   refreshCatalog: () => Promise<void>;
@@ -38,13 +43,16 @@ export function Documents({
     itemCreation = useRef(new Map<string, any>()),
     checks = useRef(new Map<string, Promise<any>>()),
     failedChecks = useRef(new Map<string, { docId: string; request: any }>());
-  const refresh = async () => setList(await api("/documents"));
+  const refresh = async () => {
+    setList(await api("/documents"));
+    await onScheduleChange();
+  };
   useEffect(() => {
     setDoc(null);
     setDirty(false);
     setHistory(null);
     void refresh().catch((e) => setStatus(String(e)));
-  }, [kind]);
+  }, [kind, date]);
   useEffect(() => {
     const leave = (e: BeforeUnloadEvent) => {
       if (dirty || checks.current.size || failedChecks.current.size) {
@@ -103,6 +111,7 @@ export function Documents({
         const d = latest.current;
         pending.current = {
           name: d.name,
+          ...(kind === "checklist" ? { useDate: d.useDate ?? null } : {}),
           version: d.version,
           entries: d.entries,
           groups: d.groups,
@@ -116,6 +125,7 @@ export function Documents({
       if (
         current.entries === sent.entries &&
         current.name === sent.name &&
+        (kind !== "checklist" || (current.useDate ?? null) === sent.useDate) &&
         current.groups === sent.groups
       ) {
         const checkedNow = new Map(
@@ -270,9 +280,30 @@ export function Documents({
       ),
     );
   }
+  const create = () =>
+    void attempt(async () => {
+      const name = creation.current?.name || prompt(localized["Name"]);
+      if (!name) return;
+      if (!creation.current)
+        creation.current = {
+          kind,
+          ...(kind === "checklist" ? { useDate: date } : {}),
+          name,
+          entries: [],
+          groups: [],
+          requestId: crypto.randomUUID(),
+        };
+      const d = await api("/documents", "POST", creation.current);
+      creation.current = null;
+      await refresh();
+      await open(d.id);
+    });
   const display = history || doc;
   return (
-    <section>
+    <Page
+      title={kind === "template" ? "Template" : "Checklist"}
+      onCreate={!doc ? create : undefined}
+    >
       <p role="status">{status}</p>
       {failedChecks.current.size > 0 && (
         <button
@@ -383,34 +414,25 @@ export function Documents({
       )}
       {!doc ? (
         <>
-          <button
-            onClick={() =>
-              void attempt(async () => {
-                const name = creation.current?.name || prompt(localized["Name"]);
-                if (!name) return;
-                if (!creation.current)
-                  creation.current = {
-                    kind,
-                    name,
-                    entries: [],
-                    groups: [],
-                    requestId: crypto.randomUUID(),
-                  };
-                const d = await api("/documents", "POST", creation.current);
-                creation.current = null;
-                await refresh();
-                await open(d.id);
-              })
-            }
-          >{localized["\n            New "]}{kind === "template" ? "Template" : "Checklist"}
-          </button>
+          {kind === "checklist" && (
+            <p className="date-heading">
+              {date ? `${date}${localized["fixture.6dcd1653af16"]}` : localized["All checklists"]}
+            </p>
+          )}
           <div className="cards">
             {list
-              .filter((d) => d.kind === kind)
+              .filter(
+                (d) =>
+                  d.kind === kind &&
+                  (kind !== "checklist" || !date || d.useDate === date),
+              )
               .map((d) => (
                 <article key={d.id}>
                   <h3>{d.name}</h3>
                   <p>
+                    {d.useDate && (
+                      <span className="date-badge">{d.useDate} · </span>
+                    )}
                     {d.status === "archived" ? localized["Archived"] : localized["Active"]} · v{d.version}
                   </p>
                   <button onClick={() => void attempt(() => open(d.id))}>{localized["\n                    Open\n                  "]}</button>
@@ -516,6 +538,8 @@ export function Documents({
               <h3>{localized["Confirm "]}{historyAction.action}</h3>
               <p className="error">{status}</p>
               <label>{localized["\n                Name\n                "]}<input
+                  data-1p-ignore="true"
+                  autoComplete="off"
                   value={historyAction.name}
                   onChange={(e) =>
                     setHistoryAction({
@@ -579,6 +603,8 @@ export function Documents({
                   )}
                   {resolutions[i.id]?.mode === "new" && (
                     <input
+                      data-1p-ignore="true"
+                      autoComplete="off"
                       aria-label={localized["fixture.4877ba70dffd"]}
                       value={resolutions[i.id]?.name || ""}
                       onChange={(e) => {
@@ -631,11 +657,26 @@ export function Documents({
             </Modal>
           )}
           <label>{localized["\n            Name\n            "]}<input
+              data-1p-ignore="true"
+              autoComplete="off"
               value={display.name}
               disabled={!!history || doc.status === "archived"}
               onChange={(e) => change({ ...doc, name: e.target.value })}
             />
           </label>
+          {kind === "checklist" && (
+            <label>{localized["\n              Use date\n              "]}<input
+                type="date"
+                aria-label={localized["Use date"]}
+                data-1p-ignore="true"
+                value={display.useDate ?? ""}
+                disabled={!!history || doc.status === "archived"}
+                onChange={(e) =>
+                  change({ ...latest.current, useDate: e.target.value || null })
+                }
+              />
+            </label>
+          )}
           {kind === "template" && (
             <div className="toolbar">
               <label>
@@ -854,6 +895,8 @@ export function Documents({
               {preview.removed.map((e: any) => (
                 <label key={e.id}>
                   <input
+                    data-1p-ignore="true"
+                    autoComplete="off"
                     type="checkbox"
                     disabled={e.direct || e.groupIds.length > 1}
                     checked={removeIds.includes(e.id)}
@@ -900,6 +943,8 @@ export function Documents({
             <article key={e.id} className="entry">
               {kind === "checklist" && (
                 <input
+                  data-1p-ignore="true"
+                  autoComplete="off"
                   aria-label={localized["Check "] + e.name}
                   type="checkbox"
                   disabled={
@@ -913,6 +958,8 @@ export function Documents({
                 />
               )}
               <input
+                data-1p-ignore="true"
+                autoComplete="off"
                 aria-label={localized["Entry name"]}
                 className={"name " + (e.checked ? "checked" : "")}
                 value={
@@ -925,6 +972,8 @@ export function Documents({
               />
               {(["quantity", "unit", "note"] as const).map((field) => (
                 <input
+                  data-1p-ignore="true"
+                  autoComplete="off"
                   key={field}
                   aria-label={field}
                   className={field === "note" ? "name" : "small"}
@@ -987,6 +1036,6 @@ export function Documents({
           ))}
         </>
       )}
-    </section>
+    </Page>
   );
 }

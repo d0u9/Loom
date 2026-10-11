@@ -104,7 +104,7 @@ Mutable resources carry `version`; writes submit the expected version. Stale ver
 
 Checking is an exception: the endpoint submits target state `checked: true|false`, without validating or incrementing the Checklist's structural `version`; the last submission wins. Deleted entries return 404 and archived checklists return a state conflict. Structural edits do not write checked back; archiving reads the latest checked state in its transaction.
 
-Checklist `version` protects entry addition/removal, ordering, quantities, units, notes, and category updates. The preview records the target Checklist/Template version and recursively expanded category set; the apply transaction checks that version and compares the expanded set again. Either mismatch returns 409, requiring a refreshed preview and renewed confirmation. Template category operations first affect the client draft; its confirmed expanded set accompanies explicit save and receives the same checks in the save transaction. Name snapshots use current values at apply/save time.
+Checklist `version` protects entry addition/removal, ordering, quantities, units, notes, use dates, and category updates. The preview records the target Checklist/Template version and recursively expanded category set; the apply transaction checks that version and compares the expanded set again. Either mismatch returns 409, requiring a refreshed preview and renewed confirmation. Template category operations first affect the client draft; its confirmed expanded set accompanies explicit save and receives the same checks in the save transaction. Name snapshots use current values at apply/save time.
 
 Item creation, Checklist creation/instantiation/copying, conversion to Template, explicit Template save, history restoration, and check requests all carry a UUID `requestId`. The server records request scope, content digest, and result in SQLite in the same transaction as business writes. Retrying the same ID/content returns the original result without execution; reusing the ID with different content returns 409. Concurrent duplicates execute only once, remain identifiable after process restart, and committed records do not automatically expire in v1. Creating replacement Items and the target checklist/template in history operations is one request, not separate advance commits. After timeout, the client retries with the original ID/content; if a newer operation exists, confirm the old request result before submitting a new ID. This prevents duplicate creation after lost responses and prevents retries of already-successful old check requests from overwriting newer state from another device.
 
@@ -114,9 +114,23 @@ Create the single account with an initialization command. Web uses secure sessio
 
 ## 5. Web interface and delivery
 
-Visual reference: [Memos](https://github.com/usememos/memos), with warm-gray background, white content cards, light borders, restrained radii/shadows, gray text, and muted blue accents. Start with a light theme, emphasizing content and checking.
+Use [Memos](https://github.com/usememos/memos) as a reference for fonts, sizes, proportions, and information hierarchy, starting with a light theme. Retain warm-gray background, white cards, gray text, and green accents; proportion changes requested by the user do not authorize color changes. Use regular font weights, light borders, restrained radii/shadows, smaller headings/buttons, and no unnecessary explanatory text.
 
-Desktop left navigation: Checklist, Template, Item, Category; phones use bottom navigation. Template/Checklist share an editor; Template shows save/revision, Checklist checkmarks/progress, and category groups sources/Update to latest. Selectors use dialogs on desktop and full-screen pages on phones; Merge/Keep both and update previews must fully work on touch without hover. Controls have accessible names, keyboard operation, and clear focus.
+### Unified page framework
+
+AppLayout in `web/layout.tsx` alone owns left navigation, calendar, mobile navigation, and the right content container; Page alone owns the page title, creation action, and content area. Checklist, Template, Item, and Category list pages use the same framework, with title and creation button on one line and creation buttons aligned at the top and right edge. Edit details may hide the creation action. Pages must not each copy their own sidebar or title layout.
+
+Right content is centered outside the sidebar, with a 960px maximum width and narrow-screen adaptation. The current baseline is 14px body text, 20px page titles, regular weight, roughly 34px desktop buttons/inputs, and at least roughly 40px phone targets. Visual acceptance compares equal-size windows; repeatedly shrinking fonts is not an optimization strategy.
+
+Item/Category reuse catalog editing structure; Template/Checklist reuse the Documents editor, while business fields and save semantics remain independent. Template shows save and revision, Checklist shows checkmarks and use date, and category groups show sources and Update to latest.
+
+### Calendar, forms, and accessibility
+
+Desktop left navigation shares a calendar and Checklist, Template, Item, Category links; phones use bottom navigation and a collapsible calendar. Both calendars use the same Calendar component. Checklist navigation clears date filters and shows all checklists; clicking a day shows that day's checklists. View changes must respect unsaved-change protection.
+
+All business inputs and note fields explicitly use `data-1p-ignore="true"` and `autoComplete="off"` to reduce 1Password suggestions on ordinary name fields and similar inputs. Login retains username/current-password for password managers. Ignore attributes follow [1Password official documentation](https://www.1password.dev/web/compatible-website-design); verify actual extension behavior separately, rather than substituting DOM-attribute tests for extension testing.
+
+Selection, Merge/Keep both, and update previews share Modal. Phone dialogs fit the screen without requiring full-screen presentation. Native dialog focuses the first control on opening, calls close before DOM removal, and restores trigger focus. Support Escape, keyboard operation, and clear focus without relying on hover.
 
 Version-control database migrations. Provide consistent backup/restore commands; do not copy database files during writes while ignoring WAL. Before delivery, verify persistence across container restarts, backup/restore, and complete user flows. Report container size, startup time, and resource usage from actual build measurements.
 
@@ -131,3 +145,7 @@ Follow the confirmed product semantics in this document. API wire schemas are ge
 - M5: Request digests use sorted JSON keys, so field ordering does not affect safe retries. Rate-limit login and configure reverse-proxy trust explicitly. The UI waits for a response before allowing the next toggle of the same entry; failures can retry with the original requestId.
 
 - Standardize package management on pnpm 12.4.1, pinned by packageManager; maintain only pnpm-lock.yaml. Only esbuild installation scripts are allowed; deployments use the frozen lockfile.
+
+### Checklist use date and calendar
+
+Checklist adds nullable `useDate`, a real Gregorian YYYY-MM-DD date without time or timezone. Templates have no scheduled date. SQLite migration 4 adds the column, defaulting old checklists to null; old API PUT requests that omit it retain the current value, while explicit null clears it. Date edits are protected by structural version and requestId. Archive snapshots retain the date and restoration preserves it; copying/instantiation defaults to unscheduled. The desktop sidebar calendar marks dates with checklists, including archives, and filters on click; Checklist navigation clears the date filter and shows all checklists; phones offer a collapsible calendar. Creating a Checklist for the selected date defaults to that date. The column can remain when rolling back to the old application, without deleting data; the old version cannot edit dates during rollback.
