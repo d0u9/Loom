@@ -1,3 +1,4 @@
+import localized from "../locales/zh.json" with { type: "json" };
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -13,11 +14,22 @@ export async function api(path: string, method = "GET", body?: any) {
     headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const data = await response.json();
+  const text = await response.text();
+  const label = `${method} /api/v1${path}${localized["Diagnostic HTTP prefix"]}${response.status}${localized["Diagnostic HTTP suffix"]}`;
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {}
+  if (!data || typeof data !== "object")
+    throw new ApiError(
+      response.ok ? 502 : response.status,
+      `${label}${localized[" returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."]}`,
+    );
   if (!response.ok)
     throw new ApiError(
       response.status,
-      data.message + (data.details ? " " + JSON.stringify(data.details) : ""),
+      (data.message ?? `${label}${localized["fixture.b99864aaa910"]}`) +
+        (data.details ? " " + JSON.stringify(data.details) : ""),
     );
   return data;
 }

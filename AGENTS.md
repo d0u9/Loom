@@ -4,6 +4,7 @@ Loom is a personal Web application centered on Checklist. The API is a formal pr
 
 ## Technology and Scope
 
+- Use pnpm 12.4.1 consistently, pinned by packageManager. Commit pnpm-lock.yaml and use `pnpm install --frozen-lockfile` for verification/deployment. Do not maintain package-lock.json.
 - Use TypeScript, Fastify, React/Vite, and SQLite; one service provides Web static assets and the `/api/v1` API.
 - v1 targets a single user and must work on desktop and mobile. Start with a light theme, visually referencing the simple Memos layout.
 - SQLite is the primary store; historical snapshots may use versioned JSON inside the database. JSON/YAML files are not the primary database.

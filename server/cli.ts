@@ -23,8 +23,8 @@ if (command === "backup") {
         "Account already initialized",
       );
       requireThat(
-        process.env.LOOM_PASSWORD && process.env.LOOM_PASSWORD.length >= 12,
-        "Set LOOM_PASSWORD to at least 12 characters",
+        process.env.LOOM_PASSWORD && process.env.LOOM_PASSWORD.length >= 10,
+        "Set LOOM_PASSWORD to at least 10 characters",
       );
       store.run(
         "INSERT INTO account VALUES(?,?)",

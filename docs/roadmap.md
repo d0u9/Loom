@@ -64,3 +64,10 @@ CLI client, collaboration, offline synchronization, recurring checklist generati
 - Web build JS is approximately 243 kB (approximately 76 kB gzip); this is not container image size.
 - This machine has no Docker, Podman, or other container runtime. Container build, restart persistence, and image-size measurement have not run; M5 is not fully accepted.
 - With Docker available, build/initialize/start per README, create data, then verify persistence with `docker compose restart` and record image size using `docker image inspect`. Backup/restore passed on actual SQLite WAL databases but still needs retesting within persistent volumes.
+
+### pnpm migration verification (2026-10-11)
+
+- Imported from the original npm lockfile, retaining all 15 direct dependency versions. Pin pnpm 12.4.1, remove package-lock.json, and synchronize scripts, Dockerfile, and README. Historical npm acceptance commands remain unchanged.
+- `pnpm install --frozen-lockfile`, `pnpm test` (10 tests), `pnpm run build`, and `pnpm run test:e2e` (4 tests) passed.
+- Frozen installation, tests, and build passed in an independent temporary directory; after `pnpm prune --prod`, compiled API startup and authenticated reads passed, confirming no dependency on tsx/TypeScript or residual old npm installations.
+- Dockerfile is updated; actual container builds remain unverified because no runtime is available. Rollback restores package.json, package-lock.json, Dockerfile, and docs from the pre-migration Git commit, then uses `npm ci`. No SQLite data migration is involved.

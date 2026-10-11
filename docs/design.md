@@ -129,3 +129,5 @@ Follow the confirmed product semantics in this document. API wire schemas are ge
 - M2: Template/Checklist share the `documents` and `entries` relational tables, distinguished by kind. This reuses the same editing structure without changing effective-reference or history rules. Template revisions are stored separately and UPDATE is prohibited. SQLite uses the built-in Node 24 driver.
 
 - M5: Request digests use sorted JSON keys, so field ordering does not affect safe retries. Rate-limit login and configure reverse-proxy trust explicitly. The UI waits for a response before allowing the next toggle of the same entry; failures can retry with the original requestId.
+
+- Standardize package management on pnpm 12.4.1, pinned by packageManager; maintain only pnpm-lock.yaml. Only esbuild installation scripts are allowed; deployments use the frozen lockfile.
