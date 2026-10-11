@@ -1,13 +1,13 @@
 # Loom Roadmap & Milestones
 
-Status: planning; repository baseline files only, no application implementation yet. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
+Status: implementation underway; M1 complete, later phases progress through records below. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
 
 ## Milestones
 
 | Phase | Status | Deliverables | Acceptance criteria |
 | --- | --- | --- | --- |
 | M0 Design and contracts | In progress | Product constraints, Design Doc, Roadmap, draft API contract, desktop/mobile page prototypes | Consistent four concepts and history/deletion/category-source rules; demonstrable main pages/conflict choices; finalized API request/response/error contracts |
-| M1 Foundation and catalog | Not started | TS/Fastify/React/Vite skeleton, SQLite migrations, single-account login, Item/Category API and management pages | Editable Items with multiple categories; category trees reject cycles; active references prevent deletion; restart retains data |
+| M1 Foundation and catalog | Complete | TS/Fastify/React/Vite skeleton, SQLite migrations, single-account login, Item/Category API and management pages | Editable Items with multiple categories; category trees reject cycles; active references prevent deletion; restart retains data |
 | M2 Templates and checklists | Not started | Shared editor, temporary entries, quantity/unit/notes/order, Template revisions, instantiation, Checklist checking/saving | Immutable historical revisions; current names synchronize without changing history; independent instances/templates; each checklist checks independently; failed saves retain edits |
 | M3 Category sources and updates | Not started | Whole-category expansion, source recording, Merge/Keep both, Update to latest preview/application, within-group exclusions | Updates retain data/checking; multiple sources do not incorrectly delete entries; explicit duplicate choices; manual removal does not automatically re-add; version conflicts prevent stale application |
 | M4 History lifecycle | Not started | Archive, restore, copy, convert to template, missing Item handling, Template deletion | Archives read-only and release active references; deleted Item snapshots queryable; users can link/create/retain temporary entries; copying resets checking, restoration retains it; template deletion preserves existing checklists |
@@ -45,3 +45,7 @@ M0 has AGENTS.md, design documents, and roadmap/acceptance definitions. Pending:
 ## After v1
 
 CLI client, collaboration, offline synchronization, recurring checklist generation, and automatic category synchronization are deferred. Future extensions must retain existing historical snapshots and checklist independence. No performance/image-size promises; record measurements after M5.
+
+## Implementation records
+
+- M1 (2026-10-11, this milestone commit): basic Web/API, single-account initialization/login, CSRF, revocable tokens, multiple Item categories, category tree, effective-reference deletion checks, SQLite migration 1. `npm test` passed 2 API/persistence tests; `npm run build` passed. Desktop/mobile visual checks deferred to M5.

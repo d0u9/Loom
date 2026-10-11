@@ -42,3 +42,9 @@ pnpm-debug.log*
 *[Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.txt
 *[Hh][Aa][Nn][Dd][Oo][Vv][Ee][Rr]*.md
 *[Hh][Aa][Nn][Dd]-[Oo][Ff][Ff]*.md
+
+# Loom runtime data
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
