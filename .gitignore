@@ -14,6 +14,29 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 
+# Node.js and TypeScript dependencies, builds, and caches
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+.cache/
+.eslintcache
+
+# JavaScript test coverage and package-manager logs
+coverage/
+.nyc_output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment configuration (keep example files)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
 # Private handoff notes and runtime state belong outside this repository.
 *[Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.md
 *[Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.txt
