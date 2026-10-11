@@ -17,7 +17,10 @@
   },
   "include": [
     "server",
+    "shared",
     "web",
-    "tests"
+    "tests",
+    "e2e",
+    "*.ts"
   ]
 }

@@ -1,0 +1,10 @@
+services:
+  loom:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - loom-data:/data
+    restart: unless-stopped
+volumes:
+  loom-data:

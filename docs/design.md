@@ -1,6 +1,6 @@
 # Loom Design Doc
 
-Status: target design, not yet implemented. This document records confirmed rules and selected implementation defaults; synchronize root AGENTS.md and roadmap when changing them.
+Status: v1 implemented; container acceptance awaits a runtime environment. Evidence is in roadmap. This document records confirmed rules and selected implementation defaults; synchronize root AGENTS.md and roadmap when changing them.
 
 ## 1. Goals and architecture
 
@@ -122,8 +122,10 @@ Version-control database migrations. Provide consistent backup/restore commands;
 
 ## 6. Details to refine during implementation
 
-Follow the confirmed product semantics in this document. Specific API wire schemas, login session library, SQLite driver, component library, and deployment image are not yet installed or implemented. At each milestone, choose the smallest solution meeting requirements and record the decision, without adding extension frameworks in advance.
+Follow the confirmed product semantics in this document. API wire schemas are generated from server runtime validation and response schemas; usage order is in api.md. SQLite uses the built-in Node driver; sessions are stored in SQLite, cookies use a Fastify plugin, and UI uses native controls and modal without a component library. Deployment uses a multi-stage Node 24 slim image, awaiting container-environment acceptance.
 
 ## Implementation decisions
 
 - M2: Template/Checklist share the `documents` and `entries` relational tables, distinguished by kind. This reuses the same editing structure without changing effective-reference or history rules. Template revisions are stored separately and UPDATE is prohibited. SQLite uses the built-in Node 24 driver.
+
+- M5: Request digests use sorted JSON keys, so field ordering does not affect safe retries. Rate-limit login and configure reverse-proxy trust explicitly. The UI waits for a response before allowing the next toggle of the same entry; failures can retry with the original requestId.

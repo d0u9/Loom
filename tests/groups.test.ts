@@ -1,2 +1,120 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {id} from '../server/db.js';import {setup,entry} from './helpers.js';import {removeEntry} from '../shared/groups.js';
-test('recursive previews reject stale members; merge preserves state and all sources',async()=>{const h=await setup();try{const cat=async(name:string,parentId:string|null=null)=>(await h.call('POST','/categories',{name,parentId})).json();const food=await cat('Food'),sub=await cat('Ingredients',food.id),lab=await cat('Lab');const egg=(await h.call('POST','/items',{name:'egg',categoryIds:[sub.id,lab.id],requestId:id()})).json();let d=(await h.call('POST','/documents',{kind:'checklist',name:'Mix',entries:[entry(egg)],groups:[],requestId:id()})).json();await h.call('PUT',`/checklists/${d.id}/entries/${d.entries[0].id}/checked`,{checked:true,requestId:id()});const preview=async(categoryId:string,groupId?:string)=>(await h.call('POST','/documents/'+d.id+'/category-preview',{entries:d.entries,groups:d.groups,version:d.version,categoryId,...(groupId?{groupId}:{})})).json();const apply=async(categoryId:string,p:any,mode='merge')=>{const response=await h.call('POST','/documents/'+d.id+'/category-compose',{entries:d.entries,groups:d.groups,version:d.version,categoryId,expected:p.expected,choices:{[egg.id]:{mode,targetId:d.entries[0].id}},removeIds:[]});assert.equal(response.statusCode,200,response.body);const c=response.json();const saved=await h.call('PUT','/documents/'+d.id,{name:d.name,version:d.version,...c,requestId:id()});assert.equal(saved.statusCode,200,saved.body);d=saved.json();};const first=await preview(food.id);await apply(food.id,first);await apply(lab.id,await preview(lab.id));assert.equal(d.entries.length,1);assert.equal(d.entries[0].groupIds.length,2);assert.equal(d.entries[0].quantity,'2');assert.equal(d.entries[0].checked,true);assert.equal((await h.call('DELETE','/categories/'+food.id,{version:1})).statusCode,409);const stale=await preview(food.id,d.groups[0].id);await h.call('POST','/items',{name:'water',categoryIds:[sub.id],requestId:id()});assert.equal((await h.call('POST','/documents/'+d.id+'/category-compose',{entries:d.entries,groups:d.groups,version:d.version,categoryId:food.id,groupId:d.groups[0].id,expected:stale.expected})).statusCode,409);const added=await preview(lab.id);await apply(lab.id,added,'keep');const group=d.groups[2];assert.equal(d.entries.length,2);const copy={...d.entries[1],id:id()};let content={entries:[...d.entries,copy],groups:d.groups};content=removeEntry(content,copy.id);assert.equal(content.groups.find((g:any)=>g.id===group.id).excluded.length,0);content=removeEntry(content,d.entries[1].id);assert.deepEqual(content.groups.find((g:any)=>g.id===group.id).excluded,[egg.id]);}finally{await h.close();}});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { id } from "../server/db.js";
+import { setup, entry } from "./helpers.js";
+import { removeEntry } from "../shared/groups.js";
+test("recursive previews reject stale members; merge preserves state and all sources", async () => {
+  const h = await setup();
+  try {
+    const cat = async (name: string, parentId: string | null = null) =>
+      (await h.call("POST", "/categories", { name, parentId })).json();
+    const food = await cat("Food"),
+      sub = await cat("Ingredients", food.id),
+      lab = await cat("Lab");
+    const egg = (
+      await h.call("POST", "/items", {
+        name: "egg",
+        categoryIds: [sub.id, lab.id],
+        requestId: id(),
+      })
+    ).json();
+    let d = (
+      await h.call("POST", "/documents", {
+        kind: "checklist",
+        name: "Mix",
+        entries: [entry(egg)],
+        groups: [],
+        requestId: id(),
+      })
+    ).json();
+    await h.call(
+      "PUT",
+      `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
+      { checked: true, requestId: id() },
+    );
+    const preview = async (categoryId: string, groupId?: string) =>
+      (
+        await h.call("POST", "/documents/" + d.id + "/category-preview", {
+          entries: d.entries,
+          groups: d.groups,
+          version: d.version,
+          categoryId,
+          ...(groupId ? { groupId } : {}),
+        })
+      ).json();
+    const apply = async (categoryId: string, p: any, mode = "merge") => {
+      const response = await h.call(
+        "POST",
+        "/documents/" + d.id + "/category-compose",
+        {
+          entries: d.entries,
+          groups: d.groups,
+          version: d.version,
+          categoryId,
+          expected: p.expected,
+          choices: { [egg.id]: { mode, targetId: d.entries[0].id } },
+          removeIds: [],
+        },
+      );
+      assert.equal(response.statusCode, 200, response.body);
+      const c = response.json();
+      const saved = await h.call("PUT", "/documents/" + d.id, {
+        name: d.name,
+        version: d.version,
+        ...c,
+        requestId: id(),
+      });
+      assert.equal(saved.statusCode, 200, saved.body);
+      d = saved.json();
+    };
+    const first = await preview(food.id);
+    await apply(food.id, first);
+    await apply(lab.id, await preview(lab.id));
+    assert.equal(d.entries.length, 1);
+    assert.equal(d.entries[0].groupIds.length, 2);
+    assert.equal(d.entries[0].quantity, "2");
+    assert.equal(d.entries[0].checked, true);
+    assert.equal(
+      (await h.call("DELETE", "/categories/" + food.id, { version: 1 }))
+        .statusCode,
+      409,
+    );
+    const stale = await preview(food.id, d.groups[0].id);
+    await h.call("POST", "/items", {
+      name: "water",
+      categoryIds: [sub.id],
+      requestId: id(),
+    });
+    assert.equal(
+      (
+        await h.call("POST", "/documents/" + d.id + "/category-compose", {
+          entries: d.entries,
+          groups: d.groups,
+          version: d.version,
+          categoryId: food.id,
+          groupId: d.groups[0].id,
+          expected: stale.expected,
+        })
+      ).statusCode,
+      409,
+    );
+    const added = await preview(lab.id);
+    await apply(lab.id, added, "keep");
+    const group = d.groups[2];
+    assert.equal(d.entries.length, 2);
+    const copy = { ...d.entries[1], id: id() };
+    let content = { entries: [...d.entries, copy], groups: d.groups };
+    content = removeEntry(content, copy.id);
+    assert.equal(
+      content.groups.find((g: any) => g.id === group.id).excluded.length,
+      0,
+    );
+    content = removeEntry(content, d.entries[1].id);
+    assert.deepEqual(
+      content.groups.find((g: any) => g.id === group.id).excluded,
+      [egg.id],
+    );
+  } finally {
+    await h.close();
+  }
+});

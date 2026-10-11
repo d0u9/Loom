@@ -1,17 +1,17 @@
 # Loom Roadmap & Milestones
 
-Status: implementation underway; M1 complete, later phases progress through records below. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
+Status: M1–M4 complete; M5 implementation/local verification complete, container acceptance awaits a runtime. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
 
 ## Milestones
 
 | Phase | Status | Deliverables | Acceptance criteria |
 | --- | --- | --- | --- |
-| M0 Design and contracts | In progress | Product constraints, Design Doc, Roadmap, draft API contract, desktop/mobile page prototypes | Consistent four concepts and history/deletion/category-source rules; demonstrable main pages/conflict choices; finalized API request/response/error contracts |
+| M0 Design and contracts | Complete | Product constraints, Design Doc, Roadmap, draft API contract, desktop/mobile page prototypes | Consistent four concepts and history/deletion/category-source rules; demonstrable main pages/conflict choices; finalized API request/response/error contracts |
 | M1 Foundation and catalog | Complete | TS/Fastify/React/Vite skeleton, SQLite migrations, single-account login, Item/Category API and management pages | Editable Items with multiple categories; category trees reject cycles; active references prevent deletion; restart retains data |
 | M2 Templates and checklists | Complete | Shared editor, temporary entries, quantity/unit/notes/order, Template revisions, instantiation, Checklist checking/saving | Immutable historical revisions; current names synchronize without changing history; independent instances/templates; each checklist checks independently; failed saves retain edits |
 | M3 Category sources and updates | Complete | Whole-category expansion, source recording, Merge/Keep both, Update to latest preview/application, within-group exclusions | Updates retain data/checking; multiple sources do not incorrectly delete entries; explicit duplicate choices; manual removal does not automatically re-add; version conflicts prevent stale application |
 | M4 History lifecycle | Complete | Archive, restore, copy, convert to template, missing Item handling, Template deletion | Archives read-only and release active references; deleted Item snapshots queryable; users can link/create/retain temporary entries; copying resets checking, restoration retains it; template deletion preserves existing checklists |
-| M5 Release verification | Not started | Complete OpenAPI, containers, persistent volumes, initialization/backup/restore commands, end-to-end verification | Complete Web/API flows pass; desktop/mobile usable; container restart retains data; backups restore; record measured image size/resources |
+| M5 Release verification | Implementation complete; container acceptance pending | Complete OpenAPI, containers, persistent volumes, initialization/backup/restore commands, end-to-end verification | Complete Web/API flows pass; desktop/mobile usable; container restart retains data; backups restore; record measured image size/resources |
 
 ## Verification priorities
 
@@ -24,7 +24,7 @@ Status: implementation underway; M1 complete, later phases progress through reco
 
 ## Review additions and pending implementation verification
 
-The following five items are incorporated into design/development constraints but not yet implemented and cannot be marked verified.
+The following five items are incorporated into design, development constraints, and implementation; automated coverage/verification results appear in implementation records below.
 
 | Phase | Agreed handling | Specific scenarios requiring verification |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ M0 must translate these rules into request/response contracts; add the above tes
 
 After each phase, record completion date, corresponding commit, and verification commands/results here. Mark unrun checks unverified; page existence alone does not establish completion.
 
-M0 has AGENTS.md, design documents, and roadmap/acceptance definitions. Pending: draft API contract and page prototypes. Other phases not implemented yet.
+M0 has AGENTS.md, design documents, roadmap/acceptance definitions, API usage contract, and runtime-schema-generated OpenAPI. Actual desktop/mobile Web pages and browser verification replace separate prototypes. M1–M5 progress appears below.
 
 ## After v1
 
@@ -48,10 +48,19 @@ CLI client, collaboration, offline synchronization, recurring checklist generati
 
 ## Implementation records
 
-- M1 (2026-10-11, this milestone commit): basic Web/API, single-account initialization/login, CSRF, revocable tokens, multiple Item categories, category tree, effective-reference deletion checks, SQLite migration 1. `npm test` passed 2 API/persistence tests; `npm run build` passed. Desktop/mobile visual checks deferred to M5.
+- M1 (2026-10-11, `00fea71`): basic Web/API, single-account initialization/login, CSRF, revocable tokens, multiple Item categories, category tree, effective-reference deletion checks, SQLite migration 1. `npm test` passed 2 API/persistence tests; `npm run build` passed. Desktop/mobile visual checks deferred to M5.
 
-- M2 (2026-10-11, this milestone commit): shared editor, temporary-to-Item conversion, quantity/unit/note/order, revision queries, instantiation, independent checking, structural saves never overwrite checked, durable request deduplication. `npm test` passed 3 tests; build passed. Missing historical Items are handled in M4.
+- M2 (2026-10-11, `1094e76`): shared editor, temporary-to-Item conversion, quantity/unit/note/order, revision queries, instantiation, independent checking, structural saves never overwrite checked, durable request deduplication. `npm test` passed 3 tests; build passed. Missing historical Items are handled in M4.
 
-- M3 (2026-10-11, this milestone commit): category groups/entry sources, recursive member previews, Merge/Keep both, updates preserve checked, group exclusions and restore. `npm test` passed 4 tests; build passed. Added tests cover child-category membership conflicts, multi-source merging, and exclusion after deleting the last Keep both entry.
+- M3 (2026-10-11, `8d71cd5`): category groups/entry sources, recursive member previews, Merge/Keep both, updates preserve checked, group exclusions and restore. `npm test` passed 4 tests; build passed. Added tests cover child-category membership conflicts, multi-source merging, and exclusion after deleting the last Keep both entry.
 
-- M4 (2026-10-11, this milestone commit): read-only archives, released references, restore/copy/convert-to-template previews and atomic application, three missing-Item choices, static Category restore/relink, and template deletion preserves instances. `npm test` passed 6 tests; build passed. Tests verify resource deletion after archive, checked preservation on restore, checked reset on copy, replacement Item creation, and safe retries.
+- M4 (2026-10-11, `4a3d88a`): read-only archives, released references, restore/copy/convert-to-template previews and atomic application, three missing-Item choices, static Category restore/relink, and template deletion preserves instances. `npm test` passed 6 tests; build passed. Tests verify resource deletion after archive, checked preservation on restore, checked reset on copy, replacement Item creation, and safe retries.
+
+- M5 (2026-10-11, this milestone commit): OpenAPI request/response/authentication contract, non-root multistage image/persistent volume, initialization/online backup/safe restore commands, desktop/mobile E2E, production restart tests, login rate limiting, and native Modal focus behavior. `npm test` passed 10 tests; `npm run build` passed; `npm run test:e2e` passed 4 tests, including Item creation and retry after a lost checked response. `npm audit --omit=dev --audit-level=high` reported 0 vulnerabilities. Desktop/mobile screenshots inspected.
+
+### M5 measurements and remaining acceptance
+
+- Local Node 24.21.0 production-service startup samples are approximately 225–265 ms, with approximately 96–105 MiB RSS afterward; these measure single-user startup with empty/small databases, not promised load capacity.
+- Web build JS is approximately 243 kB (approximately 76 kB gzip); this is not container image size.
+- This machine has no Docker, Podman, or other container runtime. Container build, restart persistence, and image-size measurement have not run; M5 is not fully accepted.
+- With Docker available, build/initialize/start per README, create data, then verify persistence with `docker compose restart` and record image size using `docker image inspect`. Backup/restore passed on actual SQLite WAL databases but still needs retesting within persistent volumes.

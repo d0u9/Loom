@@ -48,3 +48,7 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# Browser test output
+/test-results/
+/playwright-report/
