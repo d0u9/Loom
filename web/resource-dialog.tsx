@@ -3,7 +3,7 @@ import { Button } from "./button.js";
 import React from "react";
 import { Modal } from "./modal.js";
 
-export function ResourceDialog({
+export function ResourceForm({
   title,
   name,
   onNameChange,
@@ -29,39 +29,48 @@ export function ResourceDialog({
   children?: React.ReactNode;
 }) {
   return (
-    <Modal aria-label={title} onClose={onClose}>
-      <form
-        className="resource-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}
-      >
-        <h3>{title}</h3>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        <fieldset className="form-fields" disabled={fieldsDisabled}>
-          <label>{localized["\n            Name\n            "]}<input
-              required
-              maxLength={200}
-              data-1p-ignore="true"
-              autoComplete="off"
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-            />
-          </label>
-          {children}
-        </fieldset>
-        <div className="form-actions">
-          <Button type="submit" variant="primary" disabled={submitDisabled}>
-            {submitLabel}
-          </Button>
-          <Button type="button" disabled={cancelDisabled} onClick={onClose}>{localized["\n            Cancel\n          "]}</Button>
-        </div>
-      </form>
+    <form
+      className="resource-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      <h3>{title}</h3>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <fieldset className="form-fields" disabled={fieldsDisabled}>
+        <label>{localized["\n          Name\n          "]}<input
+            autoFocus
+            required
+            maxLength={200}
+            data-1p-ignore="true"
+            autoComplete="off"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+          />
+        </label>
+        {children}
+      </fieldset>
+      <div className="form-actions">
+        <Button type="submit" variant="primary" disabled={submitDisabled}>
+          {submitLabel}
+        </Button>
+        <Button type="button" disabled={cancelDisabled} onClick={onClose}>{localized["\n          Cancel\n        "]}</Button>
+      </div>
+    </form>
+  );
+}
+
+export function ResourceDialog(
+  props: React.ComponentProps<typeof ResourceForm>,
+) {
+  return (
+    <Modal aria-label={props.title} onClose={props.onClose}>
+      <ResourceForm {...props} />
     </Modal>
   );
 }

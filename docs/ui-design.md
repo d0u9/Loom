@@ -98,7 +98,8 @@ Collections share [Collection / RecordCard](../web/collection.tsx):
 - Card edit/delete stay at the upper right; list information/actions share one line and actions do not trigger opening.
 - Lists use the same white panel and thin separators, aligning name, information, and action columns.
 - Item categories appear as tags; card notes use 12px / 18px and reserve 36px for two lines even when absent. Long notes are truncated only visually, without losing content; lists show no persistent notes.
-- Category members show name and membership on one line, without check circles or a second Direct member line. Removing a relationship does not delete the Item.
+- Category members show name, smaller Item notes, and removal on one line, without repeating the current category name, check circles, or a second Direct member line. Removing a relationship does not delete the Item.
+- The Category add-member dialog offers a collapsible New Item action below, expanding shared ResourceForm/ItemFields inside the same dialog and defaulting to the current category; after saving, the Item appears in the current member list.
 - Sort by dragging cards/rows directly, without handles; retain keyboard ordering. Internal actions do not start dragging, and finishing a drag does not open records.
 
 ## 6. Editor and dialogs
@@ -136,3 +137,11 @@ Cards/list rows show no mouse-selection outline; hover fades background over 180
 Group input uses shared web/combobox.tsx, never native datalist. Dropdown matches input width with white background, thin border, and light shadow; options reuse public Button and green current/keyboard-focus styling. Support filtering, existing groups, new names, Ungrouped, and arrows/Enter. Escape closes the dropdown before the dialog; leaving the field closes it; disable browser autofill.
 
 The group bar sticks to the top while long Item lists scroll, with maximum height min(35dvh, 240px) and internal overflow scrolling so it does not cover all phone content. Combobox arrow navigation scrolls only the options panel to reveal the active option; initial ArrowUp selects the last option and ArrowDown the first. On mouse down, capture the original target pointer to prevent losing drag when initial fast movement leaves the entry.
+
+## Shared Item presentation
+
+Active Item entries in Item catalog, Category members, Template, and Checklist share ItemSummary from `web/item-summary.tsx`, showing name, Item notes, Group, and category tags. Lists share name/notes/tags columns; cards share vertical layout and reserved note space. Category omits its current category tag to avoid repetition. Template/Checklist quantity, unit, entry notes, sources, and checkmarks are not Item information and stay outside shared presentation. Historical revisions/archives continue using snapshots without reading latest Item metadata.
+
+ItemSummary lists explicitly fix name/notes/tags as columns 1/2/3; empty notes retain space and tags never shift left. List notes are at most 240px wide, fading over the last 24px when long on one line; cards reserve 36px/two lines and fade downward on the second line on overflow. Apply masks only on actual overflow; full notes remain in data/title without storage truncation.
+
+Inline/card-corner actions prefer Button variant="icon" and shared Icon without persistent text, providing aria-label/title. Larger primary actions (new/add/save) use icon/text; ordinary form confirm/cancel may retain text. Category member removal uses close, removing membership only.

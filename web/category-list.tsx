@@ -1,8 +1,12 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { ItemSummary } from "./item-summary.js";
+import { Icon } from "./layout.js";
 import { Button } from "./button.js";
 import { Collection, RecordCard } from "./collection.js";
 import { Modal } from "./modal.js";
-import { api } from "./client.js";
+import { ResourceForm } from "./resource-dialog.js";
+import { ItemFields } from "./item-fields.js";
+import { api, ApiError } from "./client.js";
 import React, { useState, useEffect, useRef } from "react";
 
 export function CategoryList({
@@ -13,6 +17,7 @@ export function CategoryList({
   items,
   onOpen,
   onEdit,
+  itemGroups,
   onMembers,
   onSorted,
 }: {
@@ -23,11 +28,43 @@ export function CategoryList({
   items: any[];
   onOpen: (id: string | null) => void;
   onEdit: (item: any) => void;
+  itemGroups: string[];
   onMembers: (item: any, categoryIds: string[]) => Promise<void>;
   onSorted: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<any>(null);
+  const [createError, setCreateError] = useState("");
+  const createPending = useRef<any>(null);
+  useEffect(() => {
+    if (!adding) {
+      setDraft(null);
+      setCreateError("");
+    }
+  }, [adding]);
+  async function createMember() {
+    if (busy) return;
+    setBusy(true);
+    setCreateError("");
+    createPending.current ??= {
+      ...draft,
+      itemGroup: draft.itemGroup?.trim() || null,
+      requestId: crypto.randomUUID(),
+    };
+    try {
+      await api("/items", "POST", createPending.current);
+      await onSorted();
+      createPending.current = null;
+      setDraft(null);
+      onCloseAdd();
+    } catch (e) {
+      if (e instanceof ApiError && e.status < 500) createPending.current = null;
+      setCreateError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   const [order, setOrder] = useState<{
     itemIds: string[];
     version: number;
@@ -109,13 +146,18 @@ export function CategoryList({
         </div>
       )}
       {adding && (
-        <Modal aria-label={localized["Add members"]} onClose={onCloseAdd}>
+        <Modal
+          aria-label={localized["Add members"]}
+          onClose={() => {
+            if (!busy && !createPending.current) onCloseAdd();
+          }}
+        >
           <h3>{localized["Add members"]}</h3>
           <div className="member-picker">
             <label>{localized["fixture.80bb5fdf0aea"]}<select
                 aria-label={localized["fixture.96e7231a24a2"]}
                 value={selected}
-                disabled={busy}
+                disabled={busy || !!createPending.current}
                 onChange={(e) => setSelected(e.target.value)}
               >
                 <option value="">{localized["fixture.420ecfe42f1c"]}</option>
@@ -131,6 +173,7 @@ export function CategoryList({
             <Button
               disabled={
                 busy ||
+                !!createPending.current ||
                 !items.some(
                   (i) =>
                     i.id === selected && !i.categoryIds.includes(category.id),
@@ -141,6 +184,53 @@ export function CategoryList({
                 if (item) void update(item, [...item.categoryIds, category.id]);
               }}
             >{localized["\n              Add members\n            "]}</Button>
+          </div>
+          <div className="member-create">
+            <Button
+              disabled={busy || !!createPending.current}
+              aria-expanded={!!draft}
+              aria-controls="new-category-item"
+              onClick={() =>
+                setDraft(
+                  draft
+                    ? null
+                    : {
+                        name: "",
+                        note: "",
+                        itemGroup: null,
+                        categoryIds: [category.id],
+                      },
+                )
+              }
+            >{localized["fixture.8395b2b50601"]}</Button>
+            {draft && (
+              <div id="new-category-item">
+                <ResourceForm
+                  title={localized["fixture.aa7084084271"]}
+                  name={draft.name}
+                  onNameChange={(name) => setDraft({ ...draft, name })}
+                  error={createError}
+                  fieldsDisabled={busy || !!createPending.current}
+                  submitDisabled={busy}
+                  cancelDisabled={busy || !!createPending.current}
+                  submitLabel={
+                    createPending.current ? localized["Retry save"] : localized["Create and add"]
+                  }
+                  onSubmit={() => void createMember()}
+                  onClose={() => {
+                    setDraft(null);
+                    setCreateError("");
+                  }}
+                >
+                  <ItemFields
+                    value={draft}
+                    onChange={setDraft}
+                    categories={categories}
+                    itemGroups={itemGroups}
+                  />
+                </ResourceForm>
+              </div>
+            )}
           </div>
         </Modal>
       )}
@@ -172,8 +262,7 @@ export function CategoryList({
                       return (
                         <Button
                           key={id}
-                          variant="ghost"
-                          className="membership-tag"
+                          variant="icon"
                           disabled={busy}
                           aria-label={localized["From "] + name + localized[" Remove"]}
                           title={localized["From "] + name + localized[" Remove"]}
@@ -186,8 +275,7 @@ export function CategoryList({
                             )
                           }
                         >
-                          <span>{name}</span>
-                          <span aria-hidden="true">×</span>
+                          <Icon name="close" />
                         </Button>
                       );
                     })}
@@ -197,7 +285,11 @@ export function CategoryList({
                 if (!busy) onEdit(item);
               }}
             >
-              <h3>{item.name}</h3>
+              <ItemSummary
+                item={item}
+                categories={categories}
+                currentCategoryId={category.id}
+              />
             </RecordCard>
           ))}
         </Collection>

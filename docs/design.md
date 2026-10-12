@@ -185,6 +185,8 @@ Checklist adds nullable `useDate`, a real Gregorian YYYY-MM-DD date without time
 
 ### Category member details
 
+Add members supports existing Item selection or direct creation. Creation sits below existing-member selection and expands/collapses the shared Item form within the current dialog, defaulting the current Category. Item creation/category relationships save in the same Item POST transaction. Cancel creates nothing; failure retains the form and retries with requestId.
+
 Category cards open their own member list, deduplicated by Item ID. Details reuse Page/AppLayout, with no parent/child category links. Adding an existing Item creates a relationship with the current category; removal removes only the current category relationship, retaining other category relationships and the Item itself. Item editing reuses the catalog dialog and versioned Item API, without a separate data source or database migration.
 
 ### Collection views and opening records
@@ -195,7 +197,7 @@ Card/list switching changes only Collection content layout; Page and the top act
 
 ### Single-line Category members and ordering
 
-Member entries use one line for name, right-side category tags, and removal, with no second-line category relationships, notes, or checked state. Relationships/removal appear directly on inline category tags, not hidden in More. Retain header Add members and remove the back/member-count toolbar. Card edit/delete stay at the upper right. Page header background, position, and width retain existing rules rather than changing with the reference panel style.
+Member entries use one line for name, smaller notes, and right-side removal, without repeating the current category name, showing second-line category relationships, or checked state. Removal appears directly inline, not hidden in More. Retain header Add members and remove the back/member-count toolbar. Card edit/delete stay at the upper right. Page header background, position, and width retain existing rules rather than changing with the reference panel style.
 
 Category order is stored as categoryId/itemId/position in migration 5's category_order. Order affects only that category's member details, not Item identity or existing templates/checklists. Direct members are deduplicated by ID, ordered members appear first, and new members append. Ignore invalid relationships; resource deletion cascades to ordering rows, which do not count as effective references. GET/PUT order manages this through the API; PUT validates the version and full direct-member set in a transaction, preserves existing order on failure, and retries with the original requestId. The migration adds a table that can remain when rolling back the application.
 
@@ -236,3 +238,7 @@ At startup, read auth.enabled from loom.config.json, defaulting to true. Explici
 Anonymous non-Bearer writes must use process-level csrf returned by /session and validate Origin when supplied. Valid tokens still work; invalid tokens cannot bypass validation. Default mode retains secure sessions and revocable tokens. Re-enabling authentication changes neither accounts, database content, nor history; if no account exists in anonymous mode, initialize one before enabling authentication. Configuration changes require restart; a missing default file retains authentication, while a missing explicit path or invalid configuration fails startup. Disabling authentication means anyone who can reach the service over the network can read and modify data.
 
 Item Group tags accept direct Item drops: cards/lists use the shared drag component, with mouse drag or phone long-press drag to a target group replacing the unique itemGroup. Ungrouped clears it; All is only a filter. Preserve other fields and Category relationships, using the existing Item PUT and version; refresh on success, show an error and retain original data on failure. Group tags wrap and drop targets highlight; keyboard users change Group through the shared edit dialog.
+
+### Shared Item presentation
+
+Active Item presentation in Item, Category, Template, and Checklist consistently reuses ItemSummary (name, Item notes, Group, categories); Category omits the current category tag. Document-entry notes and Item notes are independent data: the former stay editable and the latter are read-only. Historical content retains existing snapshot semantics without adding current Item metadata.

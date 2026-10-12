@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 
-export type Config = { auth: { enabled: boolean } };
+// loginRateLimit: login attempts per minute; production keeps the default 10.
+export type Config = { auth: { enabled: boolean; loginRateLimit?: number } };
 export const defaultConfig: Config = { auth: { enabled: true } };
 
 export function readConfig(
@@ -22,10 +23,19 @@ export function readConfig(
       !value.auth ||
       Array.isArray(value.auth) ||
       typeof value.auth !== "object" ||
-      Object.keys(value.auth).some((key) => key !== "enabled") ||
-      typeof value.auth.enabled !== "boolean"
+      Object.keys(value.auth).some(
+        (key) => key !== "enabled" && key !== "loginRateLimit",
+      ) ||
+      typeof value.auth.enabled !== "boolean" ||
+      (value.auth.loginRateLimit !== undefined &&
+        !(
+          Number.isInteger(value.auth.loginRateLimit) &&
+          value.auth.loginRateLimit > 0
+        ))
     )
-      throw new Error('Expected {"auth":{"enabled":true|false}}');
+      throw new Error(
+        'Expected {"auth":{"enabled":true|false,"loginRateLimit"?:positive integer}}',
+      );
     return value;
   } catch (error) {
     throw new Error(`Invalid Loom config ${path}: ${String(error)}`);

@@ -1,5 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
-import { Combobox } from "./combobox.js";
+import { ItemSummary } from "./item-summary.js";
+import { ItemFields } from "./item-fields.js";
 import { Button } from "./button.js";
 import { useRoute, resourcePath, matchesSearch } from "./router.js";
 import { CategoryList } from "./category-list.js";
@@ -224,6 +225,7 @@ function App() {
               key={currentCategory.id}
               adding={addingMembers}
               onCloseAdd={() => setAddingMembers(false)}
+              itemGroups={itemGroups}
               onSorted={refresh}
               category={currentCategory}
               categories={categories}
@@ -390,41 +392,15 @@ function App() {
                         </>
                       }
                     >
-                      <h3>{x.name}</h3>
                       {section === "Item" ? (
-                        <div className="item-details">
-                          <p className="item-note" title={x.note}>
-                            {x.note}
-                          </p>
-                          <div
-                            className="category-tags"
-                            aria-label={localized["Group and categories"]}
-                            title={x.categoryIds
-                              .map(categoryName)
-                              .filter(Boolean)
-                              .join(" · ")}
-                          >
-                            <span
-                              className="category-tag item-group-tag"
-                              aria-label={localized["Group label prefix"] + (x.itemGroup || localized["Ungrouped"])}
-                              title={localized["Group label prefix"] + (x.itemGroup || localized["Ungrouped"])}
-                            >
-                              Group · {x.itemGroup || localized["Ungrouped"]}
-                            </span>
-                            {x.categoryIds.slice(0, 2).map(
-                              (id: string) =>
-                                categoryName(id) && (
-                                  <span className="category-tag" key={id}>
-                                    {categoryName(id)}
-                                  </span>
-                                ),
-                            )}
-                          </div>
-                        </div>
+                        <ItemSummary item={x} categories={categories} />
                       ) : (
-                        <div className="category-tags" aria-label={localized["Parent category"]}>
-                          <span className="empty">{localized["Category"]}</span>
-                        </div>
+                        <>
+                          <h3>{x.name}</h3>
+                          <div className="category-tags" aria-label={localized["Parent category"]}>
+                            <span className="empty">{localized["Category"]}</span>
+                          </div>
+                        </>
                       )}
                     </RecordCard>
                   ))}
@@ -482,54 +458,12 @@ function App() {
               }}
             >
               {editingKind === "Item" ? (
-                <>
-                  <Combobox
-                    label="Group"
-                    value={editing.itemGroup ?? ""}
-                    options={itemGroups}
-                    onChange={(itemGroup) =>
-                      setEditing({ ...editing, itemGroup })
-                    }
-                  />
-                  <label>{localized["\n                    Note\n                    "]}<textarea
-                      data-1p-ignore="true"
-                      autoComplete="off"
-                      value={editing.note}
-                      onChange={(e) =>
-                        setEditing({ ...editing, note: e.target.value })
-                      }
-                    />
-                  </label>
-                  <fieldset className="category-choice-field">
-                    <legend>{localized["Categories"]}</legend>
-                    <div className="category-choices">
-                      {categories.length === 0 && (
-                        <p className="empty">{localized["No categories yet. You can add them later."]}</p>
-                      )}
-                      {categories.map((c) => (
-                        <label key={c.id}>
-                          <input
-                            data-1p-ignore="true"
-                            autoComplete="off"
-                            type="checkbox"
-                            checked={editing.categoryIds.includes(c.id)}
-                            onChange={(e) =>
-                              setEditing({
-                                ...editing,
-                                categoryIds: e.target.checked
-                                  ? [...editing.categoryIds, c.id]
-                                  : editing.categoryIds.filter(
-                                      (k: string) => k !== c.id,
-                                    ),
-                              })
-                            }
-                          />
-                          {c.name}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                </>
+                <ItemFields
+                  value={editing}
+                  onChange={setEditing}
+                  categories={categories}
+                  itemGroups={itemGroups}
+                />
               ) : null}
             </ResourceDialog>
           )}

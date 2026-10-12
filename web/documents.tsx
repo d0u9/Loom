@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { ItemSummary } from "./item-summary.js";
 import { Button } from "./button.js";
 import { matchesSearch } from "./router.js";
 import { ResourceDialog } from "./resource-dialog.js";
@@ -1348,6 +1349,25 @@ export function Documents({
                     index = display.entries.findIndex(
                       (x: any) => x.id === e.id,
                     );
+                  const linkedItem =
+                    !history && doc.status === "active"
+                      ? items.find((i) => i.id === e.itemId)
+                      : null;
+                  const nameControl = (
+                    <input
+                      data-1p-ignore="true"
+                      autoComplete="off"
+                      aria-label={localized["Entry name"]}
+                      className={"name " + (e.checked ? "checked" : "")}
+                      value={linkedItem?.name || e.name}
+                      disabled={
+                        !!e.itemId || !!history || doc.status === "archived"
+                      }
+                      onChange={(ev) =>
+                        updateEntry(e.id, { name: ev.target.value })
+                      }
+                    />
+                  );
                   return (
                     <div
                       key={e.id}
@@ -1372,24 +1392,16 @@ export function Documents({
                           onChange={(ev) => checked(e, ev.target.checked)}
                         />
                       )}
-                      <input
-                        data-1p-ignore="true"
-                        autoComplete="off"
-                        aria-label={localized["Entry name"]}
-                        className={"name " + (e.checked ? "checked" : "")}
-                        value={
-                          e.itemId && !history && doc.status === "active"
-                            ? items.find((i) => i.id === e.itemId)?.name ||
-                              e.name
-                            : e.name
-                        }
-                        disabled={
-                          !!e.itemId || !!history || doc.status === "archived"
-                        }
-                        onChange={(ev) =>
-                          updateEntry(e.id, { name: ev.target.value })
-                        }
-                      />
+                      {linkedItem ? (
+                        <ItemSummary
+                          item={linkedItem}
+                          categories={categories}
+                          name={nameControl}
+                          maxTags={1}
+                        />
+                      ) : (
+                        nameControl
+                      )}
                       {(["quantity", "unit", "note"] as const).map((field) => (
                         <input
                           data-1p-ignore="true"

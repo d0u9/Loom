@@ -56,6 +56,19 @@ test("Item category badges and reserved note space align cards", async ({
       .locator(".item-note")
       .evaluate((el) => getComputedStyle(el).fontSize),
   ).toBe("12px");
+  await page
+    .locator(".page-header")
+    .getByRole("button", { name: localized["List"], exact: true })
+    .click();
+  const longNote = a.locator(".item-note");
+  expect((await longNote.boundingBox())!.width).toBeLessThanOrEqual(240);
+  expect(
+    await longNote.evaluate((el) => getComputedStyle(el).textOverflow),
+  ).toBe("ellipsis");
+  const left = (await a.locator(".item-group-tag").boundingBox())!.x;
+  const right = (await b.locator(".item-group-tag").boundingBox())!.x;
+  expect(Math.abs(left - right)).toBeLessThan(1);
+  await expect(b.locator(".item-note")).toBeVisible();
   await page.screenshot({
     path: `test-results/${info.project.name}-item-badges.png`,
     fullPage: true,

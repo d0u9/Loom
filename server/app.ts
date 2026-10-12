@@ -129,7 +129,12 @@ export async function app(store: Store, config: Config = defaultConfig) {
       schema: body ? { body } : undefined,
       config:
         url === "/login"
-          ? { rateLimit: { max: 10, timeWindow: 60000 } }
+          ? {
+              rateLimit: {
+                max: config.auth.loginRateLimit ?? 10,
+                timeWindow: 60000,
+              },
+            }
           : undefined,
       handler: fn,
     });

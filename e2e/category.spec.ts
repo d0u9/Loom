@@ -40,8 +40,7 @@ test("category details show direct members and remove only the chosen membership
     categoryIds: [],
     requestId: crypto.randomUUID(),
   });
-  await page.reload();
-  await page.getByRole("link", { name: "Category", exact: true }).click();
+  await page.goto("/categories");
   await page
     .locator(".page-header")
     .getByRole("button", { name: localized["List"], exact: true })
@@ -110,6 +109,8 @@ test("category details show direct members and remove only the chosen membership
   await page.getByLabel(localized["Note"], { exact: true }).fill("Updated note");
   await page.getByRole("button", { name: localized["Save"], exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(member.locator(".item-note")).toHaveText("Updated note");
+  await expect(member.getByText(parent.name, { exact: true })).toHaveCount(0);
   await member
     .getByRole("button", { name: localized["From "] + parent.name + localized[" Remove"], exact: true })
     .click();
@@ -134,6 +135,83 @@ test("category details show direct members and remove only the chosen membership
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("heading", { name: other.name, exact: true }),
+  ).toBeVisible();
+  const openCreate = async () => {
+    if (
+      !(await page
+        .getByRole("dialog", { name: localized["Add members"], exact: true })
+        .count())
+    )
+      await page
+        .locator(".page-header")
+        .getByRole("button", { name: localized["Add members"], exact: true })
+        .click();
+    await page
+      .getByRole("dialog", { name: localized["Add members"], exact: true })
+      .getByRole("button", { name: localized["fixture.aa7084084271"], exact: true })
+      .click();
+  };
+  await openCreate();
+  const creation = page.locator("#new-category-item");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    creation.getByRole("checkbox", { name: parent.name, exact: true }),
+  ).toBeChecked();
+  await creation.getByLabel(localized["Name"], { exact: true }).fill("Cancelled member");
+  await creation.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+  expect(
+    (await (await page.request.get("/api/v1/items")).json()).some(
+      (i: any) => i.name === "Cancelled member",
+    ),
+  ).toBe(false);
+  await openCreate();
+  const newName = "New member " + info.project.name;
+  await creation.getByLabel(localized["Name"], { exact: true }).fill(newName);
+  await creation
+    .getByLabel(localized["Note"], { exact: true })
+    .fill("Created in category");
+  const requests: any[] = [];
+  await page.route("**/api/v1/items", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    requests.push(route.request().postDataJSON());
+    if (requests.length === 1) {
+      await route.fetch();
+      await route.fulfill({
+        status: 500,
+        json: { message: "Temporary failure" },
+      });
+    } else await route.continue();
+  });
+  await creation
+    .getByRole("button", { name: localized["Create and add"], exact: true })
+    .click();
+  await expect(creation.getByRole("alert")).toBeVisible();
+  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue(
+    newName,
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await creation.getByRole("button", { name: localized["Retry save"], exact: true }).click();
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: newName, exact: true }),
+  ).toBeVisible();
+  const created = (await (await page.request.get("/api/v1/items")).json()).find(
+    (i: any) => i.name === newName,
+  );
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(requests[0]);
+  expect(
+    (await (await page.request.get("/api/v1/items")).json()).filter(
+      (i: any) => i.name === newName,
+    ),
+  ).toHaveLength(1);
+  expect(created.categoryIds).toEqual([parent.id]);
+  expect(created.note).toBe("Created in category");
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: newName, exact: true }),
   ).toBeVisible();
   await page
     .locator(".page-header")

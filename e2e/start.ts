@@ -12,7 +12,10 @@ store.run(
 );
 // Simulated desktop/mobile clients arrive through the local test proxy.
 process.env.TRUST_PROXY = "loopback";
-const server = await app(store);
+// Every spec logs in, so a full run exceeds the production limit of 10/minute.
+const server = await app(store, {
+  auth: { enabled: true, loginRateLimit: 1000 },
+});
 await server.listen({ host: "127.0.0.1", port: 3100 });
 for (const signal of ["SIGTERM", "SIGINT"] as const)
   process.on(signal, async () => {

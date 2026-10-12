@@ -289,3 +289,29 @@ This section records design-stage plans; implementation/verification appears in 
 - Fix long-list group labels leaving the screen: Group bar sticks to the top, limited to min(35dvh, 240px), with extra labels scrolling internally. Fix initial rapid movement off a card losing mouse dragging: capture the original target pointer on press, retaining normal clicks.
 - Fix invisible active Combobox keyboard options and initial ArrowUp skipping the last option: scroll only the options container; initial Up/Down selects last/first respectively.
 - Build and 8 desktop/mobile regressions passed, adding 25-group dropdown visibility, first/last switching, and dragging from long-list bottom to top labels; original group editing/drop/cancellation/failure and category sorting passed. Not committed; real phones/containers not tested.
+
+## Create members directly in Category (2026-10-12)
+
+- Add member modal adds "New Item", reusing catalog ResourceDialog and defaulting to the current category; creation/category relationships use Item POST in one transaction with requestId retries. Cancel writes nothing; success refreshes the current member list.
+- Build and two desktop/simulated-mobile Category regressions passed, covering existing-member addition, creation, cancellation, category defaults, saved notes, and persistence after refresh. Not committed; real phones not tested.
+- Pending investigation: simulated mobile clicking bottom Category navigation with long Item content reports content/html interception in Playwright; increasing navigation z-index alone did not help and was reverted. This regression directly opened /categories to verify member operations, without counting mobile navigation as passed.
+
+## Inline creation in Category (2026-10-12)
+
+- Move "New Item" below existing-member selection following feedback, expanding within the current Modal. Extract shared ResourceForm and ItemFields so catalog modals/category inline creation share fields. Cancel collapses; default current category; creation failures retain form/requestId.
+- Build and two desktop/simulated-mobile Category regressions passed, verifying expand/cancel, creation with category membership, refresh persistence, and same-request retries without duplication after successful server writes with failed responses. Desktop catalog-form regression passed; combined mobile catalog-form run timed out but passed separately. Not committed; real phones not tested.
+
+## Simplified Category member information (2026-10-12)
+
+- Member rows do not repeat the current category name; right side directly shows "Remove". Small Item notes appear beside names on one line, truncating long notes with full hints. Cards/lists reuse identical content.
+- Build and desktop/simulated-mobile Category regressions passed, covering updated note display, no repeated category names, and removal unlinking only the current relationship. Not committed; real phones not tested.
+
+## Shared Item display across four pages (2026-10-12)
+
+- Add ItemSummary: Item catalog/Category members/current Template/active Checklist share names, Item notes, Group, category tags, and card/list styles. Categories do not repeat the current category. Retain document quantities, units, entry notes, sources, checked states, and historical snapshots.
+- Build and 6 existing desktop/simulated-mobile regressions passed; 2 new four-page content-consistency regressions passed, verifying independent Item/entry notes, retained group tags/quantities, and no mobile horizontal overflow. Not committed; real devices not tested.
+
+## Fixed Item positions and note fade-out (2026-10-12)
+
+- Shared ItemSummary explicitly fixes each element's grid position, reserving empty-note space. List notes have a maximum 240px width with end fading; cards reserve two lines and fade downward. ResizeObserver enables masks only for actual overflow; full content is retained.
+- Build and 4 desktop/simulated-mobile regressions passed, verifying tags share columns with/without notes, note-width limits, overflow masks, and shared four-page content. Not committed; real devices not tested.
