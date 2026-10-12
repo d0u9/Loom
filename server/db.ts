@@ -93,7 +93,7 @@ export class Store {
       }
       const result = fn();
       this.run(
-        "INSERT INTO requests VALUES(?,?,?,?)",
+        "INSERT INTO requests(id,scope,digest,result) VALUES(?,?,?,?)",
         body.requestId,
         scope,
         digest,
@@ -206,7 +206,7 @@ ${schema}
 INSERT INTO account SELECT * FROM old_account;
 INSERT INTO sessions SELECT * FROM old_sessions;
 INSERT INTO tokens SELECT * FROM old_tokens;
-INSERT INTO requests SELECT * FROM old_requests;
+INSERT INTO requests(id,scope,digest,result) SELECT id,scope,digest,result FROM old_requests;
 INSERT INTO items(id,name,note,itemGroup,version) SELECT id,name,note,itemGroup,version FROM old_items;
 INSERT INTO categories SELECT id,name,version FROM old_categories;
 INSERT INTO item_categories SELECT r.itemId,r.categoryId,o.position FROM old_item_categories r LEFT JOIN old_category_order o USING(itemId,categoryId);

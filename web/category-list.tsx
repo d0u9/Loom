@@ -271,7 +271,7 @@ export function CategoryList({
                             )
                           }
                         >
-                          <Icon name="close" />
+                          <Icon name="trash" />
                         </Button>
                       );
                     })}

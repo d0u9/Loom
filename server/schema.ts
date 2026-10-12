@@ -149,6 +149,7 @@ export function responseSchema(url: string, method: string) {
       name: text,
       version: { type: "integer" },
       duplicates: list(object({ itemId: uuid, entries: list(entry) })),
+      sectionChanges: list(section),
     });
   if (path.endsWith("/category-preview"))
     return object({

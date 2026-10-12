@@ -34,11 +34,12 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   ).json();
   await page.goto("/checklists/" + doc.id);
   const names = () =>
-    page
-      .locator(".entry[data-sort-id] .name")
-      .evaluateAll((els) =>
-        els.map((el) => (el as HTMLInputElement).value.slice(0, 1)),
-      );
+    page.locator(".entry[data-sort-id] .name").evaluateAll((els) =>
+      // Idle temporary names render as buttons, editing ones as inputs.
+      els.map((el) =>
+        ((el as HTMLInputElement).value || el.textContent!).slice(0, 1),
+      ),
+    );
   await expect.poll(names).toEqual(["A", "B", "C"]);
   await expect(page.getByRole("button", { name: new RegExp(localized["fixture.cfc7ae4882ff"], "") })).toHaveCount(0);
 
@@ -73,16 +74,21 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
     await page.mouse.down();
     await page.mouse.move(to.x + 4, to.y + 4, { steps: 8 });
     // The row copy follows the pointer and a line marks the landing spot.
-    await expect(page.locator(".drag-preview .name")).toHaveValue(/^C/);
+    await expect(page.locator(".drag-preview .name")).toHaveText(/^C/);
     await expect(rows.nth(0)).toHaveClass(/drop-before/);
     await page.mouse.up();
     await expect(page.locator(".drag-preview, .drop-before")).toHaveCount(0);
     await expect.poll(names).toEqual(["C", "B", "A"]);
   }
 
-  await page
-    .getByRole("button", { name: localized["fixture.beef2896db00"] + info.project.name })
-    .click();
+  const note = page.getByRole("button", {
+    name: localized["fixture.beef2896db00"] + info.project.name,
+  });
+  if (!(await note.isVisible()))
+    await page
+      .getByLabel(localized["fixture.bae2ce3e5309"] + info.project.name, { exact: true })
+      .click();
+  await note.click();
   const dialog = page.getByRole("dialog", { name: localized["Edit note"] });
   await dialog.getByLabel(localized["Note"]).fill("Two packs");
   await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
@@ -133,7 +139,10 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
         els.map((el) =>
           el.classList.contains("section-heading")
             ? el.querySelector("strong")!.textContent
-            : (el.querySelector(".name") as HTMLInputElement).value.slice(0, 1),
+            : (
+                (el.querySelector(".name") as HTMLInputElement).value ||
+                el.querySelector(".name")!.textContent
+              ).slice(0, 1),
         ),
       );
   await expect.poll(rowOrder).toEqual(["X", "S2", "S1"]);

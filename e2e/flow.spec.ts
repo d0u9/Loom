@@ -117,8 +117,8 @@ test("catalog to template, checklist, archive and restore", async ({
     page
       .getByRole("article")
       .filter({ hasText: "Meal " + suffix })
-      .getByText(localized["fixture.5d234f9450bb"], { exact: true }),
-  ).toBeVisible();
+      .locator(".document-date"),
+  ).toContainText("2026-10-20");
   await page
     .getByRole("article")
     .filter({

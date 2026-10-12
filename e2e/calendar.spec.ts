@@ -17,6 +17,21 @@ test("calendar schedules, marks and filters checklists", async ({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
+  if (info.project.name === "mobile") {
+    expect(
+      (await page.locator(".mobile-calendar").boundingBox())!.height,
+    ).toBeLessThan(300);
+    await expect(calendar.locator(".calendar-grid button").first()).toHaveCSS(
+      "height",
+      "28px",
+    );
+    const summary = page.locator(".mobile-calendar summary");
+    const icon = (await summary.locator("svg").boundingBox())!;
+    const label = (await summary.locator("span").boundingBox())!;
+    expect(
+      Math.abs(icon.y + icon.height / 2 - label.y - label.height / 2),
+    ).toBeLessThan(1);
+  }
   await calendar.getByRole("button", { name: localized["Today"], exact: true }).click();
   await page.getByRole("button", { name: localized["fixture.b075aa0598f1"] }).click();
   await page
@@ -60,6 +75,27 @@ test("calendar schedules, marks and filters checklists", async ({
     }),
   ).toHaveCount(0);
   await calendar.getByRole("button", { name: localized["All checklists"], exact: true }).click();
+  const progress = page.locator(".document-progress").first();
+  await expect(progress.locator("svg")).toHaveCount(1);
+  await expect(progress).toHaveAttribute("aria-label", new RegExp(localized["fixture.c6605d585513"], ""));
+  await expect(progress).not.toContainText(localized["Completed"]);
+  const card = progress.locator("xpath=ancestor::article");
+  const dateBounds = (await card.locator(".document-date").boundingBox())!;
+  const progressBounds = (await progress.boundingBox())!;
+  const mainBounds = (await card.locator(".record-main").boundingBox())!;
+  expect(dateBounds.x).toBeCloseTo(mainBounds.x, 0);
+  expect(progressBounds.x + progressBounds.width).toBeCloseTo(
+    mainBounds.x + mainBounds.width,
+    0,
+  );
+  expect(
+    Math.abs(
+      dateBounds.y +
+        dateBounds.height / 2 -
+        progressBounds.y -
+        progressBounds.height / 2,
+    ),
+  ).toBeLessThan(1);
   await expect(
     page.getByRole("heading", {
       name: "Calendar " + info.project.name,

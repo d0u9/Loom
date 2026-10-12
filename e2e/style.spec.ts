@@ -71,12 +71,28 @@ test("all sections share header actions and sidebar geometry", async ({
       await expect(navigation).toHaveCSS("height", "28px");
       await expect(navigation).toHaveCSS("font-weight", "400");
     } else {
+      await expect(navigation.locator("span")).toBeHidden();
+      await expect(navigation.locator("svg")).toBeVisible();
       expect((await navigation.boundingBox())!.height).toBeGreaterThanOrEqual(
-        44,
+        32,
       );
     }
     const header = page.locator(".page-header");
     await expect(header).toHaveCount(1);
+    if (info.project.name === "mobile") {
+      await expect(page.locator(".mobile-calendar")).toHaveCSS(
+        "height",
+        "32px",
+      );
+      await expect(page.locator(".page-search")).toHaveCSS("height", "32px");
+    }
+    await expect(header.locator(".view-switch")).toHaveCSS(
+      "height",
+      info.project.name === "mobile" ? "32px" : "28px",
+    );
+    await expect(
+      header.getByRole("button", { name: localized["Cards"], exact: true }),
+    ).toHaveCSS("width", info.project.name === "mobile" ? "32px" : "28px");
     await expect(
       header.getByRole("heading", { name: section, exact: true }),
     ).toBeVisible();
@@ -93,11 +109,24 @@ test("all sections share header actions and sidebar geometry", async ({
     ).toHaveAttribute("aria-pressed", "true");
     await header.getByRole("button", { name: localized["Cards"], exact: true }).click();
     await expect(page.locator(".cards")).toHaveCount(1);
+    if (info.project.name === "mobile") {
+      expect(
+        await page
+          .locator(".cards")
+          .evaluate(
+            (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+          ),
+      ).toBe(2);
+    }
     const create = header.getByRole("button", {
       name: localized["New "] + section,
       exact: true,
     });
     await expect(create).toBeVisible();
+    if (info.project.name === "mobile")
+      await expect(create).toHaveCSS("height", "32px");
+    if (info.project.name === "mobile")
+      await expect(create).toHaveCSS("width", "32px");
     const bounds = await create.boundingBox();
     if (!baseline) baseline = bounds;
     expect(bounds!.y).toBe(baseline!.y);
@@ -154,6 +183,23 @@ test("all sections share header actions and sidebar geometry", async ({
   await expect(
     account.getByRole("button", { name: localized["Sign out"], exact: true }),
   ).toBeHidden();
+  await trigger.click();
+  await page.getByRole("searchbox", { name: localized["Search"], exact: true }).click();
+  await expect(
+    account.getByRole("button", { name: localized["Sign out"], exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("searchbox", { name: localized["Search"], exact: true }),
+  ).toBeFocused();
+  await trigger.click();
+  await expect(
+    account.getByRole("button", { name: localized["Sign out"], exact: true }),
+  ).toBeVisible();
+  await account.locator(".account-menu").click({ position: { x: 2, y: 2 } });
+  await expect(
+    account.getByRole("button", { name: localized["Sign out"], exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.screenshot({
     path: `test-results/${info.project.name}-account-footer.png`,
   });

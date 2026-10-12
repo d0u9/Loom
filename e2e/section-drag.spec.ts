@@ -21,7 +21,7 @@ test("dragging changes section levels and moves entries into any section", async
         sections: [
           { id: a, name: "L1", parentSectionId: null },
           { id: b, name: "L2", parentSectionId: a },
-          { id: c, name: "L3", parentSectionId: b },
+          { id: c, name: "Root", parentSectionId: null },
         ],
         entries: [
           {
@@ -34,7 +34,7 @@ test("dragging changes section levels and moves entries into any section", async
             checked: false,
             direct: true,
             groupIds: [],
-            sectionId: c,
+            sectionId: null,
           },
         ],
         requestId: crypto.randomUUID(),
@@ -58,12 +58,16 @@ test("dragging changes section levels and moves entries into any section", async
     const section = d.sections.find((s: any) => s.name === name);
     return d.sections.find((s: any) => s.id === section.parentSectionId)?.name ?? null;
   };
-  // Upper half: sibling of the target, so level 3 becomes level 1.
-  await drag(head("L3"), head("L1"), 0.2);
-  await expect.poll(() => parentOf("L3")).toBe(null);
+  // Upper half: sibling of the target, so level 2 becomes level 1.
+  await drag(head("L2"), head("L1"), 0.2);
+  await expect.poll(() => parentOf("L2")).toBe(null);
   // Lower half: nests into the target.
-  await drag(head("L3"), head("L1"), 0.8);
-  await expect.poll(() => parentOf("L3")).toBe("L1");
+  await drag(head("L2"), head("L1"), 0.8);
+  await expect.poll(() => parentOf("L2")).toBe("L1");
+  // A third level is refused: Root stays at level 1.
+  await drag(head("Root"), head("L2"), 0.8);
+  await page.waitForTimeout(300);
+  expect(await parentOf("Root")).toBe(null);
   // Entries nest into any heading via its lower half.
   await drag(
     page.locator(".entry[data-sort-id]:not(.section-heading)").first().locator(".entry-source-count"),
@@ -76,16 +80,4 @@ test("dragging changes section levels and moves entries into any section", async
       return d.sections.find((s: any) => s.id === d.entries[0].sectionId)?.name;
     })
     .toBe("L2");
-  // Sections and entries mix: L3 lands right after entry X inside L2.
-  await drag(head("L3"), page.locator(".entry[data-sort-id]:not(.section-heading)").first(), 0.5);
-  await expect
-    .poll(async () => {
-      const d = await (await page.request.get("/api/v1/documents/" + doc.id)).json();
-      return parentOfIn(d, "L3");
-    })
-    .toBe("L2");
 });
-function parentOfIn(d: any, name: string) {
-  const s = d.sections.find((x: any) => x.name === name);
-  return d.sections.find((x: any) => x.id === s.parentSectionId)?.name ?? null;
-}

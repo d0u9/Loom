@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { ActionTools } from "./action-tools.js";
 import { Button } from "./button.js";
 import { SortableRow } from "./sortable.js";
 import React, { createContext, useContext } from "react";
@@ -53,7 +54,11 @@ export function RecordCard({
       />
       <div className="record-content">
         <div className="record-main">{children}</div>
-        {actions && <div className="record-actions">{actions}</div>}
+        {actions && (
+          <div className="record-actions">
+            <ActionTools name={name}>{actions}</ActionTools>
+          </div>
+        )}
       </div>
     </SortableRow>
   );

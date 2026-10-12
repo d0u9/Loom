@@ -1,5 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
+import { Icon } from "./layout.js";
 
 export function ItemSummary({
   item,
@@ -14,6 +15,17 @@ export function ItemSummary({
   currentCategoryId?: string;
   maxTags?: number;
 }) {
+  const noteRef = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const note = noteRef.current!;
+    const update = () => {
+      note.dataset.overflow = String(note.scrollWidth > note.clientWidth);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(note);
+    return () => observer.disconnect();
+  }, [item.note]);
   const names = (item.categoryIds ?? [])
     .filter((id: string) => id !== currentCategoryId)
     .map((id: string) => categories.find((c) => c.id === id)?.name)
@@ -25,7 +37,7 @@ export function ItemSummary({
   return (
     <div className="item-summary">
       <div className="item-summary-name">{name ?? <h3>{item.name}</h3>}</div>
-      <p className="item-note" title={item.note ?? ""}>
+      <p ref={noteRef} className="item-note" title={item.note ?? ""}>
         {item.note ?? ""}
       </p>
       <div
@@ -38,17 +50,25 @@ export function ItemSummary({
           aria-label={localized["Group label prefix"] + (item.itemGroup || localized["Ungrouped"])}
           title={localized["Group label prefix"] + (item.itemGroup || localized["Ungrouped"])}
         >
-          Group · {item.itemGroup || localized["Ungrouped"]}
+          <Icon name="group" />
+          <span>{item.itemGroup || localized["Ungrouped"]}</span>
         </span>
         {shown.map((name: string) => (
-          <span className="category-tag" key={name}>
+          <span className="category-tag category-detail-tag" key={name}>
             {name}
           </span>
         ))}
         {rest > 0 && (
-          <span className="category-tag category-tag-more">
+          <span className="category-tag category-tag-more category-detail-tag">
             {shown.length ? "+" + rest : rest + localized[" categories"]}
           </span>
+        )}
+        {names.length > 1 && (
+          <span
+            className="category-tag category-compact-tag"
+            title={names.join(" · ")}
+          >
+            {names.length}{localized[" categories\n          "]}</span>
         )}
       </div>
     </div>

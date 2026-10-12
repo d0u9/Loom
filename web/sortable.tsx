@@ -130,7 +130,7 @@ export function SortableRow({
   }, [enabled]);
   function interactive(target: EventTarget | null) {
     const control = (target as HTMLElement)?.closest(
-      "button,input,textarea,select,a",
+      "button,input,textarea,select,a,summary",
     );
     // Disabled fields read as text, so dragging may start on them.
     return (

@@ -4,7 +4,7 @@ import { ItemFields } from "./item-fields.js";
 import { Button } from "./button.js";
 import { useRoute, resourcePath, matchesSearch } from "./router.js";
 import { CategoryList } from "./category-list.js";
-import { AppLayout, Page } from "./layout.js";
+import { AppLayout, Page, Icon } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { ResourceDialog } from "./resource-dialog.js";
 import React, { useState, useEffect } from "react";
@@ -386,9 +386,7 @@ function App() {
                                 });
                             }}
                           >
-                            <svg aria-hidden="true" viewBox="0 0 24 24">
-                              <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" />
-                            </svg>
+                            <Icon name="trash" />
                           </Button>
                         </>
                       }

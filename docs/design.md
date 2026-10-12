@@ -18,7 +18,7 @@ All resource IDs (Item, Category, Template, Checklist, entry, category group) ar
 | --- | --- | --- |
 | Item | Editable shared entry identity, such as egg and water | May belong to multiple Categories and be referenced by current entries |
 | Category | Centrally managed categories, such as ingredients and experimental materials | Flat categories, many-to-many Item membership |
-| Template | Editable template and immutable revision history | Current entries, internal sections up to three levels, category-source groups, saved revisions |
+| Template | Editable template and immutable revision history | Current entries, internal sections up to two levels, category-source groups, saved revisions |
 | Checklist | Independently editable and checkable checklist instance | Entries, category groups, optional template/revision source, archive snapshot |
 
 egg belonging to Ingredients and Experimental materials does not mean there are two Items. Source describes how an entry was added to a Template/Checklist, rather than Item identity or ownership.
@@ -61,7 +61,7 @@ Template/Checklist share an entry editor: select from all Items or Category, add
 
 Creating a Checklist from a Template pins the source revision and copies content into independent entries, initially all unchecked. Subsequent template edits do not change existing checklists. A Checklist can also be created directly without a template.
 
-### Template internal hierarchy (up to three levels)
+### Template internal hierarchy (up to two levels)
 
 A Template may have its own content sections (Section), such as Supplement and Cooking in the image. Sections contain Items or temporary entries and may have child sections. They belong to the current template, rather than global Categories or parent/child relationships between templates.
 
@@ -69,11 +69,11 @@ The shared Template/Checklist editor provides New section directly in its header
 
 All pages/dialogs use the shared Button with five variants: primary, ordinary, danger, light, and icon. Ordinary business actions retain borders/backgrounds; deletion and other dangerous operations explicitly use danger styling. Light styling serves navigation, calendars, and clickable choices. Pages own only layout; hover, disabled, and focus styles are centralized.
 
-Three levels means section depth: level-one section → level-two section → level-three section. Items are section content and do not count toward section depth. The root container does not count; ungrouped entries may remain there. The server prohibits section cycles, cross-document parent/child relationships, and structures exceeding three levels, checking every descendant's final depth when moving a subtree. Sibling sections and entries within sections are ordered separately.
+Two levels means level-one and level-two sections. Items have no parent/child relationships; they are section content and do not count toward section depth. The root container does not count; ungrouped entries may remain there. The server prohibits section cycles, cross-document parent/child relationships, and structures exceeding two levels, checking every descendant's final depth when moving a subtree. Sibling sections and entries within sections are ordered separately.
 
 Display sections and category sources are independent: sections determine only display position, add no Item sources, and do not change flat Category constraints. Each entry has at most one display position; adding the same Item across sections still merges into the existing entry, preserving position/data and adding category sources without duplicate display. Users can explicitly move entries without changing sources, checkmarks, or effective references. Removing Category sources still cleans entries when sources reach zero, regardless of their section.
 
-Section names, parent/child relationships, ordering, and entry positions enter the revision when Template is explicitly saved. Instantiated Checklists copy the structure and edit independently, retaining the three-level limit; copying, archiving, restoring, and conversion preserve structure without synchronizing with the original template. Sections are not checkable Items; Checklist checkmarks belong only to entries.
+Section names, parent/child relationships, ordering, and entry positions enter the revision when Template is explicitly saved. Instantiated Checklists copy the structure and edit independently, retaining the two-level limit; copying, archiving, restoring, and conversion preserve structure without synchronizing with the original template. Sections are not checkable Items; Checklist checkmarks belong only to entries.
 
 Deleting a nonempty section preserves content by default and promotes it to its parent (root sections promote to the root container), without implicitly deleting entries, sources, or child sections; retain relative order during promotion. Bulk content deletion requires a separate explicit operation. Old documents without sections leave all entries in the root container; old revisions and archives are not rewritten.
 
@@ -154,6 +154,16 @@ Button font size is managed separately: following user feedback that button text
 AppLayout in `web/layout.tsx` alone owns left navigation, calendar, mobile navigation, and the right content container; Page alone owns the page title, view-switch icons, primary action, and content area. The primary action consistently accepts `primaryAction: {label,onClick}`; Page renders the same icon, button, and spacing and does not accept business-page action JSX with custom layout. Checklist, Template, Item, and Category list pages use the same framework, with title and creation button on one line and creation buttons aligned at the top and right edge. Edit details may hide the creation action. Pages must not each copy their own sidebar or title layout.
 
 Right content is centered outside the sidebar, with a 960px maximum width and narrow-screen adaptation. The current baseline is 14px body text, 18px page titles, regular weight, 28px desktop buttons/inputs, and at least 44px phone targets. Visual acceptance compares equal-size windows; repeatedly shrinking fonts is not an optimization strategy.
+
+Phone card view uses two equal-width columns with truncated long names; list view stays single-column. All four resources and Category members reuse the same Collection layout.
+
+Phone cards keep Group and Category tags on one line, ellipsizing long Group names. A single Category shows its name; multiple categories become N categories, with full names available in the edit dialog. Desktop retains specific category names.
+
+At the user's request, phone card-corner icon buttons are 28px wide and 44px high for touch, with no gaps, as a local exception to the 44px touch-width rule.
+
+Page card/list view switching fixes each button at 28px wide and the outer frame at 28px high, without enlargement on phones; add-dialog source switching retains a 44px touch target.
+
+Narrow-screen or coarse-pointer conditions enable mobile dimensions directly, avoiding layout jumps when touch detection changes after refresh; retain the above size exceptions.
 
 Item/Category reuse catalog editing structure; Template/Checklist reuse the Documents editor, while business fields and save semantics remain independent. Template shows save and revision, Checklist shows checkmarks and use date. Category-group rows (source, link Category, Update to latest, remove category source) appear only in Template; Checklist hides them but still stores category groups and entry-source relationships, preserving them in archiving, restoration, copying, and conversion to templates.
 
@@ -242,3 +252,28 @@ Item Group tags accept direct Item drops: cards/lists use the shared drag compon
 ### Shared Item presentation
 
 Active Item presentation in Item, Category, Template, and Checklist consistently reuses ItemSummary (name, Item notes, Group, categories); Category omits the current category tag. Document-entry notes and Item notes are independent data: the former stay editable and the latter are read-only. Historical content retains existing snapshot semantics without adding current Item metadata.
+
+## Mobile height baseline (2026-10-12)
+
+At the user's latest request, mobile controls use a unified 32px height baseline, overriding earlier mobile 44px constraints and local exceptions: buttons, single-line inputs, search, and collapsed calendar entry are all 32px. Multiline content expands in multiples of that baseline; expanded calendar cells retain a compact grid. Desktop touch rules remain unchanged. Narrow screens use these dimensions from the first frame.
+
+Creation buttons on all four mobile list pages show only the plus icon at fixed 32×32px, retaining accessible name/title through shared Page styles. Desktop retains icon/text; detail-page actions retain existing behavior.
+
+Mobile calendar entry vertically centers the shared Icon arrow with text and points downward when expanded. Expanded calendar removes extra section spacing, with 8px padding, 28px date rows, and no extra grid gaps. Desktop calendar stays unchanged.
+
+Checklist collection completion metadata uses the shared check icon plus "completed count/total", without persistent "Completed" text; retain aria-label/title, date, and archive information.
+
+Checklist card metadata aligns the date left and completion icon/progress right, without a separator dot; retain the archive marker separately. List-view ordering stays unchanged.
+
+Mobile Item/Category member cards reserve only one description line (18px), overriding the old two-line rule. Long descriptions fade over the final 24px only when actual horizontal overflow occurs; empty descriptions still reserve one line. Desktop retains two lines, full content, and title.
+
+Account menus close on outside click without mistakenly closing on internal clicks. Outside targets receive normal focus; Escape still closes and returns focus to the menu trigger.
+
+Shared mobile Collection list rows use 4px vertical padding and a normal 32px content line height, retaining 16px horizontal whitespace, consistently for all four resources and Category members.
+
+### Section depth limit adjustment (2026-10-12)
+
+The latest target is at most two section levels, consistently for Template and Checklist, excluding the root container and Items. Current code already limits new writes to two levels. Existing three-level documents/history must retain content, ordering, sources, and checkmarks; the third level cannot simply be hidden or deleted. Preview/confirmation for promoting overdeep sections is provided, without rewriting snapshots. Historical restoration/copying/instantiation/conversion likewise previews adjustments before creating an effective two-level document.
+
+
+Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level. Old three-level documents offer a promotion-to-level-two preview, applied through normal saving; history previews return sectionChanges, and history-apply requires explicit flattenSections:true confirmation. Historical snapshots are not rewritten.

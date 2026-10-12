@@ -94,13 +94,10 @@ test("global config opens checklists without login and auth can be re-enabled on
     ).toBeVisible();
     await stop();
     await start(false);
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
     await page
-      .getByRole("button", { name: localized["fixture.82d440e5f3ee"], exact: true })
-      .click();
-    await page
-      .getByLabel(localized["Entry name"], { exact: true })
+      .getByLabel(localized["New temporary entry"], { exact: true })
       .fill("Saved after backend restart");
+    await page.getByLabel(localized["New temporary entry"], { exact: true }).press("Enter");
     await expect(page.getByRole("status")).toContainText(localized["Saved"]);
     const documents = await (
       await request.get(base + "/api/v1/documents")

@@ -124,7 +124,11 @@ export function children(content: Content, parent: string | null): Node[] {
       (n) => "entry" in n && n.entry.id === section.afterEntryId,
     );
     let at =
-      section.afterEntryId === null ? 0 : anchor < 0 ? nodes.length : anchor + 1;
+      section.afterEntryId === null
+        ? 0
+        : anchor < 0
+          ? nodes.length
+          : anchor + 1;
     // Sections sharing an anchor keep array order.
     while (at < nodes.length && "section" in nodes[at]) at++;
     nodes.splice(at, 0, { section });
@@ -134,7 +138,8 @@ export function children(content: Content, parent: string | null): Node[] {
 type Tree = Map<string | null, Node[]>;
 function tree(content: Content): Tree {
   const map: Tree = new Map([[null, children(content, null)]]);
-  for (const s of content.sections ?? []) map.set(s.id, children(content, s.id));
+  for (const s of content.sections ?? [])
+    map.set(s.id, children(content, s.id));
   return map;
 }
 // Rebuilds entries/sections arrays and anchors from a tree.
@@ -278,8 +283,7 @@ export function validateSections(content: Content) {
     while (node) {
       if (visited.has(node.id)) throw invalid("Section cycle");
       visited.add(node.id);
-      if (visited.size > 3)
-        throw invalid("Sections allow at most three levels");
+      if (visited.size > 2) throw invalid("Sections allow at most two levels");
       if (!node.parentSectionId) break;
       node = ids.get(node.parentSectionId);
       if (!node) throw invalid("Section parent must belong to this document");
@@ -288,4 +292,29 @@ export function validateSections(content: Content) {
   for (const e of content.entries)
     if (e.sectionId && !ids.has(e.sectionId))
       throw invalid("Entry section must belong to this document");
+}
+
+// Lift legacy deeper sections without removing their identities or contents.
+export function twoLevelSections(content: Content): Content {
+  const map: Tree = new Map([[null, []]]);
+  for (const s of content.sections ?? []) map.set(s.id, []);
+  const walk = (parent: string | null, depth: number, root: string | null) => {
+    for (const node of children(content, parent)) {
+      if ("entry" in node) map.get(parent)!.push(node);
+      else {
+        map.get(depth >= 2 ? root : parent)!.push(node);
+        walk(node.section.id, depth + 1, root ?? node.section.id);
+      }
+    }
+  };
+  walk(null, 0, null);
+  return flatten(content, map);
+}
+export function sectionChanges(content: Content) {
+  const next = twoLevelSections(content);
+  return (next.sections ?? []).filter(
+    (s) =>
+      s.parentSectionId !==
+      content.sections?.find((old) => old.id === s.id)?.parentSectionId,
+  );
 }

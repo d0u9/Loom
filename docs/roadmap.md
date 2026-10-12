@@ -315,3 +315,145 @@ This section records design-stage plans; implementation/verification appears in 
 
 - Shared ItemSummary explicitly fixes each element's grid position, reserving empty-note space. List notes have a maximum 240px width with end fading; cards reserve two lines and fade downward. ResizeObserver enables masks only for actual overflow; full content is retained.
 - Build and 4 desktop/simulated-mobile regressions passed, verifying tags share columns with/without notes, note-width limits, overflow masks, and shared four-page content. Not committed; real devices not tested.
+
+## Two-column mobile cards (2026-10-12)
+
+- Shared Collection uses equal-width two columns at 650px and below, consistently for all four resource types and Category member cards; list and desktop layouts remain.
+- Build and 8 desktop/simulated-mobile style regressions passed, covering four-page two-column layouts, view switching, equal card heights, and keyboard/modal operations. Not committed; real phones not tested.
+
+## Mobile card action spacing (2026-10-12)
+
+- Remove 4px gaps between touch-card upper-right action buttons, retaining individual 44×44px click targets.
+- Build and two desktop/simulated-mobile card regressions passed, checking spacing, button sizes, and equal card heights. Real phones not tested.
+
+## Mobile Category member card corrections (2026-10-12)
+
+- Two-column member card removal buttons are fixed at the upper right and aligned with names; notes/tags use the full content width, with names reserving button space.
+- Build and two desktop/simulated-mobile Category regressions passed, adding button-alignment/content-width assertions and checking mobile card screenshots. Real phones not tested.
+
+## Shared mobile card content width (2026-10-12)
+
+- Fix Item two-column card buttons squeezing the whole content block: shared card actions sit at the upper right, with only the name reserving space. Notes and tags use the full content width; mobile tags wrap and individual overlong tags truncate.
+- Build and 4 desktop/simulated-mobile Item/Category regressions passed, adding content-width/full-Ungrouped-tag assertions and checking mobile Item screenshots. Real phones not tested.
+
+## Group tag icons (2026-10-12)
+
+- Shared ItemSummary replaces the Group text prefix with a 16px tag icon consistently across desktop/mobile and cards/lists, retaining group names, Ungrouped, and accessible names.
+- Build and 6 desktop/simulated-mobile regressions passed, covering shared four-page icons, card tags, and group drops. Real phones not tested.
+
+## Compact mobile card icon buttons (2026-10-12)
+
+- Following user feedback, mobile card-corner buttons narrow from 44px to 28px, retaining 44px touch height and 28px icon-center spacing. Synchronize the local touch-width exception, giving names more space.
+- Build and 4 desktop/simulated-mobile Item/Category regressions passed, checking button sizes, member operations, and content layout. Real phones not tested.
+
+## Single-line mobile card tags (2026-10-12)
+
+- Mobile card Group/category tags stay on one line; multiple categories collapse to "N categories", long Group names truncate, prioritizing categories. Desktop/lists retain original category display.
+- Build and 4 desktop/simulated-mobile regressions passed, adding same-row/boundary checks for long group names with two categories and desktop category visibility. Real phones not tested.
+
+## Fixed compact page view switch (2026-10-12)
+
+- Remove touch enlargement of Page card/list switches: each button 28px wide, outer frame 28px high; addition-modal source switches retain 44px touch targets.
+- Build and 6 desktop/simulated-mobile style regressions passed, adding four-page switching-dimension assertions. Momentary refresh changes on real devices were not reproduced; real phones not tested.
+
+## Mobile control sizes jump on refresh (2026-10-12)
+
+- Identify mobile controls relying only on pointer:coarse: when browser touch detection changes, search grows from 30px to 44px and shifts content downward. Add a CDP touch-toggle regression, failing before and passing after the fix.
+- Mobile control sizes apply immediately for narrow screens or coarse pointers, retaining previously confirmed view-switch/card-corner size exceptions.
+- Build, 14 desktop/simulated-mobile regressions, and diff checks passed; actual localhost:5173 simulated-mobile page displays normally after refresh. Real phones not tested.
+
+## Mobile 28px height baseline (2026-10-12)
+
+- Under the latest user request, mobile controls uniformly use a 28px height baseline, overriding old 44px mobile rules. Collapsed calendar removes extra vertical padding; search totals 28px including outer borders, matching buttons/single-line inputs. Expanded calendar retains its grid.
+- Build and 14 desktop/simulated-mobile regressions passed, covering four-page calendar/search dimensions, view switching, category members, calendar operations, and stable dimensions when touch detection changes. Real phones not tested; click targets reduced at user request.
+
+## Adjust mobile height to 32px (2026-10-12)
+
+- Following feedback, increase shared narrow-screen control height from 28px to 32px for New buttons, view switches, search, collapsed calendar, and single-line inputs; desktop retains dimensions.
+- Build and 10 desktop/simulated-mobile regressions passed, adding 32px New-button height assertions on four pages. Real phones not tested.
+
+## Equal-width mobile create buttons (2026-10-12)
+
+- Shared Page styles fix New buttons on all four list pages at 144×32px; detail actions retain original sizes.
+- Build and 6 desktop/simulated-mobile style regressions passed, adding fixed-width assertions for four pages. Real phones not tested.
+
+## Icon-only mobile create buttons (2026-10-12)
+
+- Following user feedback, all four list-page New buttons become 32×32px plus buttons, retaining aria-label/title; desktop keeps icon and text.
+- Build and 6 desktop/simulated-mobile regressions passed, covering button dimensions, creation modals, keyboard, and focus restoration. Real phones not tested.
+
+## Center and compact the mobile calendar (2026-10-12)
+
+- Calendar entry uses shared Icon arrows and flex-centered text, retaining native details keyboard toggling; mobile expanded calendar removes extra margin, uses 8px padding, 28px date rows, and no grid gap.
+- Build and 8 desktop/simulated-mobile regressions passed, adding assertions for expanded height below 300px, date-row heights, and aligned arrow/text centers; mobile screenshots checked. Real phones not tested.
+
+## Checklist progress icon (2026-10-12)
+
+- Replace "Completed" text on checklist cards/lists with shared check icons, retaining completed/total counts, accessible descriptions, dates, and archive information.
+- Build and 4 desktop/simulated-mobile calendar/full-checklist regressions passed; after adding icon/accessibility-description assertions, two calendar regressions passed. Real phones not tested.
+
+## Checklist card date and progress aligned at opposite ends (2026-10-12)
+
+- Dates align left, completion icon/progress right; cards remove separator dots, retaining archive marks on the following line. List arrangement unchanged.
+- Build and 4 desktop/simulated-mobile regressions passed, adding coordinate assertions that date/progress share a row and align with opposite content edges. Real phones not tested.
+
+## Single-line mobile card descriptions with fade-out (2026-10-12)
+
+- Shared ItemSummary mobile card descriptions reserve only one 18px line, fading the final 24px for overlong text, with empty descriptions reserving the same height. ResizeObserver enables masks only for actual horizontal overflow; desktop keeps two lines, with full notes retained.
+- Build and 4 desktop/simulated-mobile Item/Category regressions passed, covering equal card heights with/without descriptions, single-line height, and overflow fades. Real phones not tested.
+
+## Close account menus on outside clicks (2026-10-12)
+
+- Shared AppLayout listens for outside pointerdown to close the account menu without blocking target clicks or stealing focus; internal clicks keep it open, and Escape still restores trigger focus.
+- Build and 6 desktop/simulated-mobile regressions passed, adding assertions for outside search clicks closing menus/retaining focus and internal clicks not closing accidentally. Real phones not tested.
+
+## Compact shared mobile list rows (2026-10-12)
+
+- Shared list rows for four resource types and Category members reduce vertical padding from 10px to 4px, retaining 32px content controls and approximately 40px normal rows; desktop and cards remain unchanged.
+- Build and 10 desktop/simulated-mobile style/Item/Category regressions passed. Real phones not tested.
+
+## Sliding mobile tools (2026-10-12)
+
+- RecordCard and document entries/sections reuse ActionTools: mobile defaults to More and slides left over tags when opened; desktop shows actions directly. Touch targets, action names, Escape focus, and reduced-motion behavior remain; summary does not initiate sorting or section collapse.
+- Type checking and desktop/simulated-mobile tool regressions passed: initially collapsed, slide-out animation, unchanged content coordinates, Escape restores focus, editing opens, and direct desktop actions. Full Web suite not run; old mobile tests must expand tools first. Not committed; real devices not tested.
+
+## Correct mobile row action translation (2026-10-12)
+
+- Following user clarification, translate the whole content row left to expose right-side icon actions, replacing tag overlays. Calculate displacement from actual action width; collapsing restores position, and reduced motion disables animation.
+- Type checking and 2 focused desktop/simulated-mobile regressions passed, verifying actual leftward content movement, clickable actions, Escape collapse, and desktop behavior. Not committed; real devices not tested, full suite not yet run.
+
+## Fix mobile tools that could not close (2026-10-12)
+
+- Reproduce repeated summary clicks blocked by card-open: transform creates a new stacking context for record-content. Explicitly set shared content to z-index 2, retaining pointer-events pass-through so tools sit above the card-opening area.
+- Type checking and 2 focused desktop/simulated-mobile regressions passed, adding repeated-click collapse, reopening, Escape, and editing. Not committed; real devices not tested.
+
+## Change sections to two levels (2026-10-12, target specification; pending implementation)
+
+- Template/Checklist have at most two section levels, excluding root and Item; synchronize AGENTS/design/UI rules and Demo. Old three-level acceptance records describe the implementation at that time and do not establish completion of the new target.
+- Next synchronize server validation, Web parent selection/dragging, historical conversion, and tests. Existing excessive-depth structures first preview promotion, retaining all content, order, sources, and checked states; historical snapshots are not rewritten. Production implementation/database not modified this time.
+
+## Change sections to one level (2026-10-12, supersedes two-level target; pending implementation)
+
+- User confirmed only one flat section level, without child sections. Demo promotes "Subdivision" to an independent group, with titles/entries sharing left-column width/spacing; synchronize target rules.
+- Production code/database still unchanged; old hierarchy promotion to flat structure must preview first and retain content/order without rewriting historical snapshots. Both the two-level target and earlier multi-level visual proposals have been superseded.
+
+## Two-level sections implemented (2026-10-12, supersedes single-level plan)
+
+- Latest confirmation: two Section levels, no Item parent-child relationships. Shared server/client validation caps depth at 2; new parents can only be root/first-level, and excessive-depth dragging is rejected. Shared Documents distinguishes titles/second-level pale backgrounds, indents second-level names, and fixes check circles on the left.
+- Legacy three-level content is not rewritten at startup; active documents offer promotion previews/normal saving, while historical conversion preview returns sectionChanges and requires flattenSections:true. Retain section identity, content, order, sources, checked states, and original snapshots, without schema changes.
+- Build and 32 server tests passed, including confirmation/data retention restoring old three-level archives; 2 desktop/simulated-mobile section-flow and 2 circle-alignment tests passed. Not committed; real phones/full Web suite not tested.
+
+## Desktop sections use the approved preview (2026-10-13)
+
+- Apply first-level blocks, second-level pale backgrounds, differentiated title/Item weights, 16px second-level check-circle indentation, and subtle collapse shadows to shared Documents; group closure follows the next row's section boundary. Mobile visuals adjusted separately.
+
+## Local verification of old database creation errors (2026-10-13)
+
+- Fix incompatibility between legacy requests tables with an extra createdAt field and four-field whole-row INSERT: writes and legacy-table migration explicitly name id/scope/digest/result.
+- Read-only online backup of actual local data/loom.sqlite into a temporary copy confirmed the five-field table structure. Copy verification passed Checklist/Template/Item creation, three identical-request retries without duplication, same-ID/different-content conflicts, and consistent reads/counts after restart. Copy cleaned up; production data unchanged.
+- Add automated legacy-table extra-field regression; all 33 server tests passed. No test records created in the user's production database; real phones not tested.
+
+## Temporary entry quick input (2026-10-13)
+
+- Remove Save as Item; temporary-entry action moves to shared Page tools and focuses a persistent blank row. Enter creates a root temporary entry, allowing consecutive input; Checklist saves immediately, Template retains explicit revisions. IME selection does not submit, blanks are not persisted, and Enter on existing names saves before refresh.
+- Build and 2 desktop/simulated-mobile quick-input tests passed, verifying blank cancellation, consecutive-input focus, renaming, save/refresh, and removal of Save as Item. Desktop section regression passed; new mobile entry widened the page, fixed tool-area wrapping and rechecked. Not committed; real devices not tested.

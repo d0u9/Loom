@@ -1,6 +1,7 @@
 import localized from "../locales/zh.json" with { type: "json" };
 import { Button } from "./button.js";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import { useOutsideClose } from "./action-tools.js";
 import { ViewContext } from "./collection.js";
 import { Calendar } from "./calendar.js";
 import { resourcePath } from "./router.js";
@@ -23,6 +24,8 @@ function NavigationLink({
   return (
     <a
       className="nav-link"
+      aria-label={name}
+      title={name}
       href={resourcePath(name)}
       aria-current={active ? "page" : undefined}
       onClick={(event) => {
@@ -63,6 +66,10 @@ export function AppLayout({
   onLogout?: () => void;
   children: React.ReactNode;
 }) {
+  const accountRef = useRef<HTMLDetailsElement>(null);
+  useOutsideClose(accountRef, true, () => {
+    if (accountRef.current) accountRef.current.open = false;
+  });
   return (
     <div className="layout">
       <nav aria-label={localized["Main navigation"]}>
@@ -84,6 +91,7 @@ export function AppLayout({
           <span className="account-name">{onLogout ? username : localized["No sign-in required"]}</span>
           {onLogout && (
             <details
+              ref={accountRef}
               className="account-actions"
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -105,7 +113,10 @@ export function AppLayout({
       <main>
         {
           <details className="mobile-calendar">
-            <summary>{date || localized["Browse by date"]}</summary>
+            <summary>
+              <Icon name="forward" />
+              <span>{date || localized["Browse by date"]}</span>
+            </summary>
             <Calendar date={date} documents={schedule} onSelect={onDate} />
           </details>
         }
@@ -144,6 +155,8 @@ export function Page({
   };
   secondaryActions?: {
     label: string;
+    icon?: keyof typeof iconPaths;
+    iconOnly?: boolean;
     onClick: () => void;
     disabled?: boolean;
   }[];
@@ -227,10 +240,14 @@ export function Page({
             {secondaryActions?.map((action) => (
               <Button
                 key={action.label}
+                variant={action.iconOnly ? "icon" : "secondary"}
+                aria-label={action.iconOnly ? action.label : undefined}
+                title={action.iconOnly ? action.label : undefined}
                 onClick={action.onClick}
                 disabled={action.disabled}
               >
-                {action.label}
+                {action.icon && <Icon name={action.icon} />}
+                {!action.iconOnly && action.label}
               </Button>
             ))}
             {primaryAction && (
@@ -296,6 +313,12 @@ export function Page({
 }
 
 const iconPaths = {
+  check: "M5 12l4 4L19 6",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0",
+  eyeOff:
+    "M3 3l18 18M10 5a12 12 0 0 1 12 7s-1.5 3-4 5M6 6a18 18 0 0 0-4 6s3.5 7 10 7a12 12 0 0 0 5-1M9 9a4 4 0 0 0 6 6",
+  sectionAdd: "M4 5h16M4 10h8M4 15h5M17 13v8M13 17h8",
+  group: "M3 3h8l10 10-8 8L3 11zM7 7h.01",
   unlock: "M7 11V7a5 5 0 0 1 9-3M5 11h14v10H5zM12 15v2",
   user: "M20 21v-2a8 8 0 0 0-16 0v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
   moreVertical: "M12 5h.01M12 12h.01M12 19h.01",

@@ -19,6 +19,15 @@ test("Item category badges and reserved note space align cards", async ({
     name: "Badge " + info.project.name,
     parentId: null,
   });
+  const second = await post("/categories", {
+    name: "Second badge " + info.project.name,
+  });
+  const multi = await post("/items", {
+    name: "Multiple badges " + info.project.name,
+    itemGroup: localized["fixture.b37a297aed80"].repeat(8),
+    categoryIds: [category.id, second.id],
+    requestId: crypto.randomUUID(),
+  });
   for (const [name, note] of [
     ["With note", localized["fixture.67bdf03511e8"].repeat(8)],
     ["Without note", ""],
@@ -30,6 +39,31 @@ test("Item category badges and reserved note space align cards", async ({
       requestId: crypto.randomUUID(),
     });
   await page.reload();
+  const multiCard = page.getByRole("article").filter({
+    has: page.getByRole("heading", { name: multi.name, exact: true }),
+  });
+  const compact = multiCard.locator(".category-compact-tag");
+  if (info.project.name === "mobile") {
+    await expect(compact).toBeVisible();
+    await expect(compact).toHaveText(localized["fixture.d7ceb3549000"]);
+    await expect(
+      multiCard.locator(".category-detail-tag").first(),
+    ).toBeHidden();
+    const groupBounds = (await multiCard
+      .locator(".item-group-tag")
+      .boundingBox())!;
+    const countBounds = (await compact.boundingBox())!;
+    expect(groupBounds.y).toBe(countBounds.y);
+    expect(countBounds.x + countBounds.width).toBeLessThanOrEqual(
+      (await multiCard.boundingBox())!.x +
+        (await multiCard.boundingBox())!.width,
+    );
+  } else {
+    await expect(compact).toBeHidden();
+    await expect(
+      multiCard.locator(".category-detail-tag").first(),
+    ).toBeVisible();
+  }
   const a = page.getByRole("article").filter({
     has: page.getByRole("heading", {
       name: "With note" + info.project.name,
@@ -49,13 +83,46 @@ test("Item category badges and reserved note space align cards", async ({
     category.name,
   );
   expect((await a.boundingBox())!.height).toBe((await b.boundingBox())!.height);
-  expect((await a.locator(".item-note").boundingBox())!.height).toBe(36);
-  expect((await b.locator(".item-note").boundingBox())!.height).toBe(36);
+  if (info.project.name === "mobile") {
+    const summary = (await a.locator(".item-summary").boundingBox())!;
+    expect(summary.width).toBeGreaterThan((await a.boundingBox())!.width - 40);
+    const group = a.locator(".item-group-tag");
+    expect(await group.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    await expect(a.locator(".record-actions")).toHaveCSS("gap", "0px");
+    await a.locator(".action-tools summary").click();
+    for (const button of await a.locator(".record-actions button").all()) {
+      const bounds = (await button.boundingBox())!;
+      expect(bounds.width).toBe(32);
+      expect(bounds.height).toBe(32);
+    }
+    await a.locator(".action-tools summary").click();
+  }
+  const noteHeight = info.project.name === "mobile" ? 18 : 36;
+  expect((await a.locator(".item-note").boundingBox())!.height).toBe(
+    noteHeight,
+  );
+  expect((await b.locator(".item-note").boundingBox())!.height).toBe(
+    noteHeight,
+  );
+  if (info.project.name === "mobile") {
+    await expect(a.locator(".item-note")).toHaveAttribute(
+      "data-overflow",
+      "true",
+    );
+    await expect(a.locator(".item-note")).not.toHaveCSS("mask-image", "none");
+    await expect(b.locator(".item-note")).toHaveCSS("mask-image", "none");
+  }
   expect(
     await a
       .locator(".item-note")
       .evaluate((el) => getComputedStyle(el).fontSize),
   ).toBe("12px");
+  await page.screenshot({
+    path: `test-results/${info.project.name}-item-cards.png`,
+    fullPage: true,
+  });
   await page
     .locator(".page-header")
     .getByRole("button", { name: localized["List"], exact: true })

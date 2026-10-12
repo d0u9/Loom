@@ -142,3 +142,28 @@ test("immutable revisions, latest names, independent checks and safe retries", a
     await h.close();
   }
 });
+
+test("document creation supports existing request tables with an extra timestamp column", async () => {
+  const h = await setup();
+  try {
+    h.store.run(
+      "ALTER TABLE requests ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0",
+    );
+    const body = {
+      kind: "checklist",
+      name: "gogo",
+      useDate: null,
+      entries: [],
+      groups: [],
+      requestId: id(),
+    };
+    const response = await h.call("POST", "/documents", body);
+    assert.equal(response.statusCode, 200, response.body);
+    const retry = await h.call("POST", "/documents", body);
+    assert.equal(retry.statusCode, 200, retry.body);
+    assert.deepEqual(retry.json(), response.json());
+    assert.equal(h.store.all("SELECT id FROM documents").length, 1);
+  } finally {
+    await h.close();
+  }
+});

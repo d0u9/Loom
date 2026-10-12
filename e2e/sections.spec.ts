@@ -1,6 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
 import { test, expect } from "@playwright/test";
-test("shared document editor creates three levels, moves items and preserves sections on reload", async ({
+test("shared document editor creates two levels, moves items and preserves sections on reload", async ({
   page,
 }, info) => {
   await page.setExtraHTTPHeaders({
@@ -18,6 +18,21 @@ test("shared document editor creates three levels, moves items and preserves sec
     .getByLabel(localized["Name"], { exact: true })
     .fill("Sections " + info.project.name);
   await page.getByRole("button", { name: localized["Create"], exact: true }).click();
+  const tool = async (name: string) => {
+    const button = page.getByRole("button", {
+      name,
+      exact: true,
+      includeHidden: true,
+    });
+    if (info.project.name === "mobile") {
+      const tools = button.locator("xpath=ancestor::details[1]");
+      if (!(await tools.getAttribute("open"))) {
+        if (!(await tools.evaluate((el) => (el as HTMLDetailsElement).open)))
+          await tools.locator("summary").click();
+      }
+    }
+    await button.click();
+  };
   const createSection = async (name: string, parentName?: string) => {
     await page
       .locator(".page-header")
@@ -36,26 +51,51 @@ test("shared document editor creates three levels, moves items and preserves sec
   };
   await createSection(localized["fixture.339dd3cabd55"]);
   await createSection(localized["fixture.04ceb362830f"], localized["fixture.339dd3cabd55"]);
-  await createSection(localized["fixture.327b54d04f71"], localized["fixture.3cadcf8086c7"]);
-  await createSection(localized["fixture.dc86470f56ab"], localized["fixture.36dc20d4e883"]);
-  await expect(page.getByRole("alert")).toContainText("three levels");
-  await page.keyboard.press("Escape");
+  await createSection(localized["fixture.327b54d04f71"], localized["fixture.339dd3cabd55"]);
   await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
+  const sourceBounds = await page
+    .locator(".add-sources .button")
+    .evaluateAll((nodes) =>
+      nodes.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { y: r.y, height: r.height, width: r.width };
+      }),
+    );
+  expect(sourceBounds).toHaveLength(2);
+  expect(
+    Math.max(...sourceBounds.map((b) => b.y)) -
+      Math.min(...sourceBounds.map((b) => b.y)),
+  ).toBeLessThan(1);
+  expect(
+    Math.max(...sourceBounds.map((b) => b.height)) -
+      Math.min(...sourceBounds.map((b) => b.height)),
+  ).toBeLessThan(1);
+  expect(
+    Math.max(...sourceBounds.map((b) => b.width)) -
+      Math.min(...sourceBounds.map((b) => b.width)),
+  ).toBeLessThan(2);
+
   await page.getByLabel(localized["Add to section"], { exact: true }).click();
   await page
     .getByRole("combobox", { name: localized["Add to section"], exact: true })
-    .fill(localized["fixture.36dc20d4e883"]);
+    .fill(localized["fixture.e574b02bac47"]);
+  await page.getByRole("option", { name: localized["fixture.e574b02bac47"], exact: true }).click();
   await page
-    .getByRole("option", { name: localized["fixture.36dc20d4e883"], exact: true })
+    .getByRole("dialog")
+    .getByRole("button", { name: localized["Cancel"], exact: true })
     .click();
-  await page.getByRole("button", { name: localized["fixture.82d440e5f3ee"], exact: true }).click();
-  await page.getByLabel(localized["Entry name"], { exact: true }).fill(localized["fixture.6b1311e9a899"]);
+  await page.getByLabel(localized["New temporary entry"], { exact: true }).fill(localized["fixture.6b1311e9a899"]);
+  await page.getByLabel(localized["New temporary entry"], { exact: true }).press("Enter");
+  await tool(localized["fixture.1846bc6ee759"]);
+  await page.getByLabel(localized["fixture.e35f16d27295"], { exact: true }).click();
+  await page.getByRole("option", { name: localized["fixture.e574b02bac47"], exact: true }).click();
+  await page.getByRole("button", { name: localized["Move"], exact: true }).click();
   await page
     .getByRole("button", { name: localized["fixture.9031f7ab2f77"], exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText(localized["Saved"]);
   await page.reload();
-  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveValue(
+  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveText(
     localized["fixture.6b1311e9a899"],
   );
   // Fold arrows hide a section's contents without changing the document.
@@ -65,11 +105,13 @@ test("shared document editor creates three levels, moves items and preserves sec
     page.getByRole("button", { name: localized["fixture.2eb956971886"], exact: true }),
   ).toHaveCount(0);
   // Clicking the heading row itself toggles too.
-  await page.getByLabel(localized["fixture.e7b177a44877"], { exact: true }).click({ position: { x: 200, y: 10 } });
-  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveValue(
+  await page
+    .getByLabel(localized["fixture.e7b177a44877"], { exact: true })
+    .click({ position: { x: 200, y: 10 } });
+  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveText(
     localized["fixture.6b1311e9a899"],
   );
-  await page.getByRole("button", { name: localized["fixture.1846bc6ee759"], exact: true }).click();
+  await tool(localized["fixture.1846bc6ee759"]);
   await expect(page.getByLabel(localized["fixture.e35f16d27295"], { exact: true })).toHaveValue(
     /.+/,
   );
@@ -78,21 +120,21 @@ test("shared document editor creates three levels, moves items and preserves sec
     path: `test-results/${info.project.name}-sections-nested.png`,
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: localized["fixture.2eb956971886"], exact: true })
-    .click();
+  await tool(localized["fixture.2eb956971886"]);
   await page
     .getByRole("dialog")
     .getByLabel(localized["Name"], { exact: true })
     .fill(localized["fixture.db855c3d0d1b"]);
   await page.getByRole("button", { name: localized["Save section"], exact: true }).click();
-  await page
-    .getByRole("button", { name: localized["fixture.8efc88206b15"], exact: true })
-    .click();
+  await tool(localized["fixture.8efc88206b15"]);
   await expect(
-    page.getByRole("button", { name: localized["fixture.a036de71bed3"], exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: localized["fixture.1846bc6ee759"], exact: true }).click();
+    page.getByRole("button", {
+      name: localized["fixture.a036de71bed3"],
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toHaveCount(1);
+  await tool(localized["fixture.1846bc6ee759"]);
   await page.getByLabel(localized["fixture.e35f16d27295"], { exact: true }).click();
   await page.getByRole("option", { name: localized["Root"], exact: true }).click();
   await page.getByRole("button", { name: localized["Move"], exact: true }).click();
@@ -101,7 +143,7 @@ test("shared document editor creates three levels, moves items and preserves sec
     .click();
   await expect(page.getByRole("status")).toContainText(localized["Saved"]);
   await page.reload();
-  await page.getByRole("button", { name: localized["fixture.1846bc6ee759"], exact: true }).click();
+  await tool(localized["fixture.1846bc6ee759"]);
   await expect(page.getByLabel(localized["fixture.e35f16d27295"], { exact: true })).toHaveValue(
     localized["Root"],
   );
@@ -170,9 +212,7 @@ test("shared document editor creates three levels, moves items and preserves sec
   ).toBeVisible();
   lab.name = renamed;
   // Removing an entry excludes it; each update chooses to keep ignoring or add back.
-  await page
-    .getByRole("button", { name: localized["Remove "] + egg.name, exact: true })
-    .click();
+  await tool(localized["Remove "] + egg.name);
   await expect(page.getByLabel(localized["Entry name"])).toHaveCount(1);
   const update = (name = renamed) =>
     page

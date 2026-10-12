@@ -66,6 +66,9 @@ test("category details show direct members and remove only the chosen membership
         (titleBounds!.y + titleBounds!.height / 2),
     ),
   ).toBeLessThan(2);
+  // Mobile folds card actions behind a more toggle.
+  if (info.project.name === "mobile")
+    await parentRow.locator(".action-tools summary").click();
   await parentRow.getByRole("button", { name: localized["Edit"], exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: localized["fixture.2a9fc4c4bcc7"] }),
@@ -92,6 +95,8 @@ test("category details show direct members and remove only the chosen membership
     has: page.getByRole("heading", { name: item.name, exact: true }),
   });
   await expect(member).toHaveCount(1);
+  if (info.project.name === "mobile")
+    await member.locator(".action-tools summary").click();
   await expect(
     member.getByRole("button", {
       name: localized["From "] + parent.name + localized[" Remove"],
@@ -116,6 +121,31 @@ test("category details show direct members and remove only the chosen membership
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(member.locator(".item-note")).toHaveText("Updated note");
   await expect(member.getByText(parent.name, { exact: true })).toHaveCount(0);
+  await page
+    .locator(".page-header")
+    .getByRole("button", { name: localized["Cards"], exact: true })
+    .click();
+  const title = (await member.locator(".item-summary-name").boundingBox())!;
+  // Mobile shows the folded actions toggle beside the title.
+  const remove = (await member
+    .locator(".record-actions summary, .record-actions button")
+    .first()
+    .boundingBox())!;
+  if (info.project.name === "mobile") {
+    expect(
+      Math.abs(remove.y + remove.height / 2 - (title.y + title.height / 2)),
+    ).toBeLessThan(4);
+    const summary = (await member.locator(".item-summary").boundingBox())!;
+    expect(summary.width).toBeGreaterThan(
+      (await member.boundingBox())!.width - 40,
+    );
+  }
+  await page.screenshot({
+    path: `test-results/${info.project.name}-member-cards.png`,
+    fullPage: true,
+  });
+  if (info.project.name === "mobile")
+    await member.locator(".action-tools summary").click();
   await member
     .getByRole("button", { name: localized["From "] + parent.name + localized[" Remove"], exact: true })
     .click();
@@ -133,10 +163,7 @@ test("category details show direct members and remove only the chosen membership
   const box = (await list.boundingBox())!;
   expect(
     await page.evaluate(
-      ([x, y]) =>
-        !!document
-          .elementFromPoint(x, y)
-          ?.closest("[role=listbox]"),
+      ([x, y]) => !!document.elementFromPoint(x, y)?.closest("[role=listbox]"),
       [box.x + box.width / 2, box.y + box.height - 4],
     ),
   ).toBe(true);
