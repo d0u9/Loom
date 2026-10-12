@@ -59,14 +59,14 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
         touchPoints: [a],
       });
       await page.waitForTimeout(300);
-      await expect(page.locator(".drag-preview")).toHaveText(item.name);
+      await expect(page.locator(".drag-preview")).toContainText(item.name);
       await expect(row).toHaveClass(/is-dragging/);
       await session.send("Input.dispatchTouchEvent", {
         type: "touchMove",
         touchPoints: [b],
       });
       await expect(target).toHaveClass(/drop-hover/);
-      await expect(page.locator(".drag-preview")).toHaveText(item.name);
+      await expect(page.locator(".drag-preview")).toContainText(item.name);
       if (cancel) {
         await page.screenshot({
           path: `test-results/${info.project.name}-drag-preview.png`,
@@ -83,7 +83,7 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
       await page.mouse.down();
       await page.mouse.move(b.x, b.y, { steps: 8 });
       await expect(target).toHaveClass(/drop-hover/);
-      await expect(page.locator(".drag-preview")).toHaveText(item.name);
+      await expect(page.locator(".drag-preview")).toContainText(item.name);
       if (cancel) {
         await page.screenshot({
           path: `test-results/${info.project.name}-drag-preview.png`,

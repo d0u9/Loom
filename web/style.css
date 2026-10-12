@@ -228,9 +228,7 @@ h3 {
 p {
   margin: var(--space-2) 0 var(--space-4);
 }
-.empty,
-.date-heading,
-.date-badge {
+.empty {
   color: var(--muted);
   font-size: var(--font-sm);
 }
@@ -393,8 +391,24 @@ main {
   min-width: 0;
 }
 .page-title h2 {
+  flex: 0 0 auto;
+  max-width: 100%;
   overflow-wrap: anywhere;
 }
+.page-status {
+  /* Shrinks before the title does. */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 160px;
+  margin-left: var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .page-actions {
   display: flex;
   align-items: center;
@@ -422,9 +436,18 @@ main {
   border-radius: 0;
   background: transparent;
 }
-.view-switch button[aria-pressed="true"] {
+.view-switch button[aria-pressed="true"],
+.view-switch button[aria-selected="true"] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+/* The add dialog's source picker is a full-width segmented view-switch. */
+.view-switch.source-switch {
+  margin: var(--space-3) 0;
+}
+.view-switch.source-switch button {
+  flex: 1;
+  width: auto;
 }
 .page-search {
   display: flex;
@@ -790,6 +813,43 @@ article p {
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+/* Category update preview: excluded members, each kept out unless ticked. */
+.excluded-picker {
+  margin: var(--space-3) 0;
+}
+.excluded-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+.excluded-head h4 {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--muted);
+}
+.excluded-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+}
+.excluded-row:last-child {
+  border-bottom: 0;
+}
+.excluded-row span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.excluded-hint {
+  font-size: var(--font-xs);
+  color: var(--muted);
+}
 .entry {
   display: flex;
   align-items: center;
@@ -797,15 +857,43 @@ article p {
   padding: 10px var(--space-3);
   border-bottom: 1px solid var(--line);
 }
-.section-heading {
-  background: var(--hover);
-}
+/* Levels: fold arrow, indent, size/weight fade by depth; no own background so hover stays uniform. */
 .section-heading strong {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.section-toggle .icon {
+  transition: transform 0.15s;
+}
+.section-toggle[aria-expanded="true"] .icon {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-toggle .icon {
+    transition: none;
+  }
+}
+.section-heading.level-1 strong {
+  font-size: var(--font-md);
+}
+.section-heading.level-2 strong {
+  font-size: var(--font-sm);
+}
+.section-heading.level-3 strong {
+  font-size: var(--font-xs);
+  font-weight: 400;
+  color: var(--text-2);
+}
+.entry-source-count .icon {
+  width: 14px;
+  height: 14px;
+}
 .entry-source-count {
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   font-size: var(--font-xs);
   color: var(--muted);
   white-space: nowrap;
@@ -822,15 +910,57 @@ article p {
   min-width: 0;
 }
 .entry .name,
-.entry .note {
+.entry-name {
   flex: 1;
+  min-width: 0;
 }
-.entry .small {
-  width: 64px;
-  flex-shrink: 0;
+.entry-name .name {
+  width: 100%;
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+.entry-note {
+  margin: 0;
+  padding-left: var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Checklist entries use a round check like Memos tasks. */
+.entry input[type="checkbox"] {
+  appearance: none;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+}
+/* Checks pause while structure edits autosave; the circle stays visible. */
+.entry input[type="checkbox"]:disabled {
+  cursor: default;
+}
+.entry input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--surface);
+}
+.entry[data-sort-id] {
+  cursor: grab;
+}
+.entry[data-sort-id]:hover {
+  background: var(--hover);
 }
 /* Read-only fields keep the same box so text stays aligned with editable rows. */
-.entry input:disabled {
+.entry input:not([type="checkbox"]):disabled {
+  /* Let read-only text pass the pointer to the row for dragging. */
+  pointer-events: none;
   background: transparent;
   border-color: transparent;
   color: var(--text);
@@ -849,13 +979,6 @@ article p {
 .entry input:not([type="checkbox"]):focus {
   border-color: var(--focus);
   background: var(--surface);
-}
-.entry .small,
-.entry .note {
-  min-height: 26px;
-  padding: 3px var(--space-2);
-  font-size: var(--font-xs);
-  line-height: 18px;
 }
 .entry input::placeholder {
   color: #a3a79c;
@@ -929,41 +1052,27 @@ dialog > label + button {
 .document-menu .button {
   width: 100%;
 }
-.add-options {
-  display: grid;
-  gap: var(--space-3);
-}
-.add-source {
-  display: grid;
-  gap: var(--space-2);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line);
-}
-.add-source h4 {
-  margin: 0;
-  font-size: var(--font-sm);
-  color: var(--muted);
-}
-.add-item-list {
-  max-height: 160px;
+/* Fixed height: switching Item/Category must not resize or move the dialog. */
+.add-list {
+  height: min(240px, 40dvh);
+  margin-top: var(--space-2);
   overflow-y: auto;
 }
-.add-item-list button {
+.add-list > .button,
+.add-category {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-2);
   width: 100%;
   text-align: left;
 }
-.add-item-list button span {
+.add-list > .button span,
+.add-category span {
+  flex: 1;
   overflow-wrap: anywhere;
 }
-.add-category-actions {
-  display: flex;
-  gap: var(--space-2);
-}
-.add-category-actions button {
-  flex: 1;
+.add-category {
+  padding-left: var(--space-3);
 }
 fieldset {
   min-width: 0;
@@ -1032,6 +1141,13 @@ fieldset.form-fields {
 .item-summary-name {
   min-width: 0;
 }
+/* One Item name size everywhere: catalog, Category members, documents. */
+.item-summary h3,
+.item-summary-name .name {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  line-height: 18px;
+}
 .item-summary h3 {
   margin: 0;
   overflow: hidden;
@@ -1042,8 +1158,6 @@ fieldset.form-fields {
   width: 100%;
   text-overflow: ellipsis;
   padding: 0;
-  font-weight: 600;
-  font-size: var(--font-md);
   opacity: 1;
 }
 .item-note {
@@ -1076,7 +1190,7 @@ fieldset.form-fields {
   white-space: normal;
 }
 .entry > .item-summary {
-  flex: 0 0 44%;
+  flex: 1;
 }
 
 /* ---------- Narrow screens (single breakpoint) ---------- */
@@ -1194,39 +1308,21 @@ fieldset.form-fields {
     max-width: 100%;
     margin-left: auto;
   }
-  /* Entry row becomes two lines: checkbox, name and actions on top,
-     quantity/unit/note below. The ::after item forces the line break. */
-  .entry {
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-  .entry::after {
-    content: "";
-    flex-basis: 100%;
-    order: 1;
-  }
-  .entry .name,
+  /* Phone entries are one line: the name gets the room, tags and note hide. */
   .entry > .item-summary {
-    flex: 1 1 0;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .entry > .item-summary {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  }
-  .entry .item-summary > .item-note {
+  .entry .item-summary > .item-note,
+  .entry .item-summary > .category-tags {
     display: none;
-  }
-  .entry .small,
-  .entry .note,
-  .entry-source-count {
-    order: 2;
-  }
-  .entry .note {
-    min-width: 0;
   }
 }
 
 /* ---------- Touch targets ---------- */
 @media (pointer: coarse) {
+  .excluded-row {
+    min-height: var(--touch-h);
+  }
   button,
   .nav-link,
   input,
@@ -1372,26 +1468,35 @@ fieldset.form-fields {
 }
 
 .is-dragging {
-  opacity: 0.4;
-  outline: 1px dashed var(--focus);
+  opacity: 0.35;
 }
+body.sorting {
+  user-select: none;
+  cursor: grabbing;
+}
+/* Copy of the dragged row that follows the pointer. */
 .drag-preview {
   position: fixed;
   z-index: 1000;
+  margin: 0;
   pointer-events: none;
-  max-width: min(320px, calc(100vw - 24px));
-  padding: 12px 16px;
   border: 1px solid var(--focus);
   border-radius: var(--radius-md);
   background: var(--surface);
-  color: var(--text);
-  font-size: var(--font-md);
-  line-height: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  opacity: 0.95;
   box-shadow: 0 8px 24px #1e291c26;
   animation: drag-lift 120ms ease-out;
+}
+/* Insertion line where the dragged row will land. */
+.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.section-heading.drop-hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--focus);
 }
 @keyframes drag-lift {
   from {
@@ -1421,10 +1526,7 @@ fieldset.form-fields {
   right: 0;
 }
 .combobox-options {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  position: fixed;
   z-index: 5;
   padding: 4px;
   max-height: 180px;

@@ -33,9 +33,9 @@ Use system sans-serif fonts: `ui-sans-serif, system-ui, -apple-system, "Segoe UI
 | Card names | 14px / 20px | 500 |
 | Shared action buttons | 13px / 18px | Ordinary 400, primary 500 |
 | Desktop navigation links | 13px / 18px | 400, including selected state |
-| Tags, notes, quantities, units | 12px / 18px | 400 |
+| Tags, notes | 12px / 18px | 400 |
 
-Standard desktop controls are 28px high; touch interaction targets are at least 44px. Buttons, single-line inputs, and view switches align on one row. Calendars retain compact grids; inline quantity/unit/note inputs may use compact 26px heights while preserving adequate touch targets.
+Standard desktop controls are 28px high; touch interaction targets are at least 44px. Buttons, single-line inputs, and view switches align on one row. Calendars retain compact grids; compact inline inputs may use 26px heights while preserving adequate touch targets.
 
 Font sizes use only 12 / 13 / 14 / 18. Spacing uses 4 / 8 / 12 / 16 / 24px; navigation-item gap is 2px, icon/text gap 4px, button icon/text gap 6px. Controls/tags have 6px radius, cards 8px, panels/dialogs 10px.
 
@@ -101,6 +101,7 @@ Collections share [Collection / RecordCard](../web/collection.tsx):
 - Category members show name, smaller Item notes, and removal on one line, without repeating the current category name, check circles, or a second Direct member line. Removing a relationship does not delete the Item.
 - The Category add-member dialog offers a collapsible New Item action below, expanding shared ResourceForm/ItemFields inside the same dialog and defaulting to the current category; after saving, the Item appears in the current member list.
 - Sort by dragging cards/rows directly, without handles; retain keyboard ordering. Internal actions do not start dragging, and finishing a drag does not open records.
+- Template/Checklist entries and sections share mixed ordering: dragging any row before/after another makes them siblings (entries/child sections may interleave, and sections can change depth this way). Dropping on a section title's lower half inserts first inside it (subject to three levels; ignore drops into its own subtree or beyond depth). Arrow keys move entries row by row in visible order, entering/leaving sections, while sections move among siblings.
 
 ## 6. Editor and dialogs
 
@@ -116,7 +117,7 @@ Dialogs focus the first control on opening; Escape closes and restores trigger f
 
 ## 7. Phones and acceptance
 
-Use only the `max-width: 650px` narrow-screen breakpoint with 16px horizontal margins. Phones share navigation links and Calendar: bottom navigation stacks icons/text and the calendar collapses. Titles truncate on one line; with secondary actions, primary buttons may show icons only while retaining accessible names. Entries use at most two lines: name/actions, then quantity/unit/notes.
+Use only the `max-width: 650px` narrow-screen breakpoint with 16px horizontal margins. Phones share navigation links and Calendar: bottom navigation stacks icons/text and the calendar collapses. Titles truncate on one line; with secondary actions, primary buttons may show icons only while retaining accessible names. Entry names, sources, and actions share one line, with notes beneath; quantities/units are currently hidden but retained in data.
 
 Acceptance checks desktop/phone plus keyboard focus, Escape, form submission, disabled states, navigation leave protection, opening new tabs, and direct URLs. Four-page headers align in equal-size windows; card/list switching does not move the shell, and phones have no horizontal overflow.
 
@@ -140,7 +141,7 @@ The group bar sticks to the top while long Item lists scroll, with maximum heigh
 
 ## Shared Item presentation
 
-Active Item entries in Item catalog, Category members, Template, and Checklist share ItemSummary from `web/item-summary.tsx`, showing name, Item notes, Group, and category tags. Lists share name/notes/tags columns; cards share vertical layout and reserved note space. Category omits its current category tag to avoid repetition. Template/Checklist quantity, unit, entry notes, sources, and checkmarks are not Item information and stay outside shared presentation. Historical revisions/archives continue using snapshots without reading latest Item metadata.
+Active Item entries in Item catalog, Category members, Template, and Checklist share ItemSummary from `web/item-summary.tsx`, showing name, Item notes, Group, and category tags. Lists share name/notes/tags columns; cards share vertical layout and reserved note space. Category omits its current category tag to avoid repetition. Template/Checklist entry notes, sources, and checkmarks are not Item information and stay outside shared presentation. Historical revisions/archives continue using snapshots without reading latest Item metadata.
 
 ItemSummary lists explicitly fix name/notes/tags as columns 1/2/3; empty notes retain space and tags never shift left. List notes are at most 240px wide, fading over the last 24px when long on one line; cards reserve 36px/two lines and fade downward on the second line on overflow. Apply masks only on actual overflow; full notes remain in data/title without storage truncation.
 

@@ -6,11 +6,16 @@ import { ResourceDialog } from "./resource-dialog.js";
 import { Icon, Page } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { Modal } from "./modal.js";
+import { Select } from "./select.js";
+import { SortableRow } from "./sortable.js";
 import React, { useEffect, useState, useRef } from "react";
 import {
   removeEntry,
   removeGroup,
   removeSection,
+  moveNode,
+  nodeId,
+  children,
   duplicateItems,
   mergeContent,
   validateSections,
@@ -42,14 +47,18 @@ export function Documents({
   const [list, setList] = useState<any[]>([]),
     [doc, setDoc] = useState<any>(null),
     [dirty, setDirty] = useState(false),
+    // Collapsed sections are a view choice only; never saved.
+    [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState(""),
     [revisions, setRevisions] = useState<any[]>([]),
     [history, setHistory] = useState<any>(null),
     [itemQuery, setItemQuery] = useState(""),
-    [category, setCategory] = useState(""),
+    [newDate, setNewDate] = useState(""),
+    [addMode, setAddMode] = useState<"Item" | "Category">("Item"),
     [preview, setPreview] = useState<any>(null),
     [mergeTargets, setMergeTargets] = useState<Record<string, string>>({}),
     [entryMove, setEntryMove] = useState<any>(null),
+    [noteEditor, setNoteEditor] = useState<any>(null),
     [sectionEditor, setSectionEditor] = useState<any>(null),
     [sectionName, setSectionName] = useState(""),
     [sectionParent, setSectionParent] = useState(""),
@@ -71,6 +80,9 @@ export function Documents({
     creation = useRef<any>(null),
     itemCreation = useRef(new Map<string, any>()),
     checks = useRef(new Map<string, Promise<any>>()),
+    // Entry IDs the server knows; only these can be checked before a save.
+    savedIds = useRef(new Set<string>()),
+    saveDelay = useRef(0),
     failedChecks = useRef(new Map<string, { docId: string; request: any }>());
   const refresh = async () => {
     setList(await api("/documents"));
@@ -99,6 +111,7 @@ export function Documents({
         if (!active) return;
         if (d.kind !== kind) throw new Error(localized["This document belongs to another page."]);
         latest.current = d;
+        savedIds.current = new Set(d.entries.map((e: any) => e.id));
         setDoc(d);
         setStatus("");
         if (d.kind === "template") {
@@ -169,6 +182,7 @@ export function Documents({
     checks.current.clear();
     failedChecks.current.clear();
     const d = await api("/documents/" + key);
+    savedIds.current = new Set(d.entries.map((e: any) => e.id));
     latest.current = d;
     setDoc(d);
     setDirty(false);
@@ -177,7 +191,9 @@ export function Documents({
     if (d.kind === "template")
       setRevisions(await api("/templates/" + key + "/revisions"));
   };
-  const change = (next: any) => {
+  // Typing waits for a pause; one-shot edits such as drags save at once.
+  const change = (next: any, typing = false) => {
+    saveDelay.current = typing ? 500 : 0;
     validateSections(next);
     if (
       targetSection &&
@@ -209,6 +225,7 @@ export function Documents({
       const sent = pending.current;
       const result = await api("/documents/" + latest.current.id, "PUT", sent);
       pending.current = null;
+      savedIds.current = new Set(result.entries.map((e: any) => e.id));
       const current = latest.current;
       if (
         current.entries === sent.entries &&
@@ -244,7 +261,7 @@ export function Documents({
   }
   useEffect(() => {
     if (dirty && kind === "checklist") {
-      const timer = setTimeout(() => void save(), 600);
+      const timer = setTimeout(() => void save(), saveDelay.current);
       return () => clearTimeout(timer);
     }
   }, [doc, dirty, kind]);
@@ -271,13 +288,16 @@ export function Documents({
     }
     change({ ...current, entries: [...current.entries, newEntry(item)] });
   }
-  const updateEntry = (key: string, patch: any) =>
-    change({
-      ...latest.current,
-      entries: latest.current.entries.map((e: any) =>
-        e.id === key ? { ...e, ...patch } : e,
-      ),
-    });
+  const updateEntry = (key: string, patch: any, typing = false) =>
+    change(
+      {
+        ...latest.current,
+        entries: latest.current.entries.map((e: any) =>
+          e.id === key ? { ...e, ...patch } : e,
+        ),
+      },
+      typing,
+    );
   async function sendCheck(docId: string, key: string, request: any) {
     const promise = api(
       "/checklists/" + docId + "/entries/" + key + "/checked",
@@ -325,7 +345,7 @@ export function Documents({
       categoryId,
       ...(groupId ? { groupId } : {}),
     });
-    setPreview({ ...p, categoryId, groupId, content: d });
+    setPreview({ ...p, categoryId, groupId, content: d, restore: [] });
   }
   async function startHistory(action: string) {
     setMenuOpen(false);
@@ -353,6 +373,7 @@ export function Documents({
       action,
       revision,
       id: d.id,
+      useDate: date ?? "",
       requestId: crypto.randomUUID(),
     });
     setMergeTargets({});
@@ -365,6 +386,7 @@ export function Documents({
   const create = () => {
     setStatus("");
     setNewName(creation.current?.name || "");
+    setNewDate(creation.current?.useDate ?? date ?? "");
     setCreating(true);
   };
   const submitCreate = async () => {
@@ -379,7 +401,7 @@ export function Documents({
       if (!creation.current)
         creation.current = {
           kind,
-          ...(kind === "checklist" ? { useDate: date } : {}),
+          ...(kind === "checklist" ? { useDate: newDate || null } : {}),
           name,
           entries: [],
           groups: [],
@@ -409,6 +431,10 @@ export function Documents({
       </Page>
     );
   const display = history || doc;
+  // Progress and success fit beside the title; problems stay in the page.
+  const quiet =
+    [localized["Saving…"], localized["Saved"], localized["Check saved"]].includes(status) ||
+    status.startsWith(localized["Completed "]);
   function sectionLabel(key: string): string {
     const section = (doc?.sections ?? []).find((s: any) => s.id === key);
     const parts: string[] = [];
@@ -421,20 +447,54 @@ export function Documents({
     }
     return parts.join(" / ");
   }
-  function contentRows(content: any): any[] {
+  // Entries and sections share one order per parent; "into" nests in a section.
+  function move(id: string, targetId: string, place: "before" | "after" | "into") {
+    const next = moveNode(doc, id, targetId, place);
+    try {
+      // Rejects dropping into its own subtree or past three levels.
+      validateSections(next);
+    } catch {
+      return;
+    }
+    if (place === "into")
+      setCollapsed((prev) => {
+        const open = new Set(prev);
+        open.delete(targetId);
+        return open;
+      });
+    change(next);
+  }
+  // Arrow keys: sections swap within their parent; entries walk the visible
+  // rows, entering a section below them and leaving one above them.
+  function step(id: string, parent: string | null, direction: number) {
+    const place = direction > 0 ? "after" : "before";
+    const sibling = doc.sections?.some((s: any) => s.id === id);
+    const ids = (sibling ? children(doc, parent) : contentRows(doc, true)).map(
+      (n: any) => nodeId(n),
+    );
+    const target = ids[ids.indexOf(id) + direction];
+    const heading = !sibling && doc.sections?.some((s: any) => s.id === target);
+    if (target) move(id, target, heading && direction > 0 ? "into" : place);
+  }
+  function sectionOptions() {
+    return [
+      { value: "", label: localized["Root"] },
+      ...(doc.sections ?? []).map((s: any) => ({
+        value: s.id,
+        label: sectionLabel(s.id),
+      })),
+    ];
+  }
+  function contentRows(content: any, folded = false): any[] {
     const rows: any[] = [];
     const walk = (parent: string | null, depth: number) => {
-      rows.push(
-        ...content.entries
-          .filter((e: any) => (e.sectionId ?? null) === parent)
-          .map((entry: any) => ({ entry, depth })),
-      );
-      if (depth >= 3) return;
-      for (const section of (content.sections ?? []).filter(
-        (s: any) => s.parentSectionId === parent,
-      )) {
-        rows.push({ section, depth });
-        walk(section.id, depth + 1);
+      for (const node of children(content, parent) as any[]) {
+        if (node.entry) rows.push({ entry: node.entry, depth, parent });
+        else if (depth < 3) {
+          rows.push({ section: node.section, depth, parent });
+          if (!(folded && collapsed.has(node.section.id)))
+            walk(node.section.id, depth + 1);
+        }
       }
     };
     walk(null, 0);
@@ -484,7 +544,16 @@ export function Documents({
                 },
               },
               ...(kind === "template"
-                ? [{ label: localized["Add entries"], onClick: () => setAddOpen(true) }]
+                ? [
+                    { label: localized["Add entries"], onClick: () => setAddOpen(true) },
+                    // Common action: instantiate the latest revision directly.
+                    {
+                      label: localized["Create checklist"],
+                      disabled: !revisions.length,
+                      onClick: () =>
+                        void attempt(() => startHistory("instantiate")),
+                    },
+                  ]
                 : []),
             ]
           : undefined
@@ -507,8 +576,16 @@ export function Documents({
               : undefined
       }
       showView={!doc}
+      // The list's date filter uses the same small grey slot beside the title.
+      status={
+        doc ? (quiet ? status : "") : kind === "checklist" ? (date ?? "") : ""
+      }
     >
-      <p role="status">{status}</p>
+      {!quiet && status && (
+        <p role="alert" className="error">
+          {status}
+        </p>
+      )}
       {creating && (
         <ResourceDialog
           title={localized["New "] + (kind === "template" ? "Template" : "Checklist")}
@@ -527,7 +604,16 @@ export function Documents({
           onClose={() => {
             if (!createBusy && !creation.current) setCreating(false);
           }}
-        />
+        >
+          {kind === "checklist" && (
+            <label>{localized["\n              Use date (optional)\n              "]}<input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+              />
+            </label>
+          )}
+        </ResourceDialog>
       )}
 
       {failedChecks.current.size > 0 && (
@@ -564,18 +650,12 @@ export function Documents({
       )}
       {linking && (
         <Modal aria-label={localized["fixture.5b90b5e5288b"]} onClose={() => setLinking(null)}>
-          <label>{localized["fixture.6d10b531e1ca"]}<select
+          <label>{localized["fixture.6d10b531e1ca"]}<Select
+              aria-label={localized["fixture.616dd958fcd2"]}
               value={linking.categoryId}
-              onChange={(e) =>
-                setLinking({ ...linking, categoryId: e.target.value })
-              }
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(categoryId) => setLinking({ ...linking, categoryId })}
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            />
           </label>
           <Button
             disabled={!linking.categoryId}
@@ -606,24 +686,18 @@ export function Documents({
             {duplicateItems(doc).map((d) => (
               <label key={d.itemId}>
                 {d.entries[0].name}
-                <select
+                <Select
                   aria-label={localized["Keep "] + d.entries[0].name}
+                  placeholder={localized["Choose values to keep"]}
                   value={mergeTargets[d.itemId] || ""}
-                  onChange={(ev) =>
-                    setMergeTargets({
-                      ...mergeTargets,
-                      [d.itemId]: ev.target.value,
-                    })
+                  onChange={(id) =>
+                    setMergeTargets({ ...mergeTargets, [d.itemId]: id })
                   }
-                >
-                  <option value="">{localized["Choose values to keep"]}</option>
-                  {d.entries.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.quantity} {e.unit} · {e.note} ·{" "}
-                      {e.checked ? localized["Checked"] : localized["Unchecked"]}
-                    </option>
-                  ))}
-                </select>
+                  options={d.entries.map((e) => ({
+                    value: e.id,
+                    label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]].filter(Boolean).join(" · "),
+                  }))}
+                />
               </label>
             ))}
             <Button
@@ -637,26 +711,42 @@ export function Documents({
             >{localized["\n              Merge and keep all sources\n            "]}</Button>
           </Modal>
         )}
+      {noteEditor && (
+        <Modal aria-label={localized["Edit note"]} onClose={() => setNoteEditor(null)}>
+          <h3>{noteEditor.name}{localized[" 's note"]}</h3>
+          <label>{localized["\n            Note\n            "]}<textarea
+              data-1p-ignore="true"
+              autoComplete="off"
+              autoFocus
+              value={noteEditor.note}
+              onChange={(ev) =>
+                setNoteEditor({ ...noteEditor, note: ev.target.value })
+              }
+            />
+          </label>
+          <div className="form-actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                updateEntry(noteEditor.id, { note: noteEditor.note });
+                setNoteEditor(null);
+              }}
+            >{localized["\n              Save\n            "]}</Button>
+            <Button onClick={() => setNoteEditor(null)}>{localized["Cancel"]}</Button>
+          </div>
+        </Modal>
+      )}
       {entryMove && (
         <Modal aria-label={localized["Move entry"]} onClose={() => setEntryMove(null)}>
           <h3>{localized["Move "]}{entryMove.name}</h3>
-          <label>{localized["\n            Section\n            "]}<select
+          <label>{localized["\n            Section\n            "]}<Select
               aria-label={localized["Section "] + entryMove.name}
               value={entryMove.sectionId || ""}
-              onChange={(ev) =>
-                setEntryMove({
-                  ...entryMove,
-                  sectionId: ev.target.value || null,
-                })
+              onChange={(id) =>
+                setEntryMove({ ...entryMove, sectionId: id || null })
               }
-            >
-              <option value="">{localized["Root"]}</option>
-              {(doc.sections ?? []).map((s: any) => (
-                <option key={s.id} value={s.id}>
-                  {sectionLabel(s.id)}
-                </option>
-              ))}
-            </select>
+              options={sectionOptions()}
+            />
           </label>
           <Button
             onClick={() => {
@@ -700,30 +790,19 @@ export function Documents({
             }
           }}
         >
-          <label>{localized["\n            Parent section\n            "]}<select
+          <label>{localized["\n            Parent section\n            "]}<Select
               aria-label={localized["Parent section"]}
               value={sectionParent}
-              onChange={(e) => setSectionParent(e.target.value)}
-            >
-              <option value="">{localized["Root"]}</option>
-              {(doc.sections ?? [])
-                .filter((s: any) => s.id !== sectionEditor.id)
-                .map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {sectionLabel(s.id)}
-                  </option>
-                ))}
-            </select>
+              onChange={setSectionParent}
+              options={sectionOptions().filter(
+                (o) => o.value !== sectionEditor.id,
+              )}
+            />
           </label>
         </ResourceDialog>
       )}
       {!doc ? (
         <>
-          {kind === "checklist" && (
-            <p className="date-heading">
-              {date ? `${date}${localized["fixture.6dcd1653af16"]}` : localized["All checklists"]}
-            </p>
-          )}
           <Collection>
             {records.map((d) => (
               <RecordCard
@@ -733,10 +812,15 @@ export function Documents({
               >
                 <h3>{d.name}</h3>
                 <p>
-                  {d.useDate && (
-                    <span className="date-badge">{d.useDate} · </span>
-                  )}
-                  {d.status === "archived" ? localized["Archived"] : localized["Active"]} · v{d.version}
+                  {[
+                    d.useDate,
+                    kind === "checklist"
+                      ? `${d.done}/${d.total}${localized[" Completed"]}`
+                      : `${d.total}${localized[" items"]}`,
+                    d.status === "archived" && localized["Archived"],
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
               </RecordCard>
             ))}
@@ -755,7 +839,9 @@ export function Documents({
                   autoComplete="off"
                   value={display.name}
                   disabled={!!history || doc.status === "archived"}
-                  onChange={(e) => change({ ...doc, name: e.target.value })}
+                  onChange={(e) =>
+                    change({ ...doc, name: e.target.value }, true)
+                  }
                 />
               </label>
               {kind === "checklist" && (
@@ -778,30 +864,31 @@ export function Documents({
                 <div className="field-row">
                   <label>
                     Revision
-                    <select
-                      value={history?.revision || ""}
-                      onChange={(e) =>
+                    <Select
+                      aria-label="Revision"
+                      value={String(history?.revision || "")}
+                      onChange={(revision) =>
                         void attempt(async () =>
                           setHistory(
-                            e.target.value
+                            revision
                               ? await api(
                                   "/templates/" +
                                     doc.id +
                                     "/revisions/" +
-                                    e.target.value,
+                                    revision,
                                 )
                               : null,
                           ),
                         )
                       }
-                    >
-                      <option value="">{localized["Current content"]}</option>
-                      {revisions.map((r) => (
-                        <option key={r.revision} value={r.revision}>
-                          revision {r.revision}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "", label: localized["Current content"] },
+                        ...revisions.map((r) => ({
+                          value: String(r.revision),
+                          label: "revision " + r.revision,
+                        })),
+                      ]}
+                    />
                   </label>
                   <Button
                     onClick={() =>
@@ -859,6 +946,9 @@ export function Documents({
                             },
                           );
                           latest.current = result;
+                          savedIds.current = new Set(
+                            result.entries.map((e: any) => e.id),
+                          );
                           setDoc(result);
                           await refresh();
                         })
@@ -909,6 +999,29 @@ export function Documents({
                       }}
                     >{localized["\n                      Delete template\n                    "]}</Button>
                   )}
+                  {kind === "checklist" && (
+                    <Button
+                      variant="danger"
+                      disabled={
+                        dirty ||
+                        saving.current ||
+                        checks.current.size > 0 ||
+                        failedChecks.current.size > 0
+                      }
+                      onClick={() => {
+                        if (confirm(localized["Permanently delete this checklist? This cannot be undone."]))
+                          void attempt(async () => {
+                            await api("/checklists/" + doc.id, "DELETE", {
+                              version: doc.version,
+                              confirm: true,
+                            });
+                            onNavigate(null);
+                            setDoc(null);
+                            await refresh();
+                          });
+                      }}
+                    >{localized["\n                      Delete checklist\n                    "]}</Button>
+                  )}
                 </div>
               </div>
             </Modal>
@@ -930,13 +1043,33 @@ export function Documents({
                   }
                 />
               </label>
+              {(historyAction.action === "instantiate" ||
+                historyAction.action === "copy") && (
+                <label>{localized["\n                  Use date (optional)\n                  "]}<input
+                    type="date"
+                    value={historyAction.useDate}
+                    onChange={(e) =>
+                      setHistoryAction({
+                        ...historyAction,
+                        useDate: e.target.value,
+                        requestId: crypto.randomUUID(),
+                      })
+                    }
+                  />
+                </label>
+              )}
               {historyAction.items.map((i: any) => (
                 <fieldset key={i.id}>
                   <legend>{localized["fixture.3ff2c475d562"]}{i.name}</legend>
-                  <select
+                  <Select
                     aria-label={localized["Resolution "] + i.name}
-                    value={resolutions[i.id]?.mode}
-                    onChange={(e) => {
+                    value={resolutions[i.id]?.mode ?? "temporary"}
+                    options={[
+                      { value: "temporary", label: localized["Keep as temporary entry"] },
+                      { value: "existing", label: localized["fixture.9a8dfd51e08d"] },
+                      { value: "new", label: localized["fixture.2b109ccf2461"] },
+                    ]}
+                    onChange={(mode) => {
                       setHistoryAction({
                         ...historyAction,
                         requestId: crypto.randomUUID(),
@@ -944,22 +1077,23 @@ export function Documents({
                       setResolutions({
                         ...resolutions,
                         [i.id]: {
-                          mode: e.target.value,
+                          mode,
                           name: i.name,
                           itemId: items[0]?.id,
                         },
                       });
                     }}
-                  >
-                    <option value="temporary">{localized["Keep as temporary entry"]}</option>
-                    <option value="existing">{localized["fixture.9a8dfd51e08d"]}</option>
-                    <option value="new">{localized["fixture.2b109ccf2461"]}</option>
-                  </select>
+                  />
                   {resolutions[i.id]?.mode === "existing" && (
-                    <select
+                    <Select
                       aria-label={localized["fixture.5a10ca43d247"]}
+                      placeholder={localized["fixture.420ecfe42f1c"]}
                       value={resolutions[i.id]?.itemId || ""}
-                      onChange={(e) => {
+                      options={items.map((x) => ({
+                        value: x.id,
+                        label: x.name,
+                      }))}
+                      onChange={(itemId) => {
                         setHistoryAction({
                           ...historyAction,
                           requestId: crypto.randomUUID(),
@@ -968,18 +1102,11 @@ export function Documents({
                           ...resolutions,
                           [i.id]: {
                             ...resolutions[i.id],
-                            itemId: e.target.value,
+                            itemId,
                           },
                         });
                       }}
-                    >
-                      <option value="">{localized["fixture.420ecfe42f1c"]}</option>
-                      {items.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   )}
                   {resolutions[i.id]?.mode === "new" && (
                     <input
@@ -1006,27 +1133,25 @@ export function Documents({
               ))}
               {(historyAction.duplicates ?? []).map((d: any) => (
                 <label key={d.itemId}>
-                  {d.entries[0].name}{localized[": choose values to keep\n                  "]}<select
+                  {d.entries[0].name}{localized[": choose values to keep\n                  "]}<Select
+                    aria-label={d.entries[0].name + localized[": choose values to keep"]}
+                    placeholder={localized["Choose"]}
                     value={mergeTargets[d.itemId] || ""}
-                    onChange={(ev) => {
+                    options={d.entries.map((e: any) => ({
+                      value: e.id,
+                      label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]].filter(Boolean).join(" · "),
+                    }))}
+                    onChange={(id) => {
                       setMergeTargets({
                         ...mergeTargets,
-                        [d.itemId]: ev.target.value,
+                        [d.itemId]: id,
                       });
                       setHistoryAction({
                         ...historyAction,
                         requestId: crypto.randomUUID(),
                       });
                     }}
-                  >
-                    <option value="">{localized["Choose"]}</option>
-                    {d.entries.map((e: any) => (
-                      <option key={e.id} value={e.id}>
-                        {e.quantity} {e.unit} · {e.note} ·{" "}
-                        {e.checked ? localized["Checked"] : localized["Unchecked"]}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               ))}
               {historyAction.categories.map((g: any) => (
@@ -1042,6 +1167,9 @@ export function Documents({
                       requestId: historyAction.requestId,
                       resolutions,
                       mergeTargets,
+                      ...(historyAction.useDate
+                        ? { useDate: historyAction.useDate }
+                        : {}),
                       ...(historyAction.revision
                         ? { revision: historyAction.revision }
                         : {}),
@@ -1070,128 +1198,142 @@ export function Documents({
           {addOpen && !history && doc.status === "active" && (
             <Modal aria-label={localized["Add entries"]} onClose={() => setAddOpen(false)}>
               <h3>{localized["Add entries"]}</h3>
-              <label>{localized["\n                Add to section\n                "]}<select
+              <label>{localized["\n                Add to section\n                "]}<Select
                   aria-label={localized["Add to section"]}
                   value={targetSection}
-                  onChange={(e) => setTargetSection(e.target.value)}
-                >
-                  <option value="">{localized["Root"]}</option>
-                  {(doc.sections ?? []).map((s: any) => (
-                    <option key={s.id} value={s.id}>
-                      {sectionLabel(s.id)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTargetSection}
+                  options={sectionOptions()}
+                />
               </label>
-              <div className="add-options">
-                <section className="add-source" aria-label={localized["fixture.4faf27d9f1e2"]}>
-                  <h4>Item</h4>
-                  <input
-                    aria-label={localized["fixture.2de8d9b98b44"]}
-                    placeholder={localized["fixture.da2939ca69f7"]}
-                    data-1p-ignore="true"
-                    autoComplete="off"
-                    value={itemQuery}
-                    onChange={(e) => setItemQuery(e.target.value)}
-                  />
-                  <div className="add-item-list">
-                    {items
-                      .filter((i) => matchesSearch(itemQuery, i.name))
-                      .map((i) => (
+              {/* One source at a time: pick an Item, or act on a whole Category. */}
+              <div
+                className="view-switch source-switch"
+                role="tablist"
+                aria-label={localized["Entry source"]}
+              >
+                {(["Item", "Category"] as const).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    role="tab"
+                    aria-selected={addMode === mode}
+                    onClick={() => {
+                      setAddMode(mode);
+                      setItemQuery("");
+                    }}
+                  >{localized["\n                    From "]}{mode}{localized[" add\n                  "]}</Button>
+                ))}
+              </div>
+              <input
+                aria-label={localized["Search "] + addMode}
+                placeholder={localized["Search by name or pinyin "] + addMode}
+                data-1p-ignore="true"
+                autoComplete="off"
+                value={itemQuery}
+                onChange={(e) => setItemQuery(e.target.value)}
+              />
+              <div className="add-list" role="tabpanel">
+                {addMode === "Item" &&
+                  items
+                    .filter((i) => matchesSearch(itemQuery, i.name))
+                    .map((i) => (
+                      <Button
+                        variant="ghost"
+                        key={i.id}
+                        onClick={() => {
+                          add(i);
+                          setAddOpen(false);
+                        }}
+                      >
+                        <span>{i.name}</span>
+                        <Icon name="add" />
+                      </Button>
+                    ))}
+                {addMode === "Category" &&
+                  categories
+                    .filter((c) => matchesSearch(itemQuery, c.name))
+                    .map((c) => (
+                      <div key={c.id} className="add-category">
+                        <span>{c.name}</span>
                         <Button
                           variant="ghost"
-                          key={i.id}
-                          onClick={() => {
-                            add(i);
-                            setAddOpen(false);
-                          }}
-                        >
-                          <span>{i.name}</span>
-                          <Icon name="add" />
-                        </Button>
-                      ))}
-                    {!items.some((i) => matchesSearch(itemQuery, i.name)) && (
-                      <p>{localized["fixture.b9bffce17bd7"]}</p>
-                    )}
-                  </div>
-                </section>
-                <section className="add-source" aria-label={localized["Add from categories"]}>
-                  <h4>Category</h4>
-                  <select
-                    aria-label={localized["fixture.1c6b15dc81da"]}
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">{localized["fixture.e674764c46e1"]}</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
+                          aria-label={localized["From "] + c.name + localized[" Choose item"]}
+                          onClick={() =>
+                            void attempt(async () => {
+                              const members = await api(
+                                "/categories/" + c.id + "/members",
+                              );
+                              setPicker(
+                                items.filter((i) =>
+                                  members.itemIds.includes(i.id),
+                                ),
+                              );
+                              setAddOpen(false);
+                              setPickerOpen(true);
+                            })
+                          }
+                        >{localized["\n                          Choose item\n                        "]}</Button>
+                        <Button
+                          variant="ghost"
+                          aria-label={localized["Add category "] + c.name}
+                          onClick={() =>
+                            void attempt(async () => {
+                              await categoryPreview(c.id);
+                              setAddOpen(false);
+                            })
+                          }
+                        >{localized["\n                          Add category\n                        "]}</Button>
+                      </div>
                     ))}
-                  </select>
-                  <div className="add-category-actions">
-                    <Button
-                      disabled={!category}
-                      onClick={() =>
-                        void attempt(async () => {
-                          const members = await api(
-                            "/categories/" + category + "/members",
-                          );
-                          setPicker(
-                            items.filter((i) => members.itemIds.includes(i.id)),
-                          );
-                          setAddOpen(false);
-                          setPickerOpen(true);
-                        })
-                      }
-                    >{localized["fixture.dc148bf14730"]}</Button>
-                    <Button
-                      disabled={!category}
-                      onClick={() =>
-                        void attempt(async () => {
-                          await categoryPreview(category);
-                          setAddOpen(false);
-                        })
-                      }
-                    >{localized["\n                      Add category\n                    "]}</Button>
-                  </div>
-                </section>
+                {!(addMode === "Item" ? items : categories).some((x) =>
+                  matchesSearch(itemQuery, x.name),
+                ) && <p>{localized["No matching "]}{addMode}</p>}
+              </div>
+              <div className="form-actions">
                 <Button
                   onClick={() => {
                     add(null);
                     setAddOpen(false);
                   }}
                 >{localized["fixture.51edd3d1a7b4"]}</Button>
-              </div>
-              <div className="form-actions">
                 <Button onClick={() => setAddOpen(false)}>{localized["Cancel"]}</Button>
               </div>
             </Modal>
           )}
-          {display.groups.length > 0 && (
+          {kind === "template" && display.groups.length > 0 && (
             <div className="entries entry-groups">
               {display.groups.map((g: any) => (
                 <div key={g.id} className="entry entry-group">
-                  <span className="category-tag">{g.name}</span>
+                  <span className="category-tag">
+                    {/* Live docs show the linked Category's current name; history keeps the snapshot. */}
+                    {(!history &&
+                      doc.status === "active" &&
+                      categories.find((c: any) => c.id === g.categoryId)
+                        ?.name) ||
+                      g.name}
+                  </span>
                   <span className="entry-group-kind">
                     {g.categoryId ? localized["Category snapshot"] : localized["Static group"]}
                   </span>
                   {!history && doc.status === "active" && (
                     <>
                       <Button
-                        onClick={() =>
-                          change({ ...doc, ...removeGroup(doc, g.id) })
-                        }
-                      >{localized["\n                        Remove category source\n                      "]}</Button>
-                      <Button
+                        variant="icon"
+                        aria-label={localized["fixture.5b90b5e5288b"]}
+                        title={localized["fixture.5b90b5e5288b"]}
                         onClick={() => {
                           setLinking({
                             groupId: g.id,
                             categoryId: g.categoryId || categories[0]?.id || "",
                           });
                         }}
-                      >{localized["fixture.586f0d70adc0"]}</Button>
+                      >
+                        <Icon name="link" />
+                      </Button>
                       <Button
+                        variant="icon"
+                        aria-label="Update to latest"
+                        title="Update to latest"
                         disabled={!g.categoryId}
                         onClick={() =>
                           void attempt(() =>
@@ -1199,20 +1341,18 @@ export function Documents({
                           )
                         }
                       >
-                        Update to latest
+                        <Icon name="refresh" />
                       </Button>
-                      {g.excluded.length > 0 && (
-                        <Button
-                          onClick={() =>
-                            change({
-                              ...doc,
-                              groups: doc.groups.map((x: any) =>
-                                x.id === g.id ? { ...x, excluded: [] } : x,
-                              ),
-                            })
-                          }
-                        >{localized["fixture.a2a368d97d61"]}</Button>
-                      )}
+                      <Button
+                        variant="icon"
+                        aria-label={localized["Remove category source"]}
+                        title={localized["Remove category source"]}
+                        onClick={() =>
+                          change({ ...doc, ...removeGroup(doc, g.id) })
+                        }
+                      >
+                        <Icon name="close" />
+                      </Button>
                     </>
                   )}
                 </div>
@@ -1231,6 +1371,46 @@ export function Documents({
               {preview.duplicates.map((i: any) => (
                 <p key={i.id}>{i.name}{localized[": merge automatically, keeping existing data and position"]}</p>
               ))}
+              {preview.excluded.length > 0 && (
+                <section className="excluded-picker">
+                  <div className="excluded-head">
+                    <h4>{localized["Excluded "]}{preview.excluded.length}{localized[" entries · ignored by default"]}</h4>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setPreview({
+                          ...preview,
+                          restore: preview.excluded.map((i: any) => i.id),
+                        })
+                      }
+                    >{localized["\n                      Restore all\n                    "]}</Button>
+                  </div>
+                  <div className="entries">
+                    {preview.excluded.map((i: any) => (
+                      <label key={i.id} className="excluded-row">
+                        <input
+                          type="checkbox"
+                          checked={preview.restore.includes(i.id)}
+                          onChange={(event) =>
+                            setPreview({
+                              ...preview,
+                              restore: event.target.checked
+                                ? [...preview.restore, i.id]
+                                : preview.restore.filter(
+                                    (k: string) => k !== i.id,
+                                  ),
+                            })
+                          }
+                        />
+                        <span>{i.name}</span>
+                        <span className="excluded-hint">
+                          {preview.restore.includes(i.id) ? localized["Restore"] : localized["Ignore"]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              )}
               {preview.removed.map((e: any) => (
                 <p key={e.id}>
                   {e.name}{localized[": sources "]}{e.groupIds.length + Number(e.direct)} →{" "}
@@ -1257,6 +1437,7 @@ export function Documents({
                           ? { groupId: preview.groupId }
                           : {}),
                         expected: preview.expected,
+                        restore: preview.restore,
                       },
                     );
                     change({
@@ -1276,15 +1457,54 @@ export function Documents({
             </Modal>
           )}
           <div className="entries">
-            {contentRows(display).map((row: any) =>
+            {contentRows(display, true).map((row: any) =>
               row.section ? (
-                <div
-                  className="entry section-heading"
+                <SortableRow
+                  as="div"
+                  data-nest=""
+                  id={row.section.id}
+                  className={"entry section-heading level-" + (row.depth + 1)}
                   key={row.section.id}
+                  dragLabel={row.section.name}
+                  disabled={!!history || doc.status !== "active"}
+                  tabIndex={!history && doc.status === "active" ? 0 : undefined}
+                  aria-label={localized["Section "] + row.section.name}
+                  // The whole heading toggles; its edit/delete buttons do not.
+                  onClick={(event) => {
+                    if (
+                      (event.target as HTMLElement).closest(
+                        "button:not(.section-toggle)",
+                      )
+                    )
+                      return;
+                    setCollapsed((prev) => {
+                      const next = new Set(prev);
+                      if (!next.delete(row.section.id)) next.add(row.section.id);
+                      return next;
+                    });
+                  }}
+                  onMove={(target, after) =>
+                    move(row.section.id, target, after ? "after" : "before")
+                  }
+                  onNest={(target) => move(row.section.id, target, "into")}
+                  onStep={(direction) =>
+                    step(row.section.id, row.parent, direction)
+                  }
                   style={{
                     paddingLeft: `calc(var(--space-4) + ${row.depth} * var(--space-4))`,
                   }}
                 >
+                  <Button
+                    variant="icon"
+                    className="section-toggle"
+                    aria-expanded={!collapsed.has(row.section.id)}
+                    aria-label={
+                      (collapsed.has(row.section.id) ? localized["Expand "] : localized["Collapse "]) +
+                      row.section.name
+                    }
+                  >
+                    <Icon name="forward" />
+                  </Button>
                   <strong>{row.section.name}</strong>
                   {!history && doc.status === "active" && (
                     <>
@@ -1298,33 +1518,6 @@ export function Documents({
                         }}
                       >
                         <Icon name="edit" />
-                      </Button>
-                      <Button
-                        variant="icon"
-                        aria-label={localized["fixture.7e9e29246aeb"] + row.section.name}
-                        onClick={() => {
-                          const sections = [...doc.sections],
-                            index = sections.findIndex(
-                              (s: any) => s.id === row.section.id,
-                            );
-                          const prev = sections
-                            .slice(0, index)
-                            .findLast(
-                              (s: any) =>
-                                s.parentSectionId ===
-                                row.section.parentSectionId,
-                            );
-                          if (prev) {
-                            const pos = sections.indexOf(prev);
-                            [sections[pos], sections[index]] = [
-                              sections[index],
-                              sections[pos],
-                            ];
-                            change({ ...doc, sections });
-                          }
-                        }}
-                      >
-                        <Icon name="up" />
                       </Button>
                       <Button
                         className="danger"
@@ -1342,18 +1535,16 @@ export function Documents({
                       </Button>
                     </>
                   )}
-                </div>
+                </SortableRow>
               ) : (
                 (() => {
-                  const e = row.entry,
-                    index = display.entries.findIndex(
-                      (x: any) => x.id === e.id,
-                    );
+                  const e = row.entry;
                   const linkedItem =
                     !history && doc.status === "active"
                       ? items.find((i) => i.id === e.itemId)
                       : null;
-                  const nameControl = (
+                  const editable = !history && doc.status === "active";
+                  const nameInput = (
                     <input
                       data-1p-ignore="true"
                       autoComplete="off"
@@ -1364,14 +1555,35 @@ export function Documents({
                         !!e.itemId || !!history || doc.status === "archived"
                       }
                       onChange={(ev) =>
-                        updateEntry(e.id, { name: ev.target.value })
+                        updateEntry(e.id, { name: ev.target.value }, true)
                       }
                     />
                   );
+                  const nameControl = (
+                    <div className="entry-name">
+                      {nameInput}
+                      {e.note && (
+                        <p className="entry-note" title={e.note}>
+                          {e.note}
+                        </p>
+                      )}
+                    </div>
+                  );
                   return (
-                    <div
+                    <SortableRow
                       key={e.id}
+                      as="div"
+                          id={e.id}
                       className="entry"
+                      dragLabel={e.name}
+                      disabled={!editable}
+                      onMove={(target, after) =>
+                        move(e.id, target, after ? "after" : "before")
+                      }
+                      onNest={(target) => move(e.id, target, "into")}
+                      onStep={(direction) => step(e.id, row.parent, direction)}
+                      tabIndex={editable ? 0 : undefined}
+                      aria-label={e.name}
                       style={{
                         paddingLeft: `calc(var(--space-4) + ${row.depth} * var(--space-4))`,
                       }}
@@ -1384,7 +1596,7 @@ export function Documents({
                           type="checkbox"
                           disabled={
                             doc.status === "archived" ||
-                            dirty ||
+                            !savedIds.current.has(e.id) ||
                             checks.current.has(e.id) ||
                             failedChecks.current.has(e.id)
                           }
@@ -1402,30 +1614,36 @@ export function Documents({
                       ) : (
                         nameControl
                       )}
-                      {(["quantity", "unit", "note"] as const).map((field) => (
-                        <input
-                          data-1p-ignore="true"
-                          autoComplete="off"
-                          key={field}
-                          aria-label={field}
-                          className={field === "note" ? "note" : "small"}
-                          placeholder={
-                            { quantity: localized["fixture.5e29d121dda0"], unit: localized["fixture.80b19d68b149"], note: localized["Note"] }[
-                              field
-                            ]
-                          }
-                          value={e[field]}
-                          disabled={!!history || doc.status === "archived"}
-                          onChange={(ev) =>
-                            updateEntry(e.id, { [field]: ev.target.value })
-                          }
-                        />
-                      ))}
                       <span
                         className="entry-source-count"
-                        title={localized["fixture.c06d43389e8c"]}
+                        title={
+                          e.groupIds.length +
+                          Number(e.direct) +
+                          localized[" sources (category and direct)"]
+                        }
+                        aria-label={
+                          e.groupIds.length + Number(e.direct) + localized[" sources"]
+                        }
                       >
-                        {e.groupIds.length + Number(e.direct)}{localized[" sources\n                      "]}</span>
+                        <Icon name="source" />
+                        {e.groupIds.length + Number(e.direct)}
+                      </span>
+                      {editable && (
+                        <Button
+                          variant="icon"
+                          aria-label={localized["Edit note "] + e.name}
+                          title={localized["Edit note"]}
+                          onClick={() =>
+                            setNoteEditor({
+                              id: e.id,
+                              name: e.name,
+                              note: e.note,
+                            })
+                          }
+                        >
+                          <Icon name="edit" />
+                        </Button>
+                      )}
                       {!history && doc.status === "active" && (
                         <>
                           {(doc.sections ?? []).length > 0 && (
@@ -1440,46 +1658,13 @@ export function Documents({
                           )}
                           <Button
                             variant="icon"
-                            aria-label={localized["fixture.b2adfcc789b9"] + e.name}
-                            title={localized["fixture.f853a70b1204"]}
-                            disabled={
-                              !doc.entries
-                                .slice(0, index)
-                                .some(
-                                  (x: any) =>
-                                    (x.sectionId ?? null) ===
-                                    (e.sectionId ?? null),
-                                )
-                            }
-                            onClick={() => {
-                              const entries = [...doc.entries];
-                              const previous = entries
-                                .slice(0, index)
-                                .findLastIndex(
-                                  (x: any) =>
-                                    (x.sectionId ?? null) ===
-                                    (e.sectionId ?? null),
-                                );
-                              if (previous < 0) return;
-                              [entries[previous], entries[index]] = [
-                                entries[index],
-                                entries[previous],
-                              ];
-                              change({ ...doc, entries });
-                            }}
-                          >
-                            <Icon name="up" />
-                          </Button>
-                          <Button
-                            className="danger"
-                            variant="icon"
                             aria-label={localized["Remove "] + e.name}
                             title={localized["Remove"]}
                             onClick={() =>
                               change({ ...doc, ...removeEntry(doc, e.id) })
                             }
                           >
-                            <Icon name="trash" />
+                            <Icon name="close" />
                           </Button>
                           {!e.itemId && (
                             <Button
@@ -1510,7 +1695,7 @@ export function Documents({
                           )}
                         </>
                       )}
-                    </div>
+                    </SortableRow>
                   );
                 })()
               ),

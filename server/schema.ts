@@ -14,6 +14,15 @@ export const object = (
   properties: any,
   required = Object.keys(properties),
 ) => ({ type: "object", properties, required, additionalProperties: false });
+const section = object(
+  {
+    id: uuid,
+    name: text,
+    parentSectionId: nullable(uuid),
+    afterEntryId: nullable(uuid),
+  },
+  ["id", "name", "parentSectionId"],
+);
 export const errorSchema = object({ message: text, details: {} }, ["message"]);
 const item = object(
   {
@@ -79,9 +88,7 @@ export const documentSchema = object(
     useDate: nullable(text),
     status: { type: "string", enum: ["active", "archived"] },
     source: nullable({ type: "object", additionalProperties: true }),
-    sections: list(
-      object({ id: uuid, name: text, parentSectionId: nullable(uuid) }),
-    ),
+    sections: list(section),
     entries: list(entry),
     groups: list(group),
     schemaVersion: { type: "integer" },
@@ -157,9 +164,7 @@ export function responseSchema(url: string, method: string) {
     return object({
       entries: list(entry),
       groups: list(group),
-      sections: list(
-        object({ id: uuid, name: text, parentSectionId: nullable(uuid) }),
-      ),
+      sections: list(section),
     });
   return documentSchema;
 }

@@ -57,11 +57,9 @@ test("Item content is shared by catalog, category, template and checklist", asyn
     "/checklists/" + docs[1].id,
   ]) {
     await page.goto(path);
-    const summary = page
-      .locator(".item-summary")
-      .filter({
-        has: page.getByText("Item note " + info.project.name, { exact: true }),
-      });
+    const summary = page.locator(".item-summary").filter({
+      has: page.getByText("Item note " + info.project.name, { exact: true }),
+    });
     await expect(summary).toHaveCount(1);
     await expect(summary.locator(".item-group-tag")).toHaveText(
       "Group · Shared group",
@@ -71,14 +69,17 @@ test("Item content is shared by catalog, category, template and checklist", asyn
         .locator(".item-note")
         .evaluate((el) => getComputedStyle(el).fontSize),
     ).toBe("12px");
+    // One Item name size everywhere: catalog, members and document entries.
+    expect(
+      await summary
+        .locator("h3, .name")
+        .first()
+        .evaluate((el) => getComputedStyle(el).fontSize),
+    ).toBe("13px");
     if (path.startsWith("/templates/") || path.startsWith("/checklists/")) {
       await expect(summary.getByLabel(localized["Entry name"])).toHaveValue(item.name);
-      await expect(page.getByLabel("note", { exact: true })).toHaveValue(
-        "Entry note",
-      );
-      await expect(page.getByLabel("quantity", { exact: true })).toHaveValue(
-        "2",
-      );
+      await expect(summary.locator(".entry-note")).toHaveText("Entry note");
+      await expect(page.getByLabel("quantity", { exact: true })).toHaveCount(0);
     }
     expect(
       await page.evaluate(

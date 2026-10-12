@@ -132,6 +132,7 @@ export function Page({
   onMore,
   showView = true,
   search,
+  status,
   children,
 }: {
   title: string;
@@ -150,6 +151,8 @@ export function Page({
   onMore?: () => void;
   showView?: boolean;
   search?: { value: string; onChange: (value: string) => void };
+  /** Short save state beside the title; the header keeps its height. */
+  status?: string;
   children: React.ReactNode;
 }) {
   const [view, setViewState] = useState(readView);
@@ -175,6 +178,11 @@ export function Page({
               </Button>
             )}
             <h2>{title}</h2>
+            {status !== undefined && (
+              <span role="status" className="page-status" title={status}>
+                {status}
+              </span>
+            )}
           </div>
           <div className="page-actions">
             {showView && (
@@ -303,6 +311,9 @@ const iconPaths = {
   more: "M5 12h.01M12 12h.01M19 12h.01",
   close: "M6 6l12 12M18 6L6 18",
   up: "M12 19V5M6 11l6-6 6 6",
+  source: "M12 3l9 5-9 5-9-5zM3 13l9 5 9-5",
+  link: "M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1",
+  refresh: "M20 11a8 8 0 0 0-15-3M4 4v4h4M4 13a8 8 0 0 0 15 3M20 20v-4h-4",
   trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7",
 };
 

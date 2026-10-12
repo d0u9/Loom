@@ -15,7 +15,7 @@ Successful login responses include `csrf` and `username`; with authentication en
 
 ## Template / Checklist
 
-Content may include sections, with section fields `{id,name,parentSectionId}`; array order determines sibling display order. Entry.sectionId:null/omitted means the root position. At most three section levels, excluding the root and Item.
+Content may include sections, with section fields `{id,name,parentSectionId,afterEntryId?}`. Entries and child sections under the same parent share an order: entries follow array order, and a section immediately follows the sibling entry referenced by afterEntryId; null places it before all sibling entries, while an absent value (legacy data) or a reference that no longer points to a sibling entry places it after the sibling entries. Multiple sections at the same position follow array order. New entries append to the array and therefore appear last under that parent. When duplicate entries merge, sections referencing a merged entry instead reference the preceding retained sibling entry. Copy/instantiate/restore remap afterEntryId; Entry.sectionId:null/omitted means the root position. At most three section levels, excluding the root and Item.
 
 Shared `/documents`: GET lists summaries, POST `{kind,name,entries,groups,requestId}` creates, GET `/:id` retrieves details, and PUT `/:id` submits `{name,entries,groups,version,requestId}` to replace the structure. kind is template or checklist; Template PUT generates a revision each time.
 
@@ -23,13 +23,13 @@ Entry fields: `id,itemId,sectionId?,name,quantity,unit,note,direct,groupIds`; qu
 
 `PUT /checklists/:id/entries/:entryId/checked {checked,requestId}` sets the target state. The client waits for the previous request to complete before submitting the next; the UI temporarily disables checking that entry while saving, and failures can retry the original request. Checking does not change the structural version; the last submission across devices wins.
 
-`GET /templates/:id/revisions` lists revisions; GET `/:revision` returns a historical snapshot. Creating an independent checklist from a template uses `POST /documents/:id/history-apply`, with action instantiate (see History Operations below). `DELETE /templates/:id {version,confirm:true}` deletes the template and revisions, retaining existing instance content and source snapshots.
+`GET /templates/:id/revisions` lists revisions; GET `/:revision` returns a historical snapshot. Creating an independent checklist from a template uses `POST /documents/:id/history-apply`, with action instantiate (see History Operations below). `DELETE /templates/:id {version,confirm:true}` deletes the template and revisions, retaining existing instance content and source snapshots. `DELETE /checklists/:id {version,confirm:true}` permanently deletes a checklist (active or archived), including entries, category groups, and archive snapshots; non-Checklist resources return 400, and stale versions return 409.
 
 ## Category Preview and Apply
 
-`POST /documents/:id/category-preview {entries,groups,version,categoryId,groupId?}`: no groupId means a new group; an existing groupId means an update. Returns group, expected as the complete member set, added, removed, duplicates.
+`POST /documents/:id/category-preview {entries,groups,version,categoryId,groupId?}`: no groupId means a new group; an existing groupId means an update. Returns group, expected as the complete member set, excluded (excluded Items that are still members), added, removed, duplicates.
 
-`POST /documents/:id/category-compose` submits the above content plus expected, `choices`, and `removeIds`. All duplicate Items merge automatically, retaining existing values and positions. Legacy callers' merge choices/removeIds fields remain compatible but no longer control merging or zero-source removal; keep is rejected. Returns new entries/groups/sections without writing yet; save through documents PUT, whose transaction checks the member set again. Template still maintains a client-side draft; Checklist autosaves.
+`POST /documents/:id/category-compose` submits the above content plus expected, `choices`, `removeIds`, and optional `restore` (Item IDs to add back; they must be excluded in that group and still be members, otherwise 400; the server clears their exclusions and adds the entries back). All duplicate Items merge automatically, retaining existing values and positions. Legacy callers' merge choices/removeIds fields remain compatible but no longer control merging or zero-source removal; keep is rejected. Returns new entries/groups/sections without writing yet; save through documents PUT, whose transaction checks the member set again. Template still maintains a client-side draft; Checklist autosaves.
 
 Group fields: `id,categoryId,originalCategoryId,name,members,excluded,expected?`. expected is the confirmed expanded set and is not persisted as an ongoing synchronization constraint after saving. Exclusions are per group + Item and are created when an entry is manually deleted. Static groups have categoryId null and retain the original identifier and content; after changing categoryId, the user saves normally and then requests an update preview.
 
@@ -39,7 +39,7 @@ Group fields: `id,categoryId,originalCategoryId,name,members,excluded,expected?`
 
 `POST /documents/:id/history-preview {action,version,revision?}` returns missing items/categories, names, and duplicates (each group contains itemId and candidate entries). action is restore, copy, template, or instantiate; instantiate requires revision.
 
-`POST /documents/:id/history-apply {action,version,revision?,name,requestId,resolutions,mergeTargets?}` applies atomically. resolutions specifies `{mode:'temporary'}`, `{mode:'existing',itemId}`, or `{mode:'new',name}` by missing Item ID. mergeTargets specifies the entry ID whose data to retain by duplicate Item ID, taking the union of sources; unresolved conflicts between different field values return 409 with candidate entries and roll back the entire operation. Missing Categories automatically become static groups. restore retains checked and replaces the archive; copy/instantiate reset checked; template creates revision 1.
+`POST /documents/:id/history-apply {action,version,revision?,name,requestId,resolutions,mergeTargets?,useDate?}` applies atomically. resolutions specifies `{mode:'temporary'}`, `{mode:'existing',itemId}`, or `{mode:'new',name}` by missing Item ID. mergeTargets specifies the entry ID whose data to retain by duplicate Item ID, taking the union of sources; unresolved conflicts between different field values return 409 with candidate entries and roll back the entire operation. Missing Categories automatically become static groups. restore retains checked and replaces the archive; copy/instantiate reset checked; template creates revision 1.
 
 ## Conflicts and Safe Retries
 
@@ -49,7 +49,7 @@ Writes requiring deduplication include a UUID requestId. After a timeout, retry 
 
 ## Use Date
 
-POST `/documents` and PUT `/documents/:id` may include `useDate: "2026-10-11" | null`. Only Checklist permits a nonempty date; invalid Gregorian dates return 400. GET list/detail responses return useDate. Omission on PUT preserves the previous value; null clears it. Writes follow version and idempotency constraints. Archive/restore retain the date; copy and template instantiation default to null.
+POST `/documents` and PUT `/documents/:id` may include `useDate: "2026-10-11" | null`. Only Checklist permits a nonempty date; invalid Gregorian dates return 400. GET list/detail responses return useDate; lists also return `total`/`done` (entry and checked counts, taken from snapshots for archives). Omission on PUT preserves the previous value; null clears it. Writes follow version and idempotency constraints. Archive/restore retain the date; copy and template instantiation may specify history-apply `useDate`, defaulting to null when omitted.
 
 ## Category Member Order
 

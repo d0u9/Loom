@@ -37,7 +37,7 @@ Migration 7 only adds a nullable field without changing existing content; old PU
 - `categories`: stable ID, name, resource version; parent ID and category hierarchies are unsupported.
 - `item_categories`: unique membership relationships between Item and Category.
 - `templates`, `template_entries`: mutable current templates and entries.
-- Internal document sections (Section): UUID, owning document, name, nullable parentSectionId, sibling ordering; entries specify their display position with nullable sectionId. Sections and Category source groups are stored separately.
+- Internal document sections (Section): UUID, owning document, name, nullable parentSectionId, sibling ordering, and nullable afterEntryId; entries specify their display position with nullable sectionId. Entries and child sections under the same parent share one interleaved order: a section immediately follows the sibling entry referenced by afterEntryId, null places it first, and an absent value places it after sibling entries (compatible with old data, requiring no migration). New entries therefore appear at the end of their parent. Sections and Category source groups are stored separately.
 - `template_revisions`: template ID, increasing revision, save timestamp, complete JSON snapshot; immutable after writing.
 - `checklists`, `checklist_entries`: active checklists, status, entries, and optional template/revision source.
 - Category groups and entry-source relationships: store their Template/Checklist, nullable effective Category ID, original Category ID and name snapshot, expanded member set, exclusions, and many-to-many relationships between entries and category groups.
@@ -91,7 +91,7 @@ For example, Ingredients and Experimental materials both contain egg. Adding bot
 
 `Update to latest` first previews added/removed members and source changes, then lets the user apply them. New members merge automatically; removed members lose only the corresponding category source. Remove an entry when its last source disappears, explicitly listing these removals in the preview. Per-entry Merge/Keep both is no longer required. Users wishing to retain an entry can first establish a direct source. Category-group removal and cleanup of entries with zero sources occur in the same structural-save transaction; Template still saves explicitly and Checklist still autosaves.
 
-Manually deleting an entry removes all its sources and records exclusions by category group + Item to prevent reintroduction on the next update. Explicitly re-adding or restoring an Item in that group clears its exclusion. Removing an entire category group creates no exclusions for other groups. Temporary entries create no member exclusions.
+Manually deleting an entry removes all its sources and records exclusions by category group + Item to prevent reintroduction on the next update. Update to latest previews excluded Items still belonging to the category, continuing to ignore them by default. Users may check them individually or choose Add all back; apply re-adds entries and clears corresponding exclusions. Unchecked exclusions remain selectable next time; exclusions for Items no longer in the category stay stored but hidden. Removing an entire category group creates no exclusions for other groups. Temporary entries create no member exclusions.
 
 ### Deletion and effective references
 
@@ -101,7 +101,7 @@ Archiving saves a complete snapshot, changes state, and deletes the checklist's 
 
 Restoring an archive rebuilds entries/category groups from the snapshot and preserves original checkmarks. Missing Items use the per-entry choices below; missing Categories become static groups as described below. On success, the checklist becomes active and its archive snapshot is deleted. Restore and copy differ: copy when the archive must remain. Historical snapshot Item IDs identify sources; Items need not still exist and no deletion-blocking foreign keys are created.
 
-A Category can be deleted only if it has no members or category-group references from current Templates/active Checklists. History retains category ID/name snapshots. Template deletion requires explicit confirmation and deletes its revision history; saved template names, revision identifiers, and instance content in Checklists remain, and the source association may become null without cascading deletion of checklists.
+A Category can be deleted only if it has no members or category-group references from current Templates/active Checklists. History retains category ID/name snapshots. Template deletion requires explicit confirmation and deletes its revision history; saved template names, revision identifiers, and instance content in Checklists remain, and the source association may become null without cascading deletion of checklists. A Checklist, active or archived, can be permanently deleted after explicit confirmation, deleting entries, category groups, and archive snapshots and releasing Item references; this changes neither the source template nor other checklists copied from it. Archive preserves records; delete removes unwanted checklists.
 
 ### Archiving, copying, conversion to templates, and missing Items
 
@@ -155,7 +155,7 @@ AppLayout in `web/layout.tsx` alone owns left navigation, calendar, mobile navig
 
 Right content is centered outside the sidebar, with a 960px maximum width and narrow-screen adaptation. The current baseline is 14px body text, 18px page titles, regular weight, 28px desktop buttons/inputs, and at least 44px phone targets. Visual acceptance compares equal-size windows; repeatedly shrinking fonts is not an optimization strategy.
 
-Item/Category reuse catalog editing structure; Template/Checklist reuse the Documents editor, while business fields and save semantics remain independent. Template shows save and revision, Checklist shows checkmarks and use date, and category groups show sources and Update to latest.
+Item/Category reuse catalog editing structure; Template/Checklist reuse the Documents editor, while business fields and save semantics remain independent. Template shows save and revision, Checklist shows checkmarks and use date. Category-group rows (source, link Category, Update to latest, remove category source) appear only in Template; Checklist hides them but still stores category groups and entry-source relationships, preserving them in archiving, restoration, copying, and conversion to templates.
 
 ### Calendar, forms, and accessibility
 
@@ -181,7 +181,7 @@ Follow the confirmed product semantics in this document. API wire schemas are ge
 
 ### Checklist use date and calendar
 
-Checklist adds nullable `useDate`, a real Gregorian YYYY-MM-DD date without time or timezone. Templates have no scheduled date. SQLite migration 4 adds the column, defaulting old checklists to null; old API PUT requests that omit it retain the current value, while explicit null clears it. Date edits are protected by structural version and requestId. Archive snapshots retain the date and restoration preserves it; copying/instantiation defaults to unscheduled. The desktop sidebar calendar marks dates with checklists, including archives, and filters on click; Checklist navigation clears the date filter and shows all checklists; phones offer a collapsible calendar. Creating a Checklist for the selected date defaults to that date. The column can remain when rolling back to the old application, without deleting data; the old version cannot edit dates during rollback.
+Checklist adds nullable `useDate`, a real Gregorian YYYY-MM-DD date without time or timezone. Templates have no scheduled date. SQLite migration 4 adds the column, defaulting old checklists to null; old API PUT requests that omit it retain the current value, while explicit null clears it. Date edits are protected by structural version and requestId. Archive snapshots retain the date and restoration preserves it; copying/instantiation can specify an execution date at confirmation, with blank meaning unscheduled. The desktop sidebar calendar marks dates with checklists, including archives, and filters on click; Checklist navigation clears the date filter and shows all checklists; phones offer a collapsible calendar. Creating a Checklist for the selected date defaults to that date. The column can remain when rolling back to the old application, without deleting data; the old version cannot edit dates during rollback.
 
 ### Category member details
 

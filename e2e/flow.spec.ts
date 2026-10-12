@@ -86,20 +86,39 @@ test("catalog to template, checklist, archive and restore", async ({
     fullPage: true,
   });
   await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
+  // Item and Category are alternative sources, one tab each.
+  const dialogBox = await page.getByRole("dialog").boundingBox();
+  await page.getByRole("tab", { name: localized["fixture.2cec23ad2305"], exact: true }).click();
+  expect(await page.getByRole("dialog").boundingBox()).toEqual(dialogBox);
+  await expect(page.getByLabel(localized["fixture.2de8d9b98b44"], { exact: true })).toHaveCount(0);
+  await page.getByLabel(localized["fixture.132c3a2fd757"], { exact: true }).fill("Food " + suffix);
   await page
-    .getByLabel(localized["fixture.1c6b15dc81da"])
-    .selectOption({ label: "Food " + suffix });
-  await page.getByRole("button", { name: localized["Add category"], exact: true }).click();
+    .getByRole("button", { name: localized["fixture.1db821558226"] + suffix, exact: true })
+    .click();
   await page.getByRole("button", { name: localized["Apply selection"], exact: true }).click();
   await expect(page.getByLabel(localized["Entry name"])).toHaveValue("egg " + suffix);
-  await page.getByLabel("quantity", { exact: true }).fill("2");
+  // Quantity and unit are hidden for now.
+  await expect(page.getByLabel("quantity", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: localized["fixture.9031f7ab2f77"] }).click();
   await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
-  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.872a09499ce8"] }).click();
+  // Instantiating is a top-level action, not hidden in the more menu.
+  await page
+    .locator(".page-header")
+    .getByRole("button", { name: localized["Create checklist"], exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByLabel(localized["Use date (optional)"])
+    .fill("2026-10-20");
   await page.getByRole("button", { name: localized["Confirm / Retry"] }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "Checklist", exact: true }).click();
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Meal " + suffix })
+      .getByText(localized["fixture.5d234f9450bb"], { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("article")
     .filter({
@@ -107,7 +126,9 @@ test("catalog to template, checklist, archive and restore", async ({
     })
     .getByRole("button", { name: localized["fixture.304b9dd745ae"] + suffix, exact: true })
     .click();
-  await expect(page.getByLabel("quantity", { exact: true })).toHaveValue("2");
+  await expect(page.getByLabel(localized["Entry name"])).toHaveValue("egg " + suffix);
+  // Checklists hide category group rows; sources are managed in Templates.
+  await expect(page.locator(".entry-group")).toHaveCount(0);
   let dropped = false;
   await page.route("**/checked", async (route) => {
     if (!dropped) {
@@ -136,4 +157,15 @@ test("catalog to template, checklist, archive and restore", async ({
     path: "test-results/" + suffix + ".png",
     fullPage: true,
   });
+  // Checklists can be deleted outright instead of only archived.
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
+  await page.getByRole("button", { name: localized["Delete checklist"], exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Meal " + suffix, exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Meal " + suffix, exact: true }),
+  ).toHaveCount(0);
 });

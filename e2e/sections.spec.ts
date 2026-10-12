@@ -25,10 +25,13 @@ test("shared document editor creates three levels, moves items and preserves sec
       .click();
     const modal = page.getByRole("dialog", { name: localized["New section"], exact: true });
     await modal.getByLabel(localized["Name"], { exact: true }).fill(name);
-    if (parentName)
-      await modal
-        .getByLabel(localized["Parent section"], { exact: true })
-        .selectOption({ label: parentName });
+    if (parentName) {
+      await modal.getByLabel(localized["Parent section"], { exact: true }).click();
+      await page
+        .getByRole("combobox", { name: localized["Parent section"], exact: true })
+        .fill(parentName);
+      await page.getByRole("option", { name: parentName, exact: true }).click();
+    }
     await modal.getByRole("button", { name: localized["Save section"], exact: true }).click();
   };
   await createSection(localized["fixture.339dd3cabd55"]);
@@ -38,9 +41,13 @@ test("shared document editor creates three levels, moves items and preserves sec
   await expect(page.getByRole("alert")).toContainText("three levels");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
+  await page.getByLabel(localized["Add to section"], { exact: true }).click();
   await page
-    .getByLabel(localized["Add to section"], { exact: true })
-    .selectOption({ label: localized["fixture.36dc20d4e883"] });
+    .getByRole("combobox", { name: localized["Add to section"], exact: true })
+    .fill(localized["fixture.36dc20d4e883"]);
+  await page
+    .getByRole("option", { name: localized["fixture.36dc20d4e883"], exact: true })
+    .click();
   await page.getByRole("button", { name: localized["fixture.82d440e5f3ee"], exact: true }).click();
   await page.getByLabel(localized["Entry name"], { exact: true }).fill(localized["fixture.6b1311e9a899"]);
   await page
@@ -48,6 +55,17 @@ test("shared document editor creates three levels, moves items and preserves sec
     .click();
   await expect(page.getByRole("status")).toContainText(localized["Saved"]);
   await page.reload();
+  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveValue(
+    localized["fixture.6b1311e9a899"],
+  );
+  // Fold arrows hide a section's contents without changing the document.
+  await page.getByRole("button", { name: localized["fixture.f868a50b3767"], exact: true }).click();
+  await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: localized["fixture.2eb956971886"], exact: true }),
+  ).toHaveCount(0);
+  // Clicking the heading row itself toggles too.
+  await page.getByLabel(localized["fixture.e7b177a44877"], { exact: true }).click({ position: { x: 200, y: 10 } });
   await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveValue(
     localized["fixture.6b1311e9a899"],
   );
@@ -75,7 +93,8 @@ test("shared document editor creates three levels, moves items and preserves sec
     page.getByRole("button", { name: localized["fixture.a036de71bed3"], exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: localized["fixture.1846bc6ee759"], exact: true }).click();
-  await page.getByLabel(localized["fixture.e35f16d27295"], { exact: true }).selectOption("");
+  await page.getByLabel(localized["fixture.e35f16d27295"], { exact: true }).click();
+  await page.getByRole("option", { name: localized["Root"], exact: true }).click();
   await page.getByRole("button", { name: localized["Move"], exact: true }).click();
   await page
     .getByRole("button", { name: localized["fixture.9031f7ab2f77"], exact: true })
@@ -83,7 +102,9 @@ test("shared document editor creates three levels, moves items and preserves sec
   await expect(page.getByRole("status")).toContainText(localized["Saved"]);
   await page.reload();
   await page.getByRole("button", { name: localized["fixture.1846bc6ee759"], exact: true }).click();
-  await expect(page.getByLabel(localized["fixture.e35f16d27295"], { exact: true })).toHaveValue("");
+  await expect(page.getByLabel(localized["fixture.e35f16d27295"], { exact: true })).toHaveValue(
+    localized["Root"],
+  );
   await page.keyboard.press("Escape");
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
@@ -109,9 +130,11 @@ test("shared document editor creates three levels, moves items and preserves sec
   const addCategory = async (category: any) => {
     await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
     await page
-      .getByLabel(localized["fixture.1c6b15dc81da"], { exact: true })
-      .selectOption(category.id);
-    await page.getByRole("button", { name: localized["Add category"], exact: true }).click();
+      .getByRole("tab", { name: localized["fixture.2cec23ad2305"], exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: localized["Add category "] + category.name, exact: true })
+      .click();
     await expect(
       page.getByRole("button", { name: localized["fixture.e825f4c26f87"] }),
     ).toHaveCount(0);
@@ -121,7 +144,59 @@ test("shared document editor creates three levels, moves items and preserves sec
   await addCategory(lab);
   await addCategory(lab);
   await expect(page.getByLabel(localized["Entry name"])).toHaveCount(2);
-  await expect(page.getByText(localized["fixture.afa3ba748beb"], { exact: true })).toBeVisible();
+  // Group actions are compact icon buttons with accessible names.
+  const labRow = page.locator(".entry-group").filter({ hasText: lab.name });
+  for (const name of [localized["fixture.5b90b5e5288b"], "Update to latest", localized["Remove category source"]])
+    await expect(labRow.getByRole("button", { name, exact: true })).toHaveClass(
+      /icon-button/,
+    );
+  // A linked group shows the Category's current name, not its snapshot.
+  await page
+    .getByRole("button", { name: localized["fixture.9031f7ab2f77"], exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText(localized["Saved"]);
+  const renamed = "Renamed " + lab.name;
+  expect(
+    (
+      await page.request.put("/api/v1/categories/" + lab.id, {
+        headers: { "x-csrf-token": csrf },
+        data: { name: renamed, version: lab.version },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.reload();
+  await expect(
+    page.locator(".entry-group .category-tag", { hasText: renamed }),
+  ).toBeVisible();
+  lab.name = renamed;
+  // Removing an entry excludes it; each update chooses to keep ignoring or add back.
+  await page
+    .getByRole("button", { name: localized["Remove "] + egg.name, exact: true })
+    .click();
+  await expect(page.getByLabel(localized["Entry name"])).toHaveCount(1);
+  const update = (name = renamed) =>
+    page
+      .locator(".entry-group")
+      .filter({ hasText: name })
+      .getByRole("button", { name: "Update to latest", exact: true })
+      .click();
+  await update();
+  const preview = page.getByRole("dialog", { name: localized["Category update preview"] });
+  await expect(
+    preview.getByRole("checkbox", { name: egg.name }),
+  ).not.toBeChecked();
+  await preview.getByRole("button", { name: localized["Apply selection"], exact: true }).click();
+  await expect(page.getByLabel(localized["Entry name"])).toHaveCount(1);
+  await update();
+  await preview.getByRole("checkbox", { name: egg.name }).check();
+  await preview.getByRole("button", { name: localized["Apply selection"], exact: true }).click();
+  await expect(page.getByLabel(localized["Entry name"])).toHaveCount(2);
+  // Restoring in the other group too brings both sources back.
+  await update(food.name);
+  await preview.getByRole("button", { name: localized["Restore all"], exact: true }).click();
+  await preview.getByRole("button", { name: localized["Apply selection"], exact: true }).click();
+  await expect(page.getByLabel(localized["Entry name"])).toHaveCount(2);
+  await expect(page.getByLabel(localized["fixture.afa3ba748beb"], { exact: true })).toBeVisible();
   const removeCategory = async (category: any) => {
     await page
       .locator(".entry-group")

@@ -185,10 +185,11 @@ export function createDocument(
 export function reid(content: Content): Content {
   const mapping = new Map(content.groups.map((g) => [g.id, id()]));
   const sections = new Map((content.sections ?? []).map((s) => [s.id, id()]));
+  const entries = new Map(content.entries.map((e) => [e.id, id()]));
   return {
     entries: content.entries.map((e) => ({
       ...e,
-      id: id(),
+      id: entries.get(e.id)!,
       sectionId: e.sectionId ? sections.get(e.sectionId)! : null,
       groupIds: e.groupIds.map((k) => mapping.get(k)!),
     })),
@@ -199,6 +200,9 @@ export function reid(content: Content): Content {
       parentSectionId: s.parentSectionId
         ? sections.get(s.parentSectionId)!
         : null,
+      // null (first) stays null; missing or stale stays missing (= last).
+      afterEntryId:
+        s.afterEntryId === null ? null : entries.get(s.afterEntryId ?? ""),
     })),
   };
 }
@@ -290,7 +294,8 @@ export const contentSchema = {
       id: uuid,
       name: short,
       parentSectionId: { anyOf: [uuid, { type: "null" }] },
-    }),
+      afterEntryId: { anyOf: [uuid, { type: "null" }] },
+    }, ["id", "name", "parentSectionId"]),
   },
   entries: { type: "array", maxItems: 10000, items: entry },
   groups: { type: "array", maxItems: 1000, items: group },

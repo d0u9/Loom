@@ -1,4 +1,3 @@
-import localized from "../locales/zh.json" with { type: "json" };
 import React, { useEffect, useRef } from "react";
 
 export function SortableRow({
@@ -7,24 +6,60 @@ export function SortableRow({
   onMove,
   onStep,
   drop,
+  onNest,
   dragLabel,
+  as: Tag = "article",
   children,
   ...props
 }: React.HTMLAttributes<HTMLElement> & {
   id?: string;
   disabled?: boolean;
-  onMove?: (target: string) => void;
+  /** `after` is true when the row lands after the target (moving down). */
+  onMove?: (target: string, after: boolean) => void;
   onStep?: (direction: number) => void;
   dragLabel?: string;
+  as?: "article" | "div";
   drop?: { selector: string; onDrop: (target: HTMLElement) => void };
+  /** Dropping on the lower half of a same-group row marked data-nest nests into it. */
+  onNest?: (target: string) => void;
 }) {
   const ref = useRef<HTMLElement>(null);
   const start = useRef<{ x: number; y: number; time: number } | null>(null);
   const suppressClick = useRef(false);
   const hovered = useRef<HTMLElement | null>(null);
+  const slot = useRef<HTMLElement | null>(null);
+  const grab = useRef({ x: 0, y: 0 });
   const preview = useRef<HTMLDivElement | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabled = !!(onMove || drop) && !disabled;
+  // Sibling row under the pointer that accepts this row, if any.
+  function sortTarget(x: number, y: number) {
+    const target = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>("[data-sort-id]");
+    return target &&
+      target !== ref.current &&
+      target.parentElement === ref.current?.parentElement
+      ? target
+      : null;
+  }
+  // Where a drop at (x, y) lands: lower half of a data-nest row nests into
+  // it; otherwise moving down lands after the target, moving up before it.
+  function landing(x: number, y: number) {
+    const target = sortTarget(x, y);
+    if (!target) return null;
+    const box = target.getBoundingClientRect();
+    const place =
+      onNest &&
+      target.dataset.nest !== undefined &&
+      y > box.top + box.height / 2
+        ? "into"
+        : ref.current!.compareDocumentPosition(target) &
+            Node.DOCUMENT_POSITION_FOLLOWING
+          ? "after"
+          : "before";
+    return { target, place };
+  }
   function hover(x: number, y: number) {
     const target = drop
       ? (document.elementFromPoint(x, y)?.closest<HTMLElement>(drop.selector) ??
@@ -33,24 +68,40 @@ export function SortableRow({
     hovered.current?.classList.remove("drop-hover");
     hovered.current = target;
     target?.classList.add("drop-hover");
+    slot.current?.classList.remove("drop-before", "drop-after");
+    const land = onMove && !target ? landing(x, y) : null;
+    slot.current = land?.target ?? null;
+    if (land?.place === "into") {
+      hovered.current = land.target;
+      land.target.classList.add("drop-hover");
+    } else land?.target.classList.add("drop-" + land.place);
   }
   function clearHover() {
     hovered.current?.classList.remove("drop-hover");
     hovered.current = null;
+    slot.current?.classList.remove("drop-before", "drop-after");
+    slot.current = null;
   }
   function lift(x: number, y: number) {
-    if (!preview.current) {
-      const ghost = document.createElement("div");
-      ghost.className = "drag-preview";
-      ghost.textContent = dragLabel || localized["fixture.fee60ae594c1"];
+    if (!preview.current && ref.current) {
+      // The preview is a copy of the row so it is clear what is moving.
+      const row = ref.current.getBoundingClientRect();
+      const ghost = ref.current.cloneNode(true) as HTMLDivElement;
+      ghost.removeAttribute("data-sort-id");
+      ghost.removeAttribute("id");
+      ghost.classList.add("drag-preview");
       ghost.setAttribute("aria-hidden", "true");
+      ghost.style.width = row.width + "px";
+      ghost.title = dragLabel || "";
+      grab.current = { x: x - row.left, y: y - row.top };
       document.body.appendChild(ghost);
       preview.current = ghost;
-      ref.current?.classList.add("is-dragging");
+      ref.current.classList.add("is-dragging");
+      document.body.classList.add("sorting");
     }
-    const ghost = preview.current;
-    ghost.style.left = `${Math.max(12, Math.min(x + 16, window.innerWidth - ghost.offsetWidth - 12))}px`;
-    ghost.style.top = `${Math.max(12, Math.min(y + 16, window.innerHeight - ghost.offsetHeight - 12))}px`;
+    const ghost = preview.current!;
+    ghost.style.left = `${x - grab.current.x}px`;
+    ghost.style.top = `${y - grab.current.y}px`;
     hover(x, y);
   }
   function clearDrag() {
@@ -59,6 +110,7 @@ export function SortableRow({
     preview.current?.remove();
     preview.current = null;
     ref.current?.classList.remove("is-dragging");
+    document.body.classList.remove("sorting");
     clearHover();
   }
   function cancel() {
@@ -80,7 +132,12 @@ export function SortableRow({
     const control = (target as HTMLElement)?.closest(
       "button,input,textarea,select,a",
     );
-    return !!control && !control.classList.contains("card-open");
+    // Disabled fields read as text, so dragging may start on them.
+    return (
+      !!control &&
+      !control.classList.contains("card-open") &&
+      !(control as HTMLInputElement).disabled
+    );
   }
   function finish(x: number, y: number) {
     const from = start.current;
@@ -95,10 +152,9 @@ export function SortableRow({
     setTimeout(() => {
       suppressClick.current = false;
     }, 0);
-    const target = document.elementFromPoint(x, y)?.closest("[data-sort-id]");
-    if (target && target.parentElement === ref.current?.parentElement) {
-      onMove?.(target.getAttribute("data-sort-id")!);
-    }
+    const land = dropTarget ? null : landing(x, y);
+    if (land?.place === "into") onNest!(land.target.dataset.sortId!);
+    else if (land) onMove?.(land.target.dataset.sortId!, land.place === "after");
   }
   useEffect(() => {
     const row = ref.current;
@@ -145,9 +201,9 @@ export function SortableRow({
     };
   });
   return (
-    <article
+    <Tag
       {...props}
-      ref={ref}
+      ref={ref as any}
       data-sort-id={id}
       onPointerDown={(e) => {
         if (
@@ -195,6 +251,6 @@ export function SortableRow({
       }}
     >
       {children}
-    </article>
+    </Tag>
   );
 }
