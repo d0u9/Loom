@@ -66,3 +66,9 @@ Sections do not participate in source counts or checking; moving an entry change
 loom.config.json with auth.enabled:false, followed by a restart, makes anonymous GET /session return `{csrf,authEnabled:false}`; reading catalog/documents requires no login. Anonymous writes still submit x-csrf-token, and any supplied Origin must match the service; Bearer tokens are still validated. POST /login returns 409 in this mode; OpenAPI global security is []. The default auth.enabled:true continues to require authentication and does not automatically create accounts. Anonymous csrf changes after process restart; clients must fetch /session again before writing.
 
 During structural saves, source IDs must belong to submitted category groups or category groups in that document before saving; unknown sources or sources from other documents return 400 and roll back the entire save. Only sources of explicitly removed original category groups are released. When Web receives an explicit Invalid CSRF token / 403, it fetches session again and retries at most once with the original request content and requestId; other errors are not automatically retried.
+
+## Item Group
+
+Item GET/POST/PUT responses add `itemGroup: string | null`. POST/PUT may submit itemGroup (at most 200 characters); the server trims surrounding whitespace, and blank/null means ungrouped. Omission defaults to null on POST and preserves the previous group on PUT, still following the version/requestId contract. Group is independent of categoryIds and does not affect document sources/history or reference counts.
+
+GET `/items` returns all items; `?itemGroup=Food` filters by the trimmed group name using an exact, case-sensitive match; `?itemGroup=` returns ungrouped items. No matches return an empty array. Group names come from deduplicating nonempty itemGroup values across all Items; no separate Group API is added.

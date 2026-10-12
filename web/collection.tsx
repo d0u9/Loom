@@ -16,6 +16,7 @@ export function Collection({ children }: { children: React.ReactNode }) {
 export function RecordCard({
   name,
   sort,
+  drop,
   onOpen,
   actions,
   children,
@@ -27,12 +28,23 @@ export function RecordCard({
     onMove: (target: string) => void;
     onStep: (direction: number) => void;
   };
+  drop?: {
+    disabled: boolean;
+    selector: string;
+    onDrop: (target: HTMLElement) => void;
+  };
   onOpen: () => void;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <SortableRow className="record-card" {...sort}>
+    <SortableRow
+      className="record-card"
+      dragLabel={name}
+      {...sort}
+      disabled={sort?.disabled || drop?.disabled}
+      drop={drop}
+    >
       <Button
         variant="ghost"
         className="card-open"

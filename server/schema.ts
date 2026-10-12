@@ -20,6 +20,7 @@ const item = object(
     id: uuid,
     name: text,
     note: text,
+    itemGroup: nullable(text),
     version: { type: "integer" },
     categoryIds: list(uuid),
   },

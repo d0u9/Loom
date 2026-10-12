@@ -30,24 +30,24 @@ test("Item category badges and reserved note space align cards", async ({
       requestId: crypto.randomUUID(),
     });
   await page.reload();
-  const a = page
-    .getByRole("article")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "With note" + info.project.name,
-        exact: true,
-      }),
-    });
-  const b = page
-    .getByRole("article")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Without note" + info.project.name,
-        exact: true,
-      }),
-    });
-  await expect(a.locator(".category-tag")).toHaveText(category.name);
-  await expect(b.locator(".category-tag")).toHaveText(category.name);
+  const a = page.getByRole("article").filter({
+    has: page.getByRole("heading", {
+      name: "With note" + info.project.name,
+      exact: true,
+    }),
+  });
+  const b = page.getByRole("article").filter({
+    has: page.getByRole("heading", {
+      name: "Without note" + info.project.name,
+      exact: true,
+    }),
+  });
+  await expect(a.locator(".category-tag:not(.item-group-tag)")).toHaveText(
+    category.name,
+  );
+  await expect(b.locator(".category-tag:not(.item-group-tag)")).toHaveText(
+    category.name,
+  );
   expect((await a.boundingBox())!.height).toBe((await b.boundingBox())!.height);
   expect((await a.locator(".item-note").boundingBox())!.height).toBe(36);
   expect((await b.locator(".item-note").boundingBox())!.height).toBe(36);

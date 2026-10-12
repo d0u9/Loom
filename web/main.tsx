@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { Combobox } from "./combobox.js";
 import { Button } from "./button.js";
 import { useRoute, resourcePath, matchesSearch } from "./router.js";
 import { CategoryList } from "./category-list.js";
@@ -16,6 +17,8 @@ function App() {
   const categoryId = section === "Category" ? route.id : null;
   const [schedule, setSchedule] = useState<any[]>([]);
   const [query, setQuery] = useState("");
+  const [movingItem, setMovingItem] = useState(false);
+  const [itemGroup, setItemGroup] = useState<string | null>(null);
   const refreshSchedule = async () => setSchedule(await api("/documents"));
   const [authEnabled, setAuthEnabled] = useState(true);
   const [username, setUsername] = useState("");
@@ -61,7 +64,6 @@ function App() {
   useEffect(() => {
     setEditing(null);
     setAddingMembers(false);
-    setQuery("");
     if (section === "Item" && route.id) {
       const item = items.find((i) => i.id === route.id);
       if (item) {
@@ -70,6 +72,7 @@ function App() {
       }
     }
   }, [section, route.id, logged]);
+  useEffect(() => setQuery(""), [section, categoryId]);
   function closeEditing() {
     setEditing(null);
     if (section === "Item" && route.id) route.navigate("/items");
@@ -86,13 +89,23 @@ function App() {
   const categoryName = (id: string) =>
     categories.find((c) => c.id === id)?.name;
   const currentCategory = categories.find((c) => c.id === categoryId);
-  const records = (section === "Item" ? items : categories).filter((x) =>
-    matchesSearch(
-      query,
-      x.name,
-      x.note,
-      section === "Item" ? x.categoryIds.map(categoryName).join(" · ") : null,
-    ),
+  const itemGroups = [
+    ...new Set(items.map((item) => item.itemGroup).filter(Boolean)),
+  ].sort();
+  useEffect(() => {
+    if (itemGroup && !itemGroups.includes(itemGroup)) setItemGroup(null);
+  }, [items, itemGroup]);
+  const records = (section === "Item" ? items : categories).filter(
+    (x) =>
+      (section !== "Item" ||
+        itemGroup === null ||
+        (x.itemGroup ?? "") === itemGroup) &&
+      matchesSearch(
+        query,
+        x.name,
+        x.note,
+        section === "Item" ? x.categoryIds.map(categoryName).join(" · ") : null,
+      ),
   );
 
   if (logged === null)
@@ -171,7 +184,11 @@ function App() {
         <p role="alert">{localized["Page not found."]}</p>
       ) : ["Item", "Category"].includes(section) ? (
         <Page
-          search={!route.id ? { value: query, onChange: setQuery } : undefined}
+          search={
+            section === "Item" || !route.id
+              ? { value: query, onChange: setQuery }
+              : undefined
+          }
           title={
             currentCategory && section === "Category"
               ? currentCategory.name
@@ -191,6 +208,7 @@ function App() {
                       name: "",
                       note: "",
                       categoryIds: [],
+                      itemGroup: itemGroup || null,
                     });
                   },
                 }
@@ -229,92 +247,189 @@ function App() {
             />
           ) : (
             <>
-              <Collection>
-                {records.map((x) => (
-                  <RecordCard
-                    key={x.id}
-                    name={x.name}
-                    onOpen={() => route.navigate(resourcePath(section, x.id))}
-                    actions={
-                      <>
-                        <Button
-                          variant="icon"
-                          aria-label={localized["Edit"]}
-                          title={localized["Edit"]}
-                          onClick={() => {
-                            if (section === "Item")
-                              route.navigate(resourcePath(section, x.id));
-                            else {
-                              setEditingKind(section);
-                              setEditing({ ...x });
+              {section === "Item" && (
+                <div
+                  className="item-group-tabs"
+                  role="tablist"
+                  aria-label={localized["fixture.6a9cef532671"]}
+                >
+                  {[null, "", ...itemGroups].map((group) => (
+                    <Button
+                      key={JSON.stringify(group)}
+                      variant="ghost"
+                      role="tab"
+                      data-item-group={group === null ? undefined : group}
+                      tabIndex={itemGroup === group ? 0 : -1}
+                      onKeyDown={(event) => {
+                        const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+                        if (!keys.includes(event.key)) return;
+                        event.preventDefault();
+                        const tabs = [
+                          ...event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(
+                            '[role="tab"]',
+                          ),
+                        ];
+                        const index = tabs.indexOf(event.currentTarget);
+                        const target =
+                          event.key === "Home"
+                            ? 0
+                            : event.key === "End"
+                              ? tabs.length - 1
+                              : (index +
+                                  (event.key === "ArrowRight" ? 1 : -1) +
+                                  tabs.length) %
+                                tabs.length;
+                        tabs[target].click();
+                        tabs[target].focus();
+                      }}
+                      aria-selected={itemGroup === group}
+                      aria-controls="item-directory"
+                      onClick={() => setItemGroup(group)}
+                    >
+                      {group === null ? localized["All"] : group || localized["Ungrouped"]}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {section === "Item" && movingItem && (
+                <p role="status" className="empty">{localized["\n                  Updating group…\n                "]}</p>
+              )}
+              <div
+                id={section === "Item" ? "item-directory" : undefined}
+                role={section === "Item" ? "tabpanel" : undefined}
+                aria-label={
+                  section === "Item"
+                    ? itemGroup === null
+                      ? localized["fixture.46bced5539f0"]
+                      : itemGroup || localized["fixture.326b3cdcb7f6"]
+                    : undefined
+                }
+              >
+                <Collection>
+                  {records.map((x) => (
+                    <RecordCard
+                      key={x.id}
+                      name={x.name}
+                      drop={
+                        section === "Item"
+                          ? {
+                              disabled: movingItem,
+                              selector: "[data-item-group]",
+                              onDrop: (target) => {
+                                const group = target.dataset.itemGroup || null;
+                                if (
+                                  movingItem ||
+                                  (x.itemGroup ?? null) === group
+                                )
+                                  return;
+                                setMovingItem(true);
+                                void attempt(async () => {
+                                  try {
+                                    await api("/items/" + x.id, "PUT", {
+                                      name: x.name,
+                                      note: x.note,
+                                      categoryIds: x.categoryIds,
+                                      itemGroup: group,
+                                      version: x.version,
+                                    });
+                                    await refresh();
+                                  } finally {
+                                    setMovingItem(false);
+                                  }
+                                });
+                              },
                             }
-                          }}
-                        >
-                          <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M14 5l5 5M4 20l4-1L20 7a2 2 0 0 0-3-3L5 16z" />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="icon"
-                          className="danger"
-                          aria-label={localized["Delete"]}
-                          title={localized["Delete"]}
-                          onClick={() => {
-                            if (confirm(localized["Delete "] + x.name + localized["Question mark"]))
-                              void attempt(async () => {
-                                await api(
-                                  "/" +
-                                    (section === "Item"
-                                      ? "items"
-                                      : "categories") +
+                          : undefined
+                      }
+                      onOpen={() => route.navigate(resourcePath(section, x.id))}
+                      actions={
+                        <>
+                          <Button
+                            variant="icon"
+                            aria-label={localized["Edit"]}
+                            title={localized["Edit"]}
+                            onClick={() => {
+                              if (section === "Item")
+                                route.navigate(resourcePath(section, x.id));
+                              else {
+                                setEditingKind(section);
+                                setEditing({ ...x });
+                              }
+                            }}
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                              <path d="M14 5l5 5M4 20l4-1L20 7a2 2 0 0 0-3-3L5 16z" />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="icon"
+                            className="danger"
+                            aria-label={localized["Delete"]}
+                            title={localized["Delete"]}
+                            onClick={() => {
+                              if (confirm(localized["Delete "] + x.name + localized["Question mark"]))
+                                void attempt(async () => {
+                                  await api(
                                     "/" +
-                                    x.id,
-                                  "DELETE",
-                                  { version: x.version },
-                                );
-                                await refresh();
-                              });
-                          }}
-                        >
-                          <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" />
-                          </svg>
-                        </Button>
-                      </>
-                    }
-                  >
-                    <h3>{x.name}</h3>
-                    {section === "Item" ? (
-                      <div className="item-details">
-                        <p className="item-note" title={x.note}>
-                          {x.note}
-                        </p>
-                        <div
-                          className="category-tags"
-                          aria-label={localized["Categories"]}
-                          title={x.categoryIds
-                            .map(categoryName)
-                            .filter(Boolean)
-                            .join(" · ")}
-                        >
-                          {x.categoryIds.slice(0, 2).map(
-                            (id: string) =>
-                              categoryName(id) && (
-                                <span className="category-tag" key={id}>
-                                  {categoryName(id)}
-                                </span>
-                              ),
-                          )}
+                                      (section === "Item"
+                                        ? "items"
+                                        : "categories") +
+                                      "/" +
+                                      x.id,
+                                    "DELETE",
+                                    { version: x.version },
+                                  );
+                                  await refresh();
+                                });
+                            }}
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                              <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" />
+                            </svg>
+                          </Button>
+                        </>
+                      }
+                    >
+                      <h3>{x.name}</h3>
+                      {section === "Item" ? (
+                        <div className="item-details">
+                          <p className="item-note" title={x.note}>
+                            {x.note}
+                          </p>
+                          <div
+                            className="category-tags"
+                            aria-label={localized["Group and categories"]}
+                            title={x.categoryIds
+                              .map(categoryName)
+                              .filter(Boolean)
+                              .join(" · ")}
+                          >
+                            <span
+                              className="category-tag item-group-tag"
+                              aria-label={localized["Group label prefix"] + (x.itemGroup || localized["Ungrouped"])}
+                              title={localized["Group label prefix"] + (x.itemGroup || localized["Ungrouped"])}
+                            >
+                              Group · {x.itemGroup || localized["Ungrouped"]}
+                            </span>
+                            {x.categoryIds.slice(0, 2).map(
+                              (id: string) =>
+                                categoryName(id) && (
+                                  <span className="category-tag" key={id}>
+                                    {categoryName(id)}
+                                  </span>
+                                ),
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="category-tags" aria-label={localized["Parent category"]}>
-                        <span className="empty">{localized["Category"]}</span>
-                      </div>
-                    )}
-                  </RecordCard>
-                ))}
-              </Collection>
+                      ) : (
+                        <div className="category-tags" aria-label={localized["Parent category"]}>
+                          <span className="empty">{localized["Category"]}</span>
+                        </div>
+                      )}
+                    </RecordCard>
+                  ))}
+                </Collection>
+              </div>
               {query.trim() && records.length === 0 && (
                 <p className="empty">{localized["No matching results."]}</p>
               )}
@@ -341,6 +456,7 @@ function App() {
                       ? {
                           name: editing.name,
                           note: editing.note,
+                          itemGroup: editing.itemGroup?.trim() || null,
                           categoryIds: editing.categoryIds,
                         }
                       : { name: editing.name };
@@ -367,6 +483,14 @@ function App() {
             >
               {editingKind === "Item" ? (
                 <>
+                  <Combobox
+                    label="Group"
+                    value={editing.itemGroup ?? ""}
+                    options={itemGroups}
+                    onChange={(itemGroup) =>
+                      setEditing({ ...editing, itemGroup })
+                    }
+                  />
                   <label>{localized["\n                    Note\n                    "]}<textarea
                       data-1p-ignore="true"
                       autoComplete="off"
@@ -376,32 +500,34 @@ function App() {
                       }
                     />
                   </label>
-                  <fieldset>
+                  <fieldset className="category-choice-field">
                     <legend>{localized["Categories"]}</legend>
-                    {categories.length === 0 && (
-                      <p className="empty">{localized["No categories yet. You can add them later."]}</p>
-                    )}
-                    {categories.map((c) => (
-                      <label key={c.id}>
-                        <input
-                          data-1p-ignore="true"
-                          autoComplete="off"
-                          type="checkbox"
-                          checked={editing.categoryIds.includes(c.id)}
-                          onChange={(e) =>
-                            setEditing({
-                              ...editing,
-                              categoryIds: e.target.checked
-                                ? [...editing.categoryIds, c.id]
-                                : editing.categoryIds.filter(
-                                    (k: string) => k !== c.id,
-                                  ),
-                            })
-                          }
-                        />
-                        {c.name}
-                      </label>
-                    ))}
+                    <div className="category-choices">
+                      {categories.length === 0 && (
+                        <p className="empty">{localized["No categories yet. You can add them later."]}</p>
+                      )}
+                      {categories.map((c) => (
+                        <label key={c.id}>
+                          <input
+                            data-1p-ignore="true"
+                            autoComplete="off"
+                            type="checkbox"
+                            checked={editing.categoryIds.includes(c.id)}
+                            onChange={(e) =>
+                              setEditing({
+                                ...editing,
+                                categoryIds: e.target.checked
+                                  ? [...editing.categoryIds, c.id]
+                                  : editing.categoryIds.filter(
+                                      (k: string) => k !== c.id,
+                                    ),
+                              })
+                            }
+                          />
+                          {c.name}
+                        </label>
+                      ))}
+                    </div>
                   </fieldset>
                 </>
               ) : null}

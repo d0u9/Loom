@@ -246,3 +246,46 @@ This section records design-stage plans; implementation/verification appears in 
 - AppLayout adds a Memos-style account footer: thin separator, user icon, actual server account name, and vertical more menu. Sign out moves into the menu; Escape closes it and restores focus. Login/session responses add optional username; response schemas and API docs are updated.
 - Login-free mode shows an unlock icon and "No login required", without username, account menu, or Logout; mobile login-free mode retains only four navigation entries, while logged-in mode provides a bottom account menu.
 - Acceptance: build passed; 6 API/configuration tests, 6 desktop/mobile style checks, and 2 login-free checks passed. Username refresh/menu keyboard closure verified with screenshots; restart test once timed out closing a process and passed separately. Real phones not tested; Git not committed.
+
+## Item Group catalog filtering (2026-10-12)
+
+- Each Item has one nullable itemGroup name, independently of Category, sections, and source groups. Shared Item modal selects existing names or accepts new ones; All/Ungrouped/group Tabs intersect with search, shared by cards/lists, and creation within a group defaults to that group.
+- Incremental migration 7 sets legacy Items to null; PUT omission preserves the old group, null clears it, retaining versions and creation deduplication. GET /items supports group-name filtering; synchronize OpenAPI/response contracts. Historical creation of new Items defaults to ungrouped; pre-upgrade backup enables rollback.
+- Acceptance: build/type checking, 30 server tests, and 6 desktop/mobile browser checks passed. Cover legacy migration/repeated startup, old callers retaining group names, exact filtering/clearing/invalid fields/stale versions/deduplication, within-group creation/editing, intersected search, cards/lists, and Tab keyboard operation. Original search/card-height regressions passed; group-page screenshots checked. Not committed; real phones/containers not tested.
+
+## Align Item dialog fields (2026-10-12)
+
+- Shared ResourceDialog fields use consistent 13px/18px labels and 16px spacing, with a more compact notes area. Item categories remove the legend border, aligning the title left with other fields; category options are wrapping tag blocks with centered native checkboxes/names, retaining selection/disabled/keyboard and mobile click targets.
+- Build and 4 desktop/mobile browser checks passed, verifying tag positions/font sizes, Space selection, category retention after saving, Escape, and original Group flow; screenshots at both sizes checked. Not committed; real phones not tested.
+
+## Group tags and drag-to-group (2026-10-12)
+
+- Group tabs become wrapping rounded tags with green selection. Item cards/lists reuse SortableRow; dropping on a group replaces the sole group, while Ungrouped clears it. Mouse threshold, mobile long press, target highlighting, and suppressed post-drag opening share one implementation. Keyboard Group editing remains. All is not a drop target; saving blocks repeated dragging, without optimistic local overwrite.
+- Build, type checking, and 6 desktop/mobile checks passed: card/list drops, touch long press, refresh after saving, category/note retention, retention after 409, group keyboard filtering, and original category-order regression. Screenshots at both sizes checked. Initial combined run exposed offscreen mobile group labels and old tests relying on group-name sorting; wrapping labels and correcting final Tab assertions made all pass. Not committed; real touch devices not tested.
+
+## Visible drag feedback (2026-10-12)
+
+- SortableRow shares a floating name preview, lift animation, white background, and shadow; the original row remains faded. The pointer-following preview does not intercept drop hit testing. Mobile shows it after a 250ms hold; ordinary swipes still scroll. Release, cancel, Escape, disable, and unmount clear previews/highlights; reduced motion disables lift animation.
+- Build/type checking passed; 4 desktop/mobile group-drop/original-category-order checks passed, including long-press preview, no group writes after cancellation, card/list drops, and failure retention. Generated dragging screenshots at both screen sizes. Not committed; real phones not tested.
+
+## Display Item group information (2026-10-12)
+
+- Shared card/list metadata adds Group · group-name tags, showing Ungrouped when unset; retain full-name hints, refresh tags after successful dragging, and retain them on failure.
+- Build and 4 desktop/mobile regressions passed, confirming group-name updates after dragging cards/lists, retention after cancellation/failure, and equal card heights with/without notes. Not committed; real phones not tested.
+
+## Stable row hover and editing backgrounds (2026-10-12)
+
+- Shared card/list-row hover uses a 180ms background transition; keyboard focus becomes a thin inward dashed line to avoid side clipping, without a mouse-selected state.
+- Item editing route.id no longer hides search or resets the query. Background Group and filtered list remain; business-page changes still reset search.
+- Build and 4 desktop/mobile regressions passed, checking unchanged search coordinates before/after modal opening, retained queries, and four-page search. Not committed; real phones not tested.
+
+## Group dropdown styling (2026-10-12)
+
+- Replace native datalist with shared Combobox: an input-width white panel, themed border, and light shadow; options reuse Button. Retain existing group selection, new group names, clearing, filtering, arrow keys/Enter, layered Escape, and closing on leaving the field, following disabled/1Password constraints.
+- Build and 4 desktop/mobile checks passed, covering mouse selection, new group-name input, keyboard selection, reopening, and Escape retaining parent modal, plus saving/form-alignment regressions. Dropdown screenshots checked. Not committed; real phones not tested.
+
+## Pre-commit review fixes (2026-10-12)
+
+- Fix long-list group labels leaving the screen: Group bar sticks to the top, limited to min(35dvh, 240px), with extra labels scrolling internally. Fix initial rapid movement off a card losing mouse dragging: capture the original target pointer on press, retaining normal clicks.
+- Fix invisible active Combobox keyboard options and initial ArrowUp skipping the last option: scroll only the options container; initial Up/Down selects last/first respectively.
+- Build and 8 desktop/mobile regressions passed, adding 25-group dropdown visibility, first/last switching, and dragging from long-list bottom to top labels; original group editing/drop/cancellation/failure and category sorting passed. Not committed; real phones/containers not tested.

@@ -45,6 +45,14 @@ export async function app(store: Store, config: Config = defaultConfig) {
     const method = Array.isArray(route.method) ? route.method[0] : route.method;
     route.schema = {
       ...route.schema,
+      ...(route.url === "/api/v1/items" && method === "GET"
+        ? {
+            querystring: obj(
+              { itemGroup: { type: "string", maxLength: 200 } },
+              [],
+            ),
+          }
+        : {}),
       response: {
         200: responseSchema(route.url, method),
         400: errorSchema,
@@ -203,8 +211,15 @@ export async function app(store: Store, config: Config = defaultConfig) {
     store.run("DELETE FROM tokens WHERE id=?", req.params.id);
     return { ok: true };
   });
-  route("GET", "/items", null, () =>
-    store.all("SELECT * FROM items ORDER BY name").map((i) => ({
+  store.migrate(7, "ALTER TABLE items ADD COLUMN itemGroup TEXT");
+  route("GET", "/items", null, (req: any) =>
+    (req.query.itemGroup === undefined
+      ? store.all("SELECT * FROM items ORDER BY name")
+      : store.all(
+          "SELECT * FROM items WHERE COALESCE(itemGroup, '')=? ORDER BY name",
+          req.query.itemGroup.trim(),
+        )
+    ).map((i) => ({
       ...i,
       categoryIds: store
         .all("SELECT categoryId FROM item_categories WHERE itemId=?", i.id)
@@ -215,6 +230,9 @@ export async function app(store: Store, config: Config = defaultConfig) {
     {
       name: str,
       note: { type: "string", maxLength: 10000 },
+      itemGroup: {
+        anyOf: [{ type: "string", maxLength: 200 }, { type: "null" }],
+      },
       categoryIds: { type: "array", items: uuid, uniqueItems: true },
       version,
       requestId: uuid,
@@ -224,13 +242,19 @@ export async function app(store: Store, config: Config = defaultConfig) {
   const saveItem = (req: any) => {
     const b = req.body,
       key = req.params.id || id();
-    if (req.params.id) store.version(store.resource("items", key), b.version);
+    const prior = req.params.id ? store.resource("items", key) : null;
+    if (prior) store.version(prior, b.version);
+    const itemGroup =
+      b.itemGroup === undefined
+        ? (prior?.itemGroup ?? null)
+        : b.itemGroup?.trim() || null;
     b.categoryIds.forEach((c: string) => store.resource("categories", c));
     store.run(
-      "INSERT INTO items(id,name,note) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,note=excluded.note,version=version+1",
+      "INSERT INTO items(id,name,note,itemGroup) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,note=excluded.note,itemGroup=excluded.itemGroup,version=version+1",
       key,
       b.name,
       b.note || "",
+      itemGroup,
     );
     store.run("DELETE FROM item_categories WHERE itemId=?", key);
     b.categoryIds.forEach((c: string) =>

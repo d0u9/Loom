@@ -120,3 +120,19 @@ Use only the `max-width: 650px` narrow-screen breakpoint with 16px horizontal ma
 Acceptance checks desktop/phone plus keyboard focus, Escape, form submission, disabled states, navigation leave protection, opening new tabs, and direct URLs. Four-page headers align in equal-size windows; card/list switching does not move the shell, and phones have no horizontal overflow.
 
 The latest full Web regression passed 30 checks; after shrinking button fonts, build and 6 desktop/phone style regressions passed. Account-bar changes passed build, 6 API/configuration tests, and 8 desktop/phone checks (anonymous restart once timed out, then passed separately). These are browser simulations; real phones are unverified.
+
+## 8. Item Group Tab
+
+The Item page shows All, Ungrouped, and group tabs beneath the shared Page title, sharing filtering across cards/lists. Use public Button and existing green selection; Group entries are rounded tags that wrap on narrow screens without widening the page. Drag Item cards/list rows onto highlighted group tags; All is not a drop target and Ungrouped clears the group. Arrows/Home/End switch groups. Editing/creation share ResourceDialog; Group accepts existing/new names. Retain Category tags and card note height.
+
+Item/Category shared ResourceDialog fields use 16px vertical spacing, labels at 13px/18px, and 14px inputs. Item categories use a borderless fieldset with legend aligned left with name, Group, and notes. Category options wrap horizontally as tag blocks with native checkboxes, using green selection. Vertically center checkbox/name; phone tags offer at least 44px targets, retaining keyboard checking and disabled semantics.
+
+Every shared SortableRow drag provides a pointer-following floating preview with name, white background, thin green border, and shadow; the original entry fades while retaining its placeholder. Mouse drag starts beyond 6px; phone long-press shows it after 250ms while ordinary swipes scroll. Release, cancel, Escape, or unmount clears preview/target highlights; reduced-motion preferences disable lift animation.
+
+Item cards/list rows show a `Group · group name` metadata tag; no group shows `Group · Ungrouped`. Share styles/row layout with Category tags, with a separate full-name hint for Group; update after drag saves without changing reserved note height.
+
+Cards/list rows show no mouse-selection outline; hover fades background over 180ms. Keyboard focus uses a thin inward dashed outline to avoid container clipping. Opening/closing the Item edit dialog preserves search bar, query, and Group filter without moving background list/title; reset queries only on switching business pages or Category details.
+
+Group input uses shared web/combobox.tsx, never native datalist. Dropdown matches input width with white background, thin border, and light shadow; options reuse public Button and green current/keyboard-focus styling. Support filtering, existing groups, new names, Ungrouped, and arrows/Enter. Escape closes the dropdown before the dialog; leaving the field closes it; disable browser autofill.
+
+The group bar sticks to the top while long Item lists scroll, with maximum height min(35dvh, 240px) and internal overflow scrolling so it does not cover all phone content. Combobox arrow navigation scrolls only the options panel to reveal the active option; initial ArrowUp selects the last option and ArrowDown the first. On mouse down, capture the original target pointer to prevent losing drag when initial fast movement leaves the entry.

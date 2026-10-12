@@ -23,6 +23,14 @@ All resource IDs (Item, Category, Template, Checklist, entry, category group) ar
 
 egg belonging to Ingredients and Experimental materials does not mean there are two Items. Source describes how an entry was added to a Template/Checklist, rather than Item identity or ownership.
 
+### Item Group (catalog filtering)
+
+Each Item may have one nullable `itemGroup` name, used only for Item catalog tab filtering, independently of many-to-many Categories, document sections, and category-source groups. Use a name field rather than a separate Group resource or management page. Names are at most 200 characters, trimmed, with blank/null meaning Ungrouped; identical case-sensitive names share a tab, and the edit dialog suggests existing names while allowing new ones. A tab disappears automatically when it has no Items.
+
+The Item page retains All, Ungrouped, and individual group tabs; search intersects with the group filter, which survives card/list switching. Creating within a group defaults to it; clearing the field returns to Ungrouped. Group changes no Category relationship, Item identity, deletion reference, template/checklist content, or historical snapshot. Items created by historical operations default to Ungrouped.
+
+Migration 7 only adds a nullable field without changing existing content; old PUT callers omitting it retain the value, and POST omission defaults to null. Prefer restoring the pre-upgrade backup for rollback; old servers may read pre-update data only and should not write design changes beyond the new field.
+
 ### Relationship storage
 
 - `items`: stable ID, name, notes, creation/update timestamps, resource version.
@@ -226,3 +234,5 @@ Migration 6 saves old parentId values to legacy_category_parents and removes the
 At startup, read auth.enabled from loom.config.json, defaulting to true. Explicit false permits anonymous Web and API use, including LAN devices, without account initialization. /session returns csrf and authEnabled; the frontend waits for it before deciding what to render. The anonymous root opens /checklists, authenticated mode still defaults to /items, and direct paths remain. Anonymous mode hides logout; login endpoints return 409 without fabricating sessions or creating accounts.
 
 Anonymous non-Bearer writes must use process-level csrf returned by /session and validate Origin when supplied. Valid tokens still work; invalid tokens cannot bypass validation. Default mode retains secure sessions and revocable tokens. Re-enabling authentication changes neither accounts, database content, nor history; if no account exists in anonymous mode, initialize one before enabling authentication. Configuration changes require restart; a missing default file retains authentication, while a missing explicit path or invalid configuration fails startup. Disabling authentication means anyone who can reach the service over the network can read and modify data.
+
+Item Group tags accept direct Item drops: cards/lists use the shared drag component, with mouse drag or phone long-press drag to a target group replacing the unique itemGroup. Ungrouped clears it; All is only a filter. Preserve other fields and Category relationships, using the existing Item PUT and version; refresh on success, show an error and retain original data on failure. Group tags wrap and drop targets highlight; keyboard users change Group through the shared edit dialog.
