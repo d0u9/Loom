@@ -46,6 +46,11 @@ test("archive releases references, missing resources restore safely, copies rese
     ).json();
     assert.equal(d.status, "archived");
     assert.equal(d.entries[0].checked, true);
+    // List progress for archived checklists comes from the snapshot.
+    const listed = (await h.call("GET", "/documents"))
+      .json()
+      .find((x: any) => x.id === d.id);
+    assert.deepEqual([listed.total, listed.done, listed.archive], [1, 1, undefined]);
     assert.equal(
       (
         await h.call("PUT", "/documents/" + d.id, {
@@ -206,6 +211,71 @@ test("missing Item creation is atomic and retry-safe", async () => {
     assert.equal(
       (await h.call("GET", "/documents/" + d.id)).json().entries[0].name,
       "egg",
+    );
+  } finally {
+    await h.close();
+  }
+});
+test("checklist delete removes the document and releases Item references", async () => {
+  const h = await setup();
+  try {
+    const egg = (
+      await h.call("POST", "/items", {
+        name: "egg",
+        categoryIds: [],
+        requestId: id(),
+      })
+    ).json();
+    const d = (
+      await h.call("POST", "/documents", {
+        kind: "checklist",
+        name: "Once",
+        entries: [entry(egg)],
+        groups: [],
+        requestId: id(),
+      })
+    ).json();
+    const template = (
+      await h.call("POST", "/documents", {
+        kind: "template",
+        name: "T",
+        entries: [],
+        groups: [],
+        requestId: id(),
+      })
+    ).json();
+    assert.equal(
+      (
+        await h.call("DELETE", "/checklists/" + template.id, {
+          version: template.version,
+          confirm: true,
+        })
+      ).statusCode,
+      400,
+    );
+    assert.equal(
+      (
+        await h.call("DELETE", "/checklists/" + d.id, {
+          version: d.version + 1,
+          confirm: true,
+        })
+      ).statusCode,
+      409,
+    );
+    const listed = (await h.call("GET", "/documents"))
+      .json()
+      .find((x: any) => x.id === d.id);
+    assert.deepEqual([listed.total, listed.done], [1, 0]);
+    const ok = await h.call("DELETE", "/checklists/" + d.id, {
+      version: d.version,
+      confirm: true,
+    });
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.equal((await h.call("GET", "/documents/" + d.id)).statusCode, 404);
+    assert.equal(
+      (await h.call("DELETE", "/items/" + egg.id, { version: egg.version }))
+        .statusCode,
+      200,
     );
   } finally {
     await h.close();

@@ -107,6 +107,42 @@ test("direct member previews reject stale members; merge preserves state and all
       content.groups.map((g) => g.excluded),
       [[egg.id], [egg.id]],
     );
+    d = (
+      await h.call("PUT", "/documents/" + d.id, {
+        name: d.name,
+        version: d.version,
+        ...content,
+        requestId: id(),
+      })
+    ).json();
+    // Update preview lists excluded members; apply keeps them out unless restored.
+    const compose = async (restore?: string[]) =>
+      h.call("POST", "/documents/" + d.id + "/category-compose", {
+        entries: d.entries,
+        groups: d.groups,
+        version: d.version,
+        categoryId: food.id,
+        groupId: d.groups[0].id,
+        expected: (await preview(food.id, d.groups[0].id)).expected,
+        ...(restore ? { restore } : {}),
+      });
+    const excludedPreview = await preview(food.id, d.groups[0].id);
+    assert.deepEqual(
+      excludedPreview.excluded.map((i: any) => i.id),
+      [egg.id],
+    );
+    assert.ok(!excludedPreview.added.some((i: any) => i.id === egg.id));
+    const kept = (await compose()).json();
+    assert.ok(!kept.entries.some((e: any) => e.itemId === egg.id));
+    assert.deepEqual(kept.groups[0].excluded, [egg.id]);
+    const restored = (await compose([egg.id])).json();
+    assert.ok(restored.entries.some((e: any) => e.itemId === egg.id));
+    assert.deepEqual(restored.groups[0].excluded, []);
+    assert.equal(
+      (await compose([lab.id])).statusCode,
+      400,
+      "only excluded current members can be restored",
+    );
   } finally {
     await h.close();
   }

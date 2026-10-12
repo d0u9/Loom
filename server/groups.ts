@@ -78,6 +78,7 @@ export function registerGroups(route: Route, store: Store) {
         ),
       },
       removeIds: { type: "array", items: uuid },
+      restore: { type: "array", items: uuid, uniqueItems: true },
     },
     ["entries", "groups", "categoryId", "version"],
   );
@@ -129,6 +130,8 @@ export function registerGroups(route: Route, store: Store) {
         if (action === "preview")
           return {
             group,
+            // Excluded current members: the user may add each back on apply.
+            excluded: items.filter((i) => group.excluded.includes(i.id)),
             expected: members,
             added,
             removed,
@@ -142,6 +145,14 @@ export function registerGroups(route: Route, store: Store) {
           "Category members changed; refresh preview",
           409,
         );
+        const restore: string[] = req.body.restore ?? [];
+        requireThat(
+          restore.every(
+            (k) => group.excluded.includes(k) && members.includes(k),
+          ),
+          "Only excluded current members can be restored",
+        );
+        group.excluded = group.excluded.filter((k) => !restore.includes(k));
         return compose(content, group, items, id);
       },
     );

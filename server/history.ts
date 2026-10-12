@@ -6,6 +6,7 @@ import {
   writeEntries,
   reid,
   writeSections,
+  useDateSchema,
 } from "./documents.js";
 import {
   object as obj,
@@ -147,6 +148,7 @@ export function registerHistory(route: Route, store: Store) {
     version,
     name: str,
     requestId: uuid,
+    useDate: useDateSchema,
     mergeTargets: { type: "object", additionalProperties: uuid },
     resolutions: {
       type: "object",
@@ -216,7 +218,15 @@ export function registerHistory(route: Route, store: Store) {
           action === "instantiate"
             ? { templateId: d.id, revision, templateName: s.name }
             : s.source;
-        return createDocument(store, kind, name, content, provenance);
+        return createDocument(
+          store,
+          kind,
+          name,
+          content,
+          provenance,
+          false,
+          kind === "checklist" ? (req.body.useDate ?? null) : null,
+        );
       }),
   );
   route(
@@ -245,6 +255,23 @@ export function registerHistory(route: Route, store: Store) {
             );
           }
         }
+        store.run("DELETE FROM documents WHERE id=?", d.id);
+        return { ok: true };
+      }),
+  );
+  // Active or archived; entries, groups and archive snapshot go with it.
+  route(
+    "DELETE",
+    "/checklists/:id",
+    obj({ version, confirm: { type: "boolean", const: true } }, [
+      "version",
+      "confirm",
+    ]),
+    (req: any) =>
+      store.tx(() => {
+        const d = store.resource("documents", req.params.id);
+        requireThat(d.kind === "checklist", "Not a checklist");
+        store.version(d, req.body.version);
         store.run("DELETE FROM documents WHERE id=?", d.id);
         return { ok: true };
       }),

@@ -59,6 +59,7 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       name: "Today",
       requestId: id(),
       resolutions: {},
+      useDate: "2026-10-20",
     };
     const a = (
       await h.call(
@@ -77,6 +78,8 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       ).json().id,
       a.id,
     );
+    // Instantiation can schedule the new checklist on the calendar.
+    assert.equal(a.useDate, "2026-10-20");
     const b = (
       await h.call("POST", "/documents/" + template.id + "/history-apply", {
         ...create,

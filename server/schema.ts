@@ -99,8 +99,10 @@ const summary = object(
     status: text,
     useDate: nullable(text),
     source: nullable({ type: "object", additionalProperties: true }),
+    total: { type: "integer" },
+    done: { type: "integer" },
   },
-  ["id", "kind", "name", "version", "status"],
+  ["id", "kind", "name", "version", "status", "total", "done"],
 );
 export function responseSchema(url: string, method: string) {
   const path = url.replace("/api/v1", "");
@@ -146,6 +148,7 @@ export function responseSchema(url: string, method: string) {
     return object({
       group,
       expected: list(uuid),
+      excluded: list(item),
       added: list(item),
       removed: list(entry),
       duplicates: list(item),

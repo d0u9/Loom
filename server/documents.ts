@@ -300,9 +300,18 @@ export function registerDocuments(route: Route, store: Store) {
   route("GET", "/documents", null, () =>
     store
       .all(
-        "SELECT id,kind,name,version,status,source,useDate FROM documents ORDER BY rowid DESC",
+        "SELECT d.id,d.kind,d.name,d.version,d.status,d.source,d.useDate,d.archive,COUNT(e.id) AS total,COALESCE(SUM(e.checked),0) AS done FROM documents d LEFT JOIN entries e ON e.documentId=d.id GROUP BY d.id ORDER BY d.rowid DESC",
       )
-      .map((d) => ({ ...d, source: d.source ? JSON.parse(d.source) : null })),
+      .map(({ archive, ...d }) => {
+        // Archived entries live only in the snapshot.
+        const entries = archive ? JSON.parse(archive).entries : null;
+        return {
+          ...d,
+          source: d.source ? JSON.parse(d.source) : null,
+          total: entries ? entries.length : d.total,
+          done: entries ? entries.filter((e: any) => e.checked).length : d.done,
+        };
+      }),
   );
   route("GET", "/documents/:id", null, (req: any) =>
     document(store, req.params.id),
