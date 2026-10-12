@@ -1,3 +1,4 @@
+import { match } from "pinyin-pro";
 import { useEffect, useRef, useState } from "react";
 import { leave } from "./client.js";
 
@@ -66,10 +67,18 @@ export function useRoute() {
     navigate,
   };
 }
+// Plain substring, or pinyin initials/full spelling such as "jid" for eggs.
+export function matchesText(text: string, query: string) {
+  const q = query.trim().toLowerCase();
+  return (
+    !q ||
+    text.toLowerCase().includes(q) ||
+    (/^[a-z]+$/.test(q) && !!match(text, q))
+  );
+}
 export function matchesSearch(
   query: string,
   ...fields: (string | null | undefined)[]
 ) {
-  const text = query.trim().toLowerCase();
-  return !text || fields.some((field) => field?.toLowerCase().includes(text));
+  return fields.some((field) => matchesText(field ?? "", query));
 }

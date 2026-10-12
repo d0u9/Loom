@@ -34,6 +34,11 @@ test("category details show direct members and remove only the chosen membership
     categoryIds: [parent.id, child.id, outside.id],
     requestId: crypto.randomUUID(),
   });
+  const egg = await create("/items", {
+    name: localized["fixture.e9f5b71a472d"] + info.project.name,
+    categoryIds: [],
+    requestId: crypto.randomUUID(),
+  });
   const other = await create("/items", {
     name: "Extra " + info.project.name,
     note: "",
@@ -122,9 +127,33 @@ test("category details show direct members and remove only the chosen membership
     .locator(".page-header")
     .getByRole("button", { name: localized["Add members"], exact: true })
     .click();
+  await page.getByLabel(localized["fixture.96e7231a24a2"], { exact: true }).click();
+  // The open list floats above the modal instead of being clipped by it.
+  const list = page.getByRole("listbox", { name: localized["fixture.96e7231a24a2"] });
+  const box = (await list.boundingBox())!;
+  expect(
+    await page.evaluate(
+      ([x, y]) =>
+        !!document
+          .elementFromPoint(x, y)
+          ?.closest("[role=listbox]"),
+      [box.x + box.width / 2, box.y + box.height - 4],
+    ),
+  ).toBe(true);
+  // Pinyin initials and syllables filter Chinese names: "jid" finds eggs.
   await page
-    .getByLabel(localized["fixture.96e7231a24a2"], { exact: true })
-    .selectOption(other.id);
+    .getByRole("combobox", { name: localized["fixture.96e7231a24a2"], exact: true })
+    .fill("jid");
+  await expect(
+    page.getByRole("option", { name: egg.name, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: other.name, exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: localized["fixture.96e7231a24a2"], exact: true })
+    .fill(other.name);
+  await page.getByRole("option", { name: other.name, exact: true }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: localized["Add members"], exact: true })

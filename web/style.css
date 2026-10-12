@@ -175,7 +175,7 @@ label {
 }
 label > input:not([type="checkbox"]),
 label > textarea,
-label > select {
+label > .combobox {
   display: block;
   margin-top: 6px;
   font-size: var(--font-md);
@@ -1409,10 +1409,6 @@ fieldset.form-fields {
   }
 }
 
-.combobox-field > label {
-  margin: 0 0 6px;
-  line-height: 18px;
-}
 .combobox {
   position: relative;
 }

@@ -4,6 +4,7 @@ import { Icon } from "./layout.js";
 import { Button } from "./button.js";
 import { Collection, RecordCard } from "./collection.js";
 import { Modal } from "./modal.js";
+import { Select } from "./select.js";
 import { ResourceForm } from "./resource-dialog.js";
 import { ItemFields } from "./item-fields.js";
 import { api, ApiError } from "./client.js";
@@ -154,21 +155,16 @@ export function CategoryList({
         >
           <h3>{localized["Add members"]}</h3>
           <div className="member-picker">
-            <label>{localized["fixture.80bb5fdf0aea"]}<select
+            <label>{localized["fixture.80bb5fdf0aea"]}<Select
                 aria-label={localized["fixture.96e7231a24a2"]}
+                placeholder={localized["fixture.215b81a888f2"]}
                 value={selected}
                 disabled={busy || !!createPending.current}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                <option value="">{localized["fixture.420ecfe42f1c"]}</option>
-                {items
+                onChange={setSelected}
+                options={items
                   .filter((i) => !i.categoryIds.includes(category.id))
-                  .map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-              </select>
+                  .map((i) => ({ value: i.id, label: i.name }))}
+              />
             </label>
             <Button
               disabled={

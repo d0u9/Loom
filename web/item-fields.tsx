@@ -1,6 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
 import React from "react";
-import { Combobox } from "./combobox.js";
+import { Select } from "./select.js";
 export function ItemFields({
   value,
   onChange,
@@ -14,10 +14,15 @@ export function ItemFields({
 }) {
   return (
     <>
-      <Combobox
+      <Select
         label="Group"
+        allowCustom
+        placeholder={localized["Ungrouped"]}
         value={value.itemGroup ?? ""}
-        options={itemGroups}
+        options={[
+          { value: "", label: localized["Ungrouped"] },
+          ...itemGroups.map((g) => ({ value: g, label: g })),
+        ]}
         onChange={(itemGroup) => onChange({ ...value, itemGroup })}
       />
       <label>{localized["\n        Note\n        "]}<textarea

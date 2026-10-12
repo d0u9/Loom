@@ -1,0 +1,205 @@
+import localized from "../locales/zh.json" with { type: "json" };
+import React, { useId, useState, useRef, useEffect } from "react";
+import { Button } from "./button.js";
+import { matchesText } from "./router.js";
+
+export type Option = { value: string; label: string };
+
+/**
+ * The one dropdown control. Typing filters options by text or pinyin
+ * (e.g. "jid" finds eggs). With `allowCustom` the typed text itself is the
+ * value, offered as “Use …”.
+ */
+export function Select({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+  disabled,
+  allowCustom,
+  "aria-label": ariaLabel,
+}: {
+  label?: string;
+  value: string;
+  options: Option[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  allowCustom?: boolean;
+  "aria-label"?: string;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(-1);
+  const menu = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<React.CSSProperties>();
+  // Fixed to the viewport so a modal's scroll area never clips the list.
+  useEffect(() => {
+    if (!open) return;
+    const follow = () => {
+      const r = box.current!.getBoundingClientRect();
+      setPlace({ top: r.bottom + 6, left: r.left, width: r.width });
+    };
+    follow();
+    addEventListener("scroll", follow, true);
+    addEventListener("resize", follow);
+    return () => {
+      removeEventListener("scroll", follow, true);
+      removeEventListener("resize", follow);
+    };
+  }, [open]);
+  useEffect(() => {
+    const list = menu.current;
+    const option = list?.children[active] as HTMLElement | undefined;
+    if (!open || !list || !option) return;
+    const bounds = list.getBoundingClientRect();
+    const item = option.getBoundingClientRect();
+    if (item.top < bounds.top) list.scrollTop += item.top - bounds.top;
+    else if (item.bottom > bounds.bottom)
+      list.scrollTop += item.bottom - bounds.bottom;
+  }, [active, open]);
+  const selected = options.find((o) => o.value === value);
+  const choices = options.filter(
+    (o) =>
+      !query.trim() || (o.value ? matchesText(o.label, query) : allowCustom),
+  );
+  const typed = value.trim();
+  if (allowCustom && typed && !options.some((o) => o.value === typed))
+    choices.push({ value: typed, label: `${localized["Use “"]}${typed}”` });
+  const name = label ?? ariaLabel ?? "";
+  const choose = (option: Option) => {
+    onChange(option.value);
+    setQuery("");
+    setOpen(false);
+    setActive(-1);
+  };
+  const show = () => {
+    setQuery("");
+    setActive(-1);
+    setOpen(true);
+  };
+  const control = (
+    <div
+      ref={box}
+      className="combobox"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+          setQuery("");
+        }
+      }}
+    >
+      <input
+        id={id}
+        role="combobox"
+        aria-label={label ? undefined : ariaLabel}
+        // The wrapping label also contains the options; name only from its text.
+        aria-labelledby={label ? id + "-label" : undefined}
+        aria-expanded={open}
+        aria-controls={id + "-options"}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          open && active >= 0 ? id + "-" + active : undefined
+        }
+        data-1p-ignore="true"
+        autoComplete="off"
+        maxLength={200}
+        disabled={disabled}
+        placeholder={
+          allowCustom || !open ? placeholder : (selected?.label ?? placeholder)
+        }
+        // Closed it shows the choice; open it holds the filter text.
+        value={allowCustom ? value : open ? query : (selected?.label ?? "")}
+        // Typing over the selected label starts a new filter.
+        onFocus={(event) => event.target.select()}
+        onClick={() => !open && show()}
+        onChange={(event) => {
+          if (allowCustom) onChange(event.target.value);
+          setQuery(event.target.value);
+          // Picking highlights the best match; custom text stays as typed.
+          setActive(!allowCustom && event.target.value.trim() ? 0 : -1);
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(false);
+            setQuery("");
+          }
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+            setActive(
+              active < 0
+                ? event.key === "ArrowDown"
+                  ? 0
+                  : choices.length - 1
+                : (active +
+                    (event.key === "ArrowDown" ? 1 : -1) +
+                    choices.length) %
+                    choices.length,
+            );
+          }
+          if (event.key === "Enter" && open) {
+            event.preventDefault();
+            if (choices[active]) choose(choices[active]);
+            else setOpen(false);
+          }
+        }}
+      />
+      <Button
+        variant="icon"
+        className="combobox-toggle"
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => (open ? setOpen(false) : show())}
+      >
+        <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m7 10 5 5 5-5" />
+        </svg>
+      </Button>
+      {open && (
+        <div
+          ref={menu}
+          id={id + "-options"}
+          role="listbox"
+          aria-label={name}
+          className="combobox-options"
+          style={place}
+        >
+          {choices.length === 0 && <p className="empty">{localized["No matching options"]}</p>}
+          {choices.map((option, index) => (
+            <Button
+              key={option.value}
+              id={id + "-" + index}
+              variant="ghost"
+              role="option"
+              tabIndex={-1}
+              aria-selected={option.value === value}
+              className={active === index ? "active" : ""}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => choose(option)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  // Same wrapping <label> as every other field, so one CSS rule spaces it.
+  return label ? (
+    <label>
+      <span id={id + "-label"}>{label}</span>
+      {control}
+    </label>
+  ) : (
+    control
+  );
+}
