@@ -5,7 +5,7 @@ import { matchesSearch } from "./router.js";
 import { ResourceDialog } from "./resource-dialog.js";
 import { Icon, Page } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
-import { Modal } from "./modal.js";
+import { Modal, ask } from "./modal.js";
 import { Select } from "./select.js";
 import { SortableRow } from "./sortable.js";
 import React, { useEffect, useState, useRef } from "react";
@@ -136,7 +136,7 @@ export function Documents({
     leaveGuard.guard = () =>
       !saving.current &&
       ((!dirty && !checks.current.size && !failedChecks.current.size) ||
-        confirm(localized["Discard pending changes and leave?"]));
+        ask(localized["Discard pending changes and leave?"], localized["Discard and leave"]));
     window.addEventListener("beforeunload", leave);
     return () => {
       window.removeEventListener("beforeunload", leave);
@@ -171,7 +171,7 @@ export function Documents({
         saving.current ||
         checks.current.size ||
         failedChecks.current.size) &&
-      !confirm(localized["Discard changes and open another checklist?"])
+      !(await ask(localized["Discard changes and open another checklist?"], localized["Discard changes"]))
     )
       return;
     if (key !== documentId) {
@@ -448,7 +448,11 @@ export function Documents({
     return parts.join(" / ");
   }
   // Entries and sections share one order per parent; "into" nests in a section.
-  function move(id: string, targetId: string, place: "before" | "after" | "into") {
+  function move(
+    id: string,
+    targetId: string,
+    place: "before" | "after" | "into",
+  ) {
     const next = moveNode(doc, id, targetId, place);
     try {
       // Rejects dropping into its own subtree or past three levels.
@@ -521,8 +525,8 @@ export function Documents({
       }
       onBack={
         doc
-          ? () => {
-              if (leaveGuard.guard()) {
+          ? async () => {
+              if (await leaveGuard.guard()) {
                 onNavigate(null);
                 setDoc(null);
                 setDirty(false);
@@ -695,7 +699,9 @@ export function Documents({
                   }
                   options={d.entries.map((e) => ({
                     value: e.id,
-                    label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]].filter(Boolean).join(" · "),
+                    label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]]
+                      .filter(Boolean)
+                      .join(" · "),
                   }))}
                 />
               </label>
@@ -910,7 +916,10 @@ export function Documents({
                   <Button
                     onClick={() =>
                       void attempt(async () => {
-                        if (!dirty || confirm(localized["Discard local changes and reload?"])) {
+                        if (
+                          !dirty ||
+                          (await ask(localized["Discard local changes and reload?"], localized["Reload"]))
+                        ) {
                           pending.current = null;
                           setDirty(false);
                           await open(doc.id);
@@ -983,9 +992,12 @@ export function Documents({
                         checks.current.size > 0 ||
                         failedChecks.current.size > 0
                       }
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          confirm(localized["fixture.ad75728133c6"])
+                          await ask(
+                            localized["fixture.ad75728133c6"],
+                            localized["Delete template"],
+                          )
                         )
                           void attempt(async () => {
                             await api("/templates/" + doc.id, "DELETE", {
@@ -1008,8 +1020,8 @@ export function Documents({
                         checks.current.size > 0 ||
                         failedChecks.current.size > 0
                       }
-                      onClick={() => {
-                        if (confirm(localized["Permanently delete this checklist? This cannot be undone."]))
+                      onClick={async () => {
+                        if (await ask(localized["Permanently delete this checklist? This cannot be undone."], localized["Delete checklist"]))
                           void attempt(async () => {
                             await api("/checklists/" + doc.id, "DELETE", {
                               version: doc.version,
@@ -1139,7 +1151,9 @@ export function Documents({
                     value={mergeTargets[d.itemId] || ""}
                     options={d.entries.map((e: any) => ({
                       value: e.id,
-                      label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]].filter(Boolean).join(" · "),
+                      label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]]
+                        .filter(Boolean)
+                        .join(" · "),
                     }))}
                     onChange={(id) => {
                       setMergeTargets({
@@ -1479,7 +1493,8 @@ export function Documents({
                       return;
                     setCollapsed((prev) => {
                       const next = new Set(prev);
-                      if (!next.delete(row.section.id)) next.add(row.section.id);
+                      if (!next.delete(row.section.id))
+                        next.add(row.section.id);
                       return next;
                     });
                   }}
@@ -1573,7 +1588,7 @@ export function Documents({
                     <SortableRow
                       key={e.id}
                       as="div"
-                          id={e.id}
+                      id={e.id}
                       className="entry"
                       dragLabel={e.name}
                       disabled={!editable}

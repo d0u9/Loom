@@ -158,9 +158,12 @@ test("catalog to template, checklist, archive and restore", async ({
     fullPage: true,
   });
   // Checklists can be deleted outright instead of only archived.
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
   await page.getByRole("button", { name: localized["Delete checklist"], exact: true }).click();
+  await page
+    .getByRole("dialog", { name: localized["Permanently delete this checklist? This cannot be undone."] })
+    .getByRole("button", { name: localized["Delete checklist"], exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Meal " + suffix, exact: true }),
   ).toHaveCount(0);

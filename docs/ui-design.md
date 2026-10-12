@@ -111,7 +111,7 @@ New section sits directly in the Page header with actions such as Add entries, n
 
 Add-entry dialogs offer target section, Item search/click addition, Category selection with adjacent Pick one from category / Add entire category, temporary entries, and Cancel. Retain dialogs after failure for retry.
 
-Creation/name/field forms share [ResourceDialog](../web/resource-dialog.tsx); all dialogs share [Modal](../web/modal.tsx), without browser prompt. Settings fields sit above and actions below a separator; use shared Button with clear borders/danger styles.
+Creation/name/field forms share [ResourceDialog](../web/resource-dialog.tsx); all dialogs share [Modal](../web/modal.tsx), without browser prompt / confirm / alert. Deletion, discard, and leave-protection confirmations use `ask()` from the same file; dangerous confirmation buttons name the action and use danger styling. Settings fields sit above and actions below a separator; use shared Button with clear borders/danger styles.
 
 Dialogs focus the first control on opening; Escape closes and restores trigger focus; close native dialog before DOM removal. Business input / textarea use `data-1p-ignore="true"` and `autoComplete="off"`; login retains username / current-password autofill.
 

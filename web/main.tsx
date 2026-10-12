@@ -12,6 +12,7 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 import { api, setCsrf, leave, ApiError } from "./client.js";
 import { Documents } from "./documents.js";
+import { ask } from "./modal.js";
 function App() {
   const route = useRoute();
   const { section, date } = route;
@@ -368,8 +369,8 @@ function App() {
                             className="danger"
                             aria-label={localized["Delete"]}
                             title={localized["Delete"]}
-                            onClick={() => {
-                              if (confirm(localized["Delete "] + x.name + localized["Question mark"]))
+                            onClick={async () => {
+                              if (await ask(localized["Delete "] + x.name + localized["Question mark"], localized["Delete"]))
                                 void attempt(async () => {
                                   await api(
                                     "/" +

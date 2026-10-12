@@ -154,7 +154,8 @@ export function SortableRow({
     }, 0);
     const land = dropTarget ? null : landing(x, y);
     if (land?.place === "into") onNest!(land.target.dataset.sortId!);
-    else if (land) onMove?.(land.target.dataset.sortId!, land.place === "after");
+    else if (land)
+      onMove?.(land.target.dataset.sortId!, land.place === "after");
   }
   useEffect(() => {
     const row = ref.current;

@@ -111,12 +111,16 @@ test("resource URLs restore details, date filters and browser history", async ({
   await page.getByRole("button", { name: localized["More actions"] }).click();
   await page.getByLabel(localized["Name"], { exact: true }).fill("Unsaved name");
   await page.keyboard.press("Escape");
-  page.once("dialog", (dialog) => dialog.dismiss());
   await page.goBack();
+  // The leave prompt is the app's own Modal, not window.confirm.
+  const leaveDialog = page.getByRole("dialog", {
+    name: localized["Discard pending changes and leave?"],
+  });
+  await leaveDialog.getByRole("button", { name: localized["Cancel"] }).click();
   await expect(page).toHaveURL(new RegExp("/templates/" + template.id + "$"));
   await expect(page.locator(".page-header h2")).toHaveText("Unsaved name");
-  page.once("dialog", (dialog) => dialog.accept());
   await page.goBack();
+  await leaveDialog.getByRole("button", { name: localized["Discard and leave"] }).click();
   await expect(page).toHaveURL(/\/templates$/);
   await expect(
     page.getByRole("button", { name: localized["fixture.7d56750df596"] }),

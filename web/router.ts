@@ -24,18 +24,27 @@ export function useRoute() {
   const [url, setUrl] = useState(() => location.pathname + location.search);
   const index = useRef(0);
   const restoring = useRef(false);
+  const confirmed = useRef(false);
   useEffect(() => {
     history.replaceState({ loomIndex: 0 }, "", url);
     setUrl(location.pathname + location.search);
-    const pop = () => {
+    const pop = async () => {
       const next = history.state?.loomIndex ?? 0;
       if (restoring.current) {
         restoring.current = false;
         return;
       }
-      if (!leave.guard()) {
+      const ok = confirmed.current || leave.guard();
+      confirmed.current = false;
+      if (ok !== true) {
+        // Stay put while asking; replay the same step once confirmed.
+        const delta = index.current - next;
         restoring.current = true;
-        history.go(index.current - next);
+        history.go(delta);
+        if (await ok) {
+          confirmed.current = true;
+          history.go(-delta);
+        }
         return;
       }
       index.current = next;
@@ -44,9 +53,9 @@ export function useRoute() {
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
   }, []);
-  function navigate(path: string, check = true) {
+  async function navigate(path: string, check = true) {
     if (path === location.pathname + location.search) return;
-    if (check && !leave.guard()) return;
+    if (check && !(await leave.guard())) return;
     history.pushState({ loomIndex: ++index.current }, "", path);
     setUrl(path);
   }

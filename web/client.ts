@@ -58,4 +58,5 @@ export function setCsrf(value: string) {
   csrf = value;
 }
 
-export const leave = { guard: () => true };
+// Navigation guard; a Promise means the user is being asked.
+export const leave = { guard: (): boolean | Promise<boolean> => true };
