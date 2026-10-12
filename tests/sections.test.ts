@@ -111,11 +111,11 @@ test("category sources merge, repeated addition is idempotent, zero sources remo
     assert.throws(
       () =>
         h.store.run(
-          "INSERT INTO entries SELECT ?,documentId,itemId,name,quantity,unit,note,position,checked,direct,sectionId FROM entries WHERE id=?",
+          "INSERT INTO entries(id,documentId,itemId,name,quantity,unit,note,position) SELECT ?,documentId,itemId,name,quantity,unit,note,position FROM entries WHERE id=?",
           id(),
           d.entries[0].id,
         ),
-      /Duplicate Item/,
+      /UNIQUE/,
     );
     await save({ ...d, entries: [] });
     await add(cats[0]);
@@ -298,73 +298,6 @@ test("legacy duplicates require explicit field selection and retain every source
   );
 });
 
-test("flat migration preserves old parent links and historical duplicates without rewriting snapshots", async () => {
-  const { Store } = await import("../server/db.js");
-  const { app } = await import("../server/app.js");
-  const store = new Store(":memory:");
-  const parent = id(),
-    child = id(),
-    item = id(),
-    doc = id();
-  store.run("INSERT INTO categories(id,name) VALUES(?,?)", parent, "Parent");
-  store.run(
-    "INSERT INTO categories(id,name,parentId) VALUES(?,?,?)",
-    child,
-    "Child",
-    parent,
-  );
-  store.run("INSERT INTO items(id,name) VALUES(?,?)", item, "egg");
-  store.run("INSERT INTO item_categories VALUES(?,?)", item, child);
-  store.db.exec(
-    "CREATE TABLE documents(id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,status TEXT NOT NULL DEFAULT 'active',source TEXT,archive TEXT); CREATE TABLE entries(id TEXT PRIMARY KEY,documentId TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,itemId TEXT REFERENCES items(id),name TEXT NOT NULL,quantity TEXT NOT NULL,unit TEXT NOT NULL,note TEXT NOT NULL,position INTEGER NOT NULL,checked INTEGER NOT NULL DEFAULT 0,direct INTEGER NOT NULL DEFAULT 1)",
-  );
-  const a = entry({ id: item, name: "egg" }),
-    b = { ...entry({ id: item, name: "egg" }), quantity: "9" };
-  const snapshot = JSON.stringify({
-    schemaVersion: 1,
-    id: doc,
-    kind: "checklist",
-    name: "old",
-    version: 1,
-    status: "archived",
-    entries: [a, b],
-    groups: [],
-  });
-  store.run(
-    "INSERT INTO documents(id,kind,name,status,archive) VALUES(?,'checklist','old','archived',?)",
-    doc,
-    snapshot,
-  );
-  let server = await app(store);
-  try {
-    assert.equal(store.resource("categories", child).parentId, null);
-    assert.equal(
-      store.get(
-        "SELECT parentId FROM legacy_category_parents WHERE id=?",
-        child,
-      ).parentId,
-      parent,
-    );
-    assert.deepEqual(store.members(parent), []);
-    assert.deepEqual(store.members(child), [item]);
-    assert.equal(store.resource("documents", doc).archive, snapshot);
-    assert.throws(
-      () =>
-        store.run("UPDATE categories SET parentId=? WHERE id=?", parent, child),
-      /flat/,
-    );
-    assert.equal(store.get("PRAGMA integrity_check").integrity_check, "ok");
-    assert.deepEqual(store.all("PRAGMA foreign_key_check"), []);
-    await server.close();
-    server = await app(store);
-    assert.equal(store.all("SELECT * FROM legacy_category_parents").length, 1);
-    assert.equal(store.resource("documents", doc).archive, snapshot);
-  } finally {
-    await server.close();
-    store.close();
-  }
-});
-
 test("old revisions expose duplicates and history apply merges selected values atomically", async () => {
   const h = await setup();
   try {
@@ -437,51 +370,6 @@ test("old revisions expose duplicates and history apply merges selected values a
     );
   } finally {
     await h.close();
-  }
-});
-
-test("upgrade backup restores the old schema and parent relationships for rollback", async () => {
-  const { mkdtempSync, rmSync } = await import("node:fs");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { Store } = await import("../server/db.js");
-  const { app } = await import("../server/app.js");
-  const { backupDatabase, restoreDatabase } =
-    await import("../server/backup.js");
-  const folder = mkdtempSync(join(tmpdir(), "loom-v6-"));
-  const path = join(folder, "old.sqlite"),
-    backup = join(folder, "before.sqlite"),
-    rollback = join(folder, "rollback.sqlite");
-  const store = new Store(path);
-  const parent = id(),
-    child = id();
-  store.run("INSERT INTO categories(id,name) VALUES(?,?)", parent, "P");
-  store.run(
-    "INSERT INTO categories(id,name,parentId) VALUES(?,?,?)",
-    child,
-    "C",
-    parent,
-  );
-  try {
-    await backupDatabase(path, backup);
-    const server = await app(store);
-    await server.close();
-    assert.equal(store.resource("categories", child).parentId, null);
-    await restoreDatabase(backup, rollback);
-    const old = new Store(rollback);
-    try {
-      assert.equal(old.resource("categories", child).parentId, parent);
-      assert.equal(
-        old.get("SELECT 1 FROM migrations WHERE version=6"),
-        undefined,
-      );
-      assert.equal(old.get("PRAGMA integrity_check").integrity_check, "ok");
-    } finally {
-      old.close();
-    }
-  } finally {
-    store.close();
-    rmSync(folder, { recursive: true, force: true });
   }
 });
 
@@ -639,7 +527,12 @@ test("entries and sections share one order per parent and survive save and copy"
         groups: [],
         sections: [
           { id: id(), name: "Last", parentSectionId: null },
-          { id: id(), name: "First", parentSectionId: null, afterEntryId: null },
+          {
+            id: id(),
+            name: "First",
+            parentSectionId: null,
+            afterEntryId: null,
+          },
         ],
         requestId: id(),
       })

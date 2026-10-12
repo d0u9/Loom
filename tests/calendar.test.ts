@@ -68,30 +68,3 @@ test("checklist dates validate, preserve on old writes/archive/restore, and rese
     await h.close();
   }
 });
-
-test("date migration preserves existing documents and runs once", async () => {
-  const store = new Store(":memory:");
-  store.db.exec(
-    "CREATE TABLE documents(id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,status TEXT NOT NULL DEFAULT 'active',source TEXT,archive TEXT)",
-  );
-  store.run(
-    "INSERT INTO documents(id,kind,name) VALUES(?,?,?)",
-    id(),
-    "checklist",
-    "Existing",
-  );
-  let server = await app(store);
-  await server.close();
-  assert.equal(
-    store.get("SELECT name,useDate FROM documents").name,
-    "Existing",
-  );
-  assert.equal(store.get("SELECT useDate FROM documents").useDate, null);
-  server = await app(store);
-  assert.equal(
-    store.get("SELECT COUNT(*) AS n FROM migrations WHERE version=4").n,
-    1,
-  );
-  await server.close();
-  store.close();
-});

@@ -50,7 +50,10 @@ test("archive releases references, missing resources restore safely, copies rese
     const listed = (await h.call("GET", "/documents"))
       .json()
       .find((x: any) => x.id === d.id);
-    assert.deepEqual([listed.total, listed.done, listed.archive], [1, 1, undefined]);
+    assert.deepEqual(
+      [listed.total, listed.done, listed.archive],
+      [1, 1, undefined],
+    );
     assert.equal(
       (
         await h.call("PUT", "/documents/" + d.id, {

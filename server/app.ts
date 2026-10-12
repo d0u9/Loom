@@ -216,7 +216,6 @@ export async function app(store: Store, config: Config = defaultConfig) {
     store.run("DELETE FROM tokens WHERE id=?", req.params.id);
     return { ok: true };
   });
-  store.migrate(7, "ALTER TABLE items ADD COLUMN itemGroup TEXT");
   route("GET", "/items", null, (req: any) =>
     (req.query.itemGroup === undefined
       ? store.all("SELECT * FROM items ORDER BY name")
@@ -261,9 +260,18 @@ export async function app(store: Store, config: Config = defaultConfig) {
       b.note || "",
       itemGroup,
     );
-    store.run("DELETE FROM item_categories WHERE itemId=?", key);
+    // Keep existing memberships so their Category order survives.
+    store.run(
+      "DELETE FROM item_categories WHERE itemId=? AND categoryId NOT IN (SELECT value FROM json_each(?))",
+      key,
+      JSON.stringify(b.categoryIds),
+    );
     b.categoryIds.forEach((c: string) =>
-      store.run("INSERT INTO item_categories VALUES(?,?)", key, c),
+      store.run(
+        "INSERT OR IGNORE INTO item_categories(itemId,categoryId) VALUES(?,?)",
+        key,
+        c,
+      ),
     );
     return store.resource("items", key);
   };
@@ -291,20 +299,14 @@ export async function app(store: Store, config: Config = defaultConfig) {
   route("GET", "/categories", null, () =>
     store.all("SELECT * FROM categories ORDER BY name"),
   );
-  store.migrate(
-    5,
-    "CREATE TABLE category_order(categoryId TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,itemId TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,position INTEGER NOT NULL,PRIMARY KEY(categoryId,itemId))",
-  );
   const orderedMembers = (key: string) => {
-    const members = store.members(key);
-    const saved = store
+    store.resource("categories", key);
+    return store
       .all(
-        "SELECT itemId FROM category_order WHERE categoryId=? ORDER BY position",
+        "SELECT itemId FROM item_categories WHERE categoryId=? ORDER BY position IS NULL,position,itemId",
         key,
       )
-      .map((x) => x.itemId)
-      .filter((k) => members.includes(k));
-    return [...new Set([...saved, ...members])];
+      .map((x) => x.itemId);
   };
   route("GET", "/categories/:id/order", null, (req: any) => ({
     itemIds: orderedMembers(req.params.id),
@@ -332,11 +334,10 @@ export async function app(store: Store, config: Config = defaultConfig) {
           "Category members changed; reload before sorting",
           409,
         );
-        store.run("DELETE FROM category_order WHERE categoryId=?", category.id);
         store.run(
-          "INSERT INTO category_order SELECT ?,value,key FROM json_each(?)",
-          category.id,
+          "UPDATE item_categories SET position=j.key FROM json_each(?) j WHERE categoryId=? AND itemId=j.value",
           JSON.stringify(req.body.itemIds),
+          category.id,
         );
         store.run(
           "UPDATE categories SET version=version+1 WHERE id=?",
@@ -357,10 +358,9 @@ export async function app(store: Store, config: Config = defaultConfig) {
     if (req.params.id)
       store.version(store.resource("categories", key), b.version);
     store.run(
-      "INSERT INTO categories(id,name,parentId) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,parentId=excluded.parentId,version=version+1",
+      "INSERT INTO categories(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,version=version+1",
       key,
       b.name,
-      null,
     );
     return store.resource("categories", key);
   };

@@ -34,7 +34,12 @@ export async function restoreDatabase(source: string, target: string) {
       "Backup failed integrity check",
     );
     requireThat(
-      check.prepare("SELECT version FROM migrations").all().length > 0,
+      !!(
+        check.prepare("PRAGMA user_version").get()!.user_version ||
+        check
+          .prepare("SELECT 1 FROM sqlite_master WHERE name='migrations'")
+          .get()
+      ),
       "Not a Loom database",
     );
   } finally {

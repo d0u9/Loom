@@ -1,0 +1,413 @@
+{
+  "items": [
+    {
+      "id": "ee215d2d-affa-46fd-b3f4-8388b7be866c",
+      "name": "salt",
+      "version": 1,
+      "note": "",
+      "itemGroup": null,
+      "categoryIds": ["6ccda655-4f85-413c-89fa-8aa7e0bfffc9"]
+    },
+    {
+      "id": "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+      "name": "Milk",
+      "version": 2,
+      "note": "",
+      "itemGroup": null,
+      "categoryIds": [
+        "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "7bd34564-88df-493f-a4d4-7aae6caaa928"
+      ]
+    },
+    {
+      "id": "62b945d9-8415-4b63-844a-51071648eb2f",
+      "name": "Eggs",
+      "version": 1,
+      "note": "fresh",
+      "itemGroup": "Ingredients",
+      "categoryIds": ["6ccda655-4f85-413c-89fa-8aa7e0bfffc9"]
+    }
+  ],
+  "categories": [
+    {
+      "id": "7bd34564-88df-493f-a4d4-7aae6caaa928",
+      "name": "Drink",
+      "version": 1
+    },
+    {
+      "id": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+      "name": "Food",
+      "version": 2
+    }
+  ],
+  "documents": [
+    {
+      "id": "a7cec1ce-cc90-4777-9285-d48e02b3b605",
+      "kind": "checklist",
+      "name": "Empty",
+      "version": 1,
+      "status": "active",
+      "total": 0,
+      "done": 0,
+      "useDate": null,
+      "source": null
+    },
+    {
+      "id": "7f7f5dce-2045-4c77-9b08-64d890cb0c56",
+      "kind": "checklist",
+      "name": "Archived",
+      "version": 2,
+      "status": "archived",
+      "total": 3,
+      "done": 1,
+      "useDate": null,
+      "source": {
+        "templateId": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+        "revision": 1,
+        "templateName": "Tpl"
+      }
+    },
+    {
+      "id": "053f8402-285d-4395-9181-993099cb0c0c",
+      "kind": "checklist",
+      "name": "Active",
+      "version": 1,
+      "status": "active",
+      "total": 3,
+      "done": 1,
+      "useDate": "2026-10-20",
+      "source": {
+        "templateId": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+        "revision": 1,
+        "templateName": "Tpl"
+      }
+    },
+    {
+      "id": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+      "kind": "template",
+      "name": "Tpl",
+      "version": 2,
+      "status": "active",
+      "total": 3,
+      "done": 0,
+      "useDate": null,
+      "source": null
+    }
+  ],
+  "order:Drink": {
+    "itemIds": ["63a5b523-d75b-4594-a666-cb5f996e5b4a"],
+    "version": 1
+  },
+  "members:Drink": {
+    "itemIds": ["63a5b523-d75b-4594-a666-cb5f996e5b4a"]
+  },
+  "order:Food": {
+    "itemIds": [
+      "ee215d2d-affa-46fd-b3f4-8388b7be866c",
+      "62b945d9-8415-4b63-844a-51071648eb2f",
+      "63a5b523-d75b-4594-a666-cb5f996e5b4a"
+    ],
+    "version": 2
+  },
+  "members:Food": {
+    "itemIds": [
+      "62b945d9-8415-4b63-844a-51071648eb2f",
+      "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+      "ee215d2d-affa-46fd-b3f4-8388b7be866c"
+    ]
+  },
+  "doc:Empty": {
+    "id": "a7cec1ce-cc90-4777-9285-d48e02b3b605",
+    "kind": "checklist",
+    "name": "Empty",
+    "version": 1,
+    "status": "active",
+    "entries": [],
+    "groups": [],
+    "useDate": null,
+    "source": null,
+    "sections": []
+  },
+  "doc:Archived": {
+    "id": "7f7f5dce-2045-4c77-9b08-64d890cb0c56",
+    "kind": "checklist",
+    "name": "Archived",
+    "version": 2,
+    "status": "archived",
+    "entries": [
+      {
+        "id": "6ff44813-5d0b-48e5-b5ba-42892ed49419",
+        "itemId": "62b945d9-8415-4b63-844a-51071648eb2f",
+        "name": "Eggs",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "two",
+        "checked": false,
+        "direct": false,
+        "groupIds": ["abcad3cf-2159-4e5c-a4b1-903a2a2c0e72"],
+        "sectionId": null,
+        "sourceCount": 1
+      },
+      {
+        "id": "8c25f5e3-0095-4a0f-8f88-59cb641a02ce",
+        "itemId": "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+        "name": "Milk",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": true,
+        "direct": true,
+        "groupIds": ["abcad3cf-2159-4e5c-a4b1-903a2a2c0e72"],
+        "sectionId": "a108d1dd-583a-4dd5-bd92-ab566a377fb2",
+        "sourceCount": 2
+      },
+      {
+        "id": "31606f38-8105-4d41-a10d-19944559f024",
+        "itemId": null,
+        "name": "temp",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": false,
+        "direct": true,
+        "groupIds": [],
+        "sectionId": "e63b89a6-b0bd-41e7-8c50-753d7a6ed3ed",
+        "sourceCount": 1
+      }
+    ],
+    "groups": [
+      {
+        "id": "abcad3cf-2159-4e5c-a4b1-903a2a2c0e72",
+        "categoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "originalCategoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "name": "Food",
+        "members": [
+          "62b945d9-8415-4b63-844a-51071648eb2f",
+          "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+          "ee215d2d-affa-46fd-b3f4-8388b7be866c"
+        ],
+        "excluded": ["ee215d2d-affa-46fd-b3f4-8388b7be866c"]
+      }
+    ],
+    "useDate": null,
+    "source": {
+      "templateId": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+      "revision": 1,
+      "templateName": "Tpl"
+    },
+    "sections": [
+      {
+        "id": "e63b89a6-b0bd-41e7-8c50-753d7a6ed3ed",
+        "name": "S1",
+        "parentSectionId": null,
+        "afterEntryId": null
+      },
+      {
+        "id": "a6cbee9f-6f14-44dc-8de1-4ccd2f90f05c",
+        "name": "S2",
+        "parentSectionId": "e63b89a6-b0bd-41e7-8c50-753d7a6ed3ed"
+      },
+      {
+        "id": "a108d1dd-583a-4dd5-bd92-ab566a377fb2",
+        "name": "S3",
+        "parentSectionId": "a6cbee9f-6f14-44dc-8de1-4ccd2f90f05c"
+      },
+      {
+        "id": "71813c55-a713-4f2a-8c00-89da88cbcc59",
+        "name": "S4",
+        "parentSectionId": null,
+        "afterEntryId": "6ff44813-5d0b-48e5-b5ba-42892ed49419"
+      }
+    ],
+    "schemaVersion": 2,
+    "archivedAt": "2026-10-12T09:39:54.642Z"
+  },
+  "doc:Active": {
+    "id": "053f8402-285d-4395-9181-993099cb0c0c",
+    "kind": "checklist",
+    "name": "Active",
+    "version": 1,
+    "status": "active",
+    "entries": [
+      {
+        "id": "1bbc8901-3765-4b3b-80a0-08139bd070be",
+        "itemId": "62b945d9-8415-4b63-844a-51071648eb2f",
+        "name": "Eggs",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "two",
+        "checked": true,
+        "direct": false,
+        "groupIds": ["023cdb27-bea8-4554-b8e2-2fc0f773bf86"],
+        "sectionId": null,
+        "sourceCount": 1
+      },
+      {
+        "id": "6199fb5c-2ae2-48a3-8213-ced72185a0c3",
+        "itemId": "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+        "name": "Milk",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": false,
+        "direct": true,
+        "groupIds": ["023cdb27-bea8-4554-b8e2-2fc0f773bf86"],
+        "sectionId": "f417319b-792b-4b6c-a8f9-8bda0b5205d9",
+        "sourceCount": 2
+      },
+      {
+        "id": "0c0d0420-5412-424b-be0f-84b3edabe998",
+        "itemId": null,
+        "name": "temp",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": false,
+        "direct": true,
+        "groupIds": [],
+        "sectionId": "0cd0d2fe-c610-41bd-8b72-652d80d2970a",
+        "sourceCount": 1
+      }
+    ],
+    "groups": [
+      {
+        "id": "023cdb27-bea8-4554-b8e2-2fc0f773bf86",
+        "categoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "originalCategoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "name": "Food",
+        "members": [
+          "62b945d9-8415-4b63-844a-51071648eb2f",
+          "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+          "ee215d2d-affa-46fd-b3f4-8388b7be866c"
+        ],
+        "excluded": ["ee215d2d-affa-46fd-b3f4-8388b7be866c"]
+      }
+    ],
+    "useDate": "2026-10-20",
+    "source": {
+      "templateId": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+      "revision": 1,
+      "templateName": "Tpl"
+    },
+    "sections": [
+      {
+        "id": "0cd0d2fe-c610-41bd-8b72-652d80d2970a",
+        "name": "S1",
+        "parentSectionId": null,
+        "afterEntryId": null
+      },
+      {
+        "id": "7741d77f-499c-4a1f-9976-955b19431d98",
+        "name": "S2",
+        "parentSectionId": "0cd0d2fe-c610-41bd-8b72-652d80d2970a"
+      },
+      {
+        "id": "f417319b-792b-4b6c-a8f9-8bda0b5205d9",
+        "name": "S3",
+        "parentSectionId": "7741d77f-499c-4a1f-9976-955b19431d98"
+      },
+      {
+        "id": "676ec7ef-83cd-40f5-8d14-92d6a37caf8f",
+        "name": "S4",
+        "parentSectionId": null,
+        "afterEntryId": "1bbc8901-3765-4b3b-80a0-08139bd070be"
+      }
+    ]
+  },
+  "doc:Tpl": {
+    "id": "238c0b8a-5331-4727-a7b4-0f384584ae2f",
+    "kind": "template",
+    "name": "Tpl",
+    "version": 2,
+    "status": "active",
+    "entries": [
+      {
+        "id": "ab4dc078-41a2-4d43-9497-ecad095d1a83",
+        "itemId": "62b945d9-8415-4b63-844a-51071648eb2f",
+        "name": "Eggs",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "two",
+        "checked": false,
+        "direct": false,
+        "groupIds": ["87bb92c8-df39-4e01-9ea7-0326da170004"],
+        "sectionId": null,
+        "sourceCount": 1
+      },
+      {
+        "id": "6c38f3a7-a613-436c-8626-7872b22027b1",
+        "itemId": "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+        "name": "Milk",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": false,
+        "direct": true,
+        "groupIds": ["87bb92c8-df39-4e01-9ea7-0326da170004"],
+        "sectionId": "9f77990b-ccf4-4cba-a7d6-536311de5e36",
+        "sourceCount": 2
+      },
+      {
+        "id": "5457c54a-b6f2-4922-b680-4a0626784c24",
+        "itemId": null,
+        "name": "temp",
+        "quantity": "1",
+        "unit": "pc",
+        "note": "",
+        "checked": false,
+        "direct": true,
+        "groupIds": [],
+        "sectionId": "cae48426-bd5d-41ef-a8ac-d73c48448eee",
+        "sourceCount": 1
+      }
+    ],
+    "groups": [
+      {
+        "id": "87bb92c8-df39-4e01-9ea7-0326da170004",
+        "categoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "originalCategoryId": "6ccda655-4f85-413c-89fa-8aa7e0bfffc9",
+        "name": "Food",
+        "members": [
+          "62b945d9-8415-4b63-844a-51071648eb2f",
+          "63a5b523-d75b-4594-a666-cb5f996e5b4a",
+          "ee215d2d-affa-46fd-b3f4-8388b7be866c"
+        ],
+        "excluded": ["ee215d2d-affa-46fd-b3f4-8388b7be866c"]
+      }
+    ],
+    "useDate": null,
+    "source": null,
+    "sections": [
+      {
+        "id": "cae48426-bd5d-41ef-a8ac-d73c48448eee",
+        "name": "S1",
+        "parentSectionId": null,
+        "afterEntryId": null
+      },
+      {
+        "id": "ab3bd7c8-8ec8-4a37-8cf7-5518d8695ae0",
+        "name": "S2",
+        "parentSectionId": "cae48426-bd5d-41ef-a8ac-d73c48448eee"
+      },
+      {
+        "id": "9f77990b-ccf4-4cba-a7d6-536311de5e36",
+        "name": "S3",
+        "parentSectionId": "ab3bd7c8-8ec8-4a37-8cf7-5518d8695ae0"
+      },
+      {
+        "id": "eda1c801-9045-47fa-9cb7-7a4a41ddde28",
+        "name": "S4",
+        "parentSectionId": null,
+        "afterEntryId": "ab4dc078-41a2-4d43-9497-ecad095d1a83"
+      }
+    ]
+  },
+  "revisions:Tpl": [
+    {
+      "revision": 2
+    },
+    {
+      "revision": 1
+    }
+  ]
+}

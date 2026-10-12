@@ -1,5 +1,5 @@
 import { Store, id, requireThat } from "./db.js";
-import { migrateGroups, writeGroups } from "./groups.js";
+import { writeGroups } from "./groups.js";
 import {
   validateSections,
   mergeContent,
@@ -8,32 +8,6 @@ import {
   type Content,
 } from "../shared/groups.js";
 import { object as obj, uuid, short, version, type Route } from "./schema.js";
-export function migrateDocuments(store: Store) {
-  store.migrate(
-    2,
-    `
- CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('template','checklist')),name TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,status TEXT NOT NULL DEFAULT 'active',source TEXT,archive TEXT);
- CREATE TABLE IF NOT EXISTS entries(id TEXT PRIMARY KEY,documentId TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,itemId TEXT REFERENCES items(id) ON DELETE RESTRICT,name TEXT NOT NULL,quantity TEXT NOT NULL,unit TEXT NOT NULL,note TEXT NOT NULL,position INTEGER NOT NULL,checked INTEGER NOT NULL DEFAULT 0,direct INTEGER NOT NULL DEFAULT 1);
- CREATE TABLE IF NOT EXISTS template_revisions(documentId TEXT REFERENCES documents(id) ON DELETE CASCADE,revision INTEGER NOT NULL,snapshot TEXT NOT NULL,PRIMARY KEY(documentId,revision));
- CREATE TRIGGER IF NOT EXISTS revisions_immutable BEFORE UPDATE ON template_revisions BEGIN SELECT RAISE(ABORT,'Revision is immutable'); END;
- `,
-  );
-  migrateGroups(store);
-  store.migrate(4, "ALTER TABLE documents ADD COLUMN useDate TEXT");
-  store.migrate(
-    6,
-    `
-    CREATE TABLE legacy_category_parents AS SELECT id,parentId FROM categories WHERE parentId IS NOT NULL;
-    UPDATE categories SET parentId=NULL,version=version+1 WHERE parentId IS NOT NULL;
-    CREATE TRIGGER categories_flat_insert BEFORE INSERT ON categories WHEN NEW.parentId IS NOT NULL BEGIN SELECT RAISE(ABORT,'Categories are flat'); END;
-    CREATE TRIGGER categories_flat_update BEFORE UPDATE OF parentId ON categories WHEN NEW.parentId IS NOT NULL BEGIN SELECT RAISE(ABORT,'Categories are flat'); END;
-    ALTER TABLE documents ADD COLUMN sections TEXT NOT NULL DEFAULT '[]';
-    ALTER TABLE entries ADD COLUMN sectionId TEXT;
-    CREATE TRIGGER entries_unique_item_insert BEFORE INSERT ON entries WHEN NEW.itemId IS NOT NULL AND EXISTS(SELECT 1 FROM entries WHERE documentId=NEW.documentId AND itemId=NEW.itemId) BEGIN SELECT RAISE(ABORT,'Duplicate Item'); END;
-    CREATE TRIGGER entries_unique_item_update BEFORE UPDATE OF itemId,documentId ON entries WHEN NEW.itemId IS NOT NULL AND EXISTS(SELECT 1 FROM entries WHERE documentId=NEW.documentId AND itemId=NEW.itemId AND id<>NEW.id) BEGIN SELECT RAISE(ABORT,'Duplicate Item'); END;
-  `,
-  );
-}
 export function document(store: Store, key: string, live = true): any {
   const d = store.resource("documents", key);
   if (d.status === "archived") {
@@ -78,7 +52,16 @@ export function document(store: Store, key: string, live = true): any {
     ...d,
     source: d.source ? JSON.parse(d.source) : null,
     entries,
-    sections: JSON.parse(d.sections),
+    sections: store
+      .all(
+        "SELECT id,name,parentSectionId,afterEntryId FROM sections WHERE documentId=? ORDER BY position",
+        key,
+      )
+      .map(({ afterEntryId, ...s }) =>
+        afterEntryId === null
+          ? s
+          : { ...s, afterEntryId: afterEntryId || null },
+      ),
     groups: store
       .all("SELECT * FROM groups WHERE documentId=?", key)
       .map((g) => ({
@@ -270,38 +253,48 @@ const group = obj(
 export function writeSections(store: Store, key: string, content: Content) {
   validateSections(content);
   const sections = content.sections ?? [];
-  const owned = new Set(
-    store
-      .all(
-        "SELECT sections FROM documents WHERE id<>? AND status='active'",
-        key,
-      )
-      .flatMap((d) => JSON.parse(d.sections).map((s: any) => s.id)),
-  );
   for (const s of sections)
-    requireThat(!owned.has(s.id), "Section belongs to another document", 409);
-  store.run(
-    "UPDATE documents SET sections=? WHERE id=?",
-    JSON.stringify(sections),
-    key,
+    requireThat(
+      !store.get(
+        "SELECT 1 FROM sections WHERE id=? AND documentId<>?",
+        s.id,
+        key,
+      ),
+      "Section belongs to another document",
+      409,
+    );
+  store.run("DELETE FROM sections WHERE documentId=?", key);
+  sections.forEach((s, p) =>
+    store.run(
+      "INSERT INTO sections VALUES(?,?,?,?,?,?)",
+      s.id,
+      key,
+      s.parentSectionId ?? null,
+      s.name,
+      // See schema: '' = first, NULL = legacy "after all entries".
+      s.afterEntryId === undefined ? null : (s.afterEntryId ?? ""),
+      p,
+    ),
   );
 }
 export const contentSchema = {
   sections: {
     type: "array",
     maxItems: 1000,
-    items: obj({
-      id: uuid,
-      name: short,
-      parentSectionId: { anyOf: [uuid, { type: "null" }] },
-      afterEntryId: { anyOf: [uuid, { type: "null" }] },
-    }, ["id", "name", "parentSectionId"]),
+    items: obj(
+      {
+        id: uuid,
+        name: short,
+        parentSectionId: { anyOf: [uuid, { type: "null" }] },
+        afterEntryId: { anyOf: [uuid, { type: "null" }] },
+      },
+      ["id", "name", "parentSectionId"],
+    ),
   },
   entries: { type: "array", maxItems: 10000, items: entry },
   groups: { type: "array", maxItems: 1000, items: group },
 };
 export function registerDocuments(route: Route, store: Store) {
-  migrateDocuments(store);
   route("GET", "/documents", null, () =>
     store
       .all(

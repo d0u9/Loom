@@ -2,12 +2,6 @@ import { Store, id, requireThat } from "./db.js";
 import { active, contentSchema } from "./documents.js";
 import { compose, type Group, type Content } from "../shared/groups.js";
 import { object, uuid, version, type Route } from "./schema.js";
-export function migrateGroups(store: Store) {
-  store.migrate(
-    3,
-    `CREATE TABLE IF NOT EXISTS groups(id TEXT PRIMARY KEY,documentId TEXT REFERENCES documents(id) ON DELETE CASCADE,categoryId TEXT REFERENCES categories(id) ON DELETE RESTRICT,originalCategoryId TEXT NOT NULL,name TEXT NOT NULL,members TEXT NOT NULL,excluded TEXT NOT NULL);CREATE TABLE IF NOT EXISTS entry_sources(entryId TEXT REFERENCES entries(id) ON DELETE CASCADE,groupId TEXT REFERENCES groups(id) ON DELETE CASCADE,PRIMARY KEY(entryId,groupId));`,
-  );
-}
 export function writeGroups(store: Store, key: string, content: Content) {
   const ids = new Set(content.groups.map((g) => g.id));
   const categories = content.groups.map((g) => g.categoryId).filter(Boolean);

@@ -130,7 +130,7 @@ export function registerHistory(route: Route, store: Store) {
         };
         store.run("DELETE FROM entries WHERE documentId=?", d.id);
         store.run("DELETE FROM groups WHERE documentId=?", d.id);
-        store.run("UPDATE documents SET sections='[]' WHERE id=?", d.id);
+        store.run("DELETE FROM sections WHERE documentId=?", d.id);
         store.run(
           "UPDATE documents SET archive=?,status='archived',version=version+1 WHERE id=?",
           JSON.stringify(snapshot),

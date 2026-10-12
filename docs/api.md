@@ -11,7 +11,7 @@ Successful login responses include `csrf` and `username`; with authentication en
 
 `POST /login {username,password}` sets an HttpOnly session and returns csrf; `GET /session` returns the current csrf and authEnabled; responses must not be cached. Session write requests submit `x-csrf-token`; `POST /logout {}` logs out. `POST /tokens {name}` creates a token shown only once; `GET /tokens` lists token IDs/names; `DELETE /tokens/:id` revokes a token. CLI uses `Authorization: Bearer TOKEN` without session CSRF.
 
-`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name}`; PUT adds version. During the transition, parentId:null may be included; nonempty parentId returns 400, and catalog responses return parentId:null. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns direct member `itemIds`.
+`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name}`; PUT adds version. parentId:null is still accepted; nonempty parentId returns 400, and responses omit parentId. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns direct member `itemIds`.
 
 ## Template / Checklist
 

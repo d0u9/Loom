@@ -38,7 +38,6 @@ const item = object(
 const category = object({
   id: uuid,
   name: text,
-  parentId: nullable(uuid),
   version: { type: "integer" },
 });
 const entry = object(

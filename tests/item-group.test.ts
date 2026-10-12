@@ -81,11 +81,7 @@ test("Item groups migrate safely, filter and survive old callers", async () => {
     await server.close();
     server = await app(store, { auth: { enabled: false } });
     assert.equal(store.resource("items", item.id).itemGroup, "Drink");
-    assert.equal(
-      store.get("SELECT COUNT(*) AS count FROM migrations WHERE version=7")
-        .count,
-      1,
-    );
+    assert.equal(store.get("PRAGMA user_version").user_version, 8);
     assert.equal(store.resource("items", legacy).name, "old");
   } finally {
     await server.close();
