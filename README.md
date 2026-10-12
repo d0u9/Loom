@@ -20,7 +20,7 @@ Development needs only one command to start the backend and frontend together:
 pnpm dev --host
 ```
 
-Open http://localhost:5173; API requests automatically proxy to backend port 3000. Ctrl+C stops both services. Development needs no build first or separate terminal running `pnpm run server`; first use still requires account initialization.
+Open http://localhost:5173; API requests automatically proxy to backend port 3000. The frontend updates automatically and the backend restarts using Node file watching, avoiding calls to outdated endpoints after page updates. Ctrl+C stops both services. Development needs no build first or separate terminal running `pnpm run server`; first use still requires account initialization. Restart `pnpm dev` once after changing the development startup script itself.
 
 `pnpm test` verifies the API/database, and `pnpm run check` checks types. Browser-session write requests must submit the `x-csrf-token` returned by `/api/v1/session`. External callers can create revocable Bearer tokens. After authentication, `/api/v1/openapi.json` provides the API contract.
 
@@ -66,3 +66,27 @@ pnpm run test:e2e
 ```
 
 `LOOM_CHROME` can specify the browser executable. Installed Chrome is used automatically on macOS; otherwise Playwright Chromium is used. End-to-end tests use temporary databases, desktop/mobile dimensions, and production-server restart tests, without accessing personal databases. See the [API usage contract](docs/api.md) for API operation order.
+
+### Flat Categories, Merging, and Section Upgrade
+
+All Categories are peers, and Template/Checklist automatically merge the same Item. A source count reaching zero removes only the document entry. The detail "Add entry" dialog can create sections (at most three levels); sections can be edited, moved up, or removed, and entries can select their section. Deleting a nonempty section promotes its content and retains entries.
+
+Startup after upgrading runs migration 6. Back up first: `pnpm run backup /absolute/path/loom-before-v6.sqlite` (build the CLI before running). Existing category IDs and direct memberships are retained, and old parent/child relationships are stored in legacy_category_parents. Parent categories no longer recursively show child-category Items. Choose retained values for old duplicate entries during editing/historical operations; old revision and archive content is not modified.
+
+Rollback requires stopping the new service, restoring a pre-upgrade backup to a new database path, and then running old code. Do not connect old code directly to a migration 6 database (entries have added columns and old writes are incompatible). Refer to the restore commands above. Writes made after the backup are absent from the old backup.
+
+### Global Configuration and Authentication-Disabled Mode
+
+Root `loom.config.json` is global configuration read at startup, retaining login by default:
+
+```json
+{
+  "auth": { "enabled": true }
+}
+```
+
+Set enabled to false, then restart `pnpm dev` or the production service to use Web and API without login. The root opens `/checklists` directly, other direct links retain their paths, and sign-out is hidden; account initialization is unnecessary. Writes still first obtain csrf from `/api/v1/session` and then supply x-csrf-token; valid Bearer tokens also remain usable.
+
+`LOOM_CONFIG=/absolute/path/config.json pnpm start` specifies a configuration file. Docker can mount it at `/app/loom.config.json` or specify LOOM_CONFIG. Invalid JSON/types/unknown fields and missing custom paths fail startup, preventing invalid configuration from silently taking effect. A missing default file still enables login. Database, listening address, and port continue using existing environment variables.
+
+Disabling login lets anyone who can connect to the service access and modify all data, including LAN devices. Re-enabling login does not delete data or accounts. If no account was initialized, first create it using the init steps above, then enable login and restart.

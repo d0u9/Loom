@@ -18,7 +18,9 @@ import { registerHistory } from "./history.js";
 import { registerGroups } from "./groups.js";
 import { registerDocuments } from "./documents.js";
 import { randomBytes } from "node:crypto";
-export async function app(store: Store) {
+import { defaultConfig, type Config } from "./config.js";
+export async function app(store: Store, config: Config = defaultConfig) {
+  const anonymousCsrf = randomBytes(32).toString("hex");
   const api = Fastify({
     logger: false,
     bodyLimit: 1024 * 1024,
@@ -35,7 +37,7 @@ export async function app(store: Store) {
           bearer: { type: "http", scheme: "bearer" },
         },
       },
-      security: [{ session: [] }, { bearer: [] }],
+      security: config.auth.enabled ? [{ session: [] }, { bearer: [] }] : [],
     },
   });
   api.addHook("onRoute", (route) => {
@@ -81,6 +83,22 @@ export async function app(store: Store) {
       );
       return;
     }
+    if (!config.auth.enabled) {
+      if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+        requireThat(
+          !req.headers.origin ||
+            req.headers.origin === `${req.protocol}://${req.headers.host}`,
+          "Invalid origin",
+          403,
+        );
+        requireThat(
+          req.headers["x-csrf-token"] === anonymousCsrf,
+          "Invalid CSRF token",
+          403,
+        );
+      }
+      return;
+    }
     const session =
       req.cookies.session &&
       store.get(
@@ -118,6 +136,7 @@ export async function app(store: Store) {
       ["username", "password"],
     ),
     async (req: any, reply: any) => {
+      requireThat(config.auth.enabled, "Login is disabled", 409);
       const account = store.get(
         "SELECT * FROM account WHERE username=?",
         req.body.username,
@@ -142,15 +161,22 @@ export async function app(store: Store) {
         secure: req.protocol === "https",
         path: "/",
       });
-      return { csrf };
+      return { csrf, username: account.username };
     },
   );
-  route("GET", "/session", null, (req: any) => {
+  route("GET", "/session", null, (req: any, reply: any) => {
+    reply.header("cache-control", "no-store");
+    if (!config.auth.enabled)
+      return { csrf: anonymousCsrf, authEnabled: false };
     const s = store.get(
       "SELECT csrf FROM sessions WHERE hash=?",
       hash(req.cookies.session || ""),
     );
-    return { csrf: s?.csrf || null };
+    return {
+      csrf: s?.csrf || null,
+      authEnabled: true,
+      username: store.get("SELECT username FROM account")?.username,
+    };
   });
   route("POST", "/logout", obj({}, []), (req: any, reply: any) => {
     store.run(
@@ -236,28 +262,76 @@ export async function app(store: Store) {
   route("GET", "/categories", null, () =>
     store.all("SELECT * FROM categories ORDER BY name"),
   );
+  store.migrate(
+    5,
+    "CREATE TABLE category_order(categoryId TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,itemId TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,position INTEGER NOT NULL,PRIMARY KEY(categoryId,itemId))",
+  );
+  const orderedMembers = (key: string) => {
+    const members = store.members(key);
+    const saved = store
+      .all(
+        "SELECT itemId FROM category_order WHERE categoryId=? ORDER BY position",
+        key,
+      )
+      .map((x) => x.itemId)
+      .filter((k) => members.includes(k));
+    return [...new Set([...saved, ...members])];
+  };
+  route("GET", "/categories/:id/order", null, (req: any) => ({
+    itemIds: orderedMembers(req.params.id),
+    version: store.resource("categories", req.params.id).version,
+  }));
+  route(
+    "PUT",
+    "/categories/:id/order",
+    obj(
+      {
+        itemIds: { type: "array", items: uuid, uniqueItems: true },
+        version,
+        requestId: uuid,
+      },
+      ["itemIds", "version", "requestId"],
+    ),
+    (req: any) =>
+      store.once("category-order:" + req.params.id, req.body, () => {
+        const category = store.resource("categories", req.params.id);
+        store.version(category, req.body.version);
+        const current = store.members(category.id);
+        requireThat(
+          current.length === req.body.itemIds.length &&
+            current.every((k) => req.body.itemIds.includes(k)),
+          "Category members changed; reload before sorting",
+          409,
+        );
+        store.run("DELETE FROM category_order WHERE categoryId=?", category.id);
+        store.run(
+          "INSERT INTO category_order SELECT ?,value,key FROM json_each(?)",
+          category.id,
+          JSON.stringify(req.body.itemIds),
+        );
+        store.run(
+          "UPDATE categories SET version=version+1 WHERE id=?",
+          category.id,
+        );
+        return { itemIds: req.body.itemIds, version: category.version + 1 };
+      }),
+  );
   route("GET", "/categories/:id/members", null, (req: any) => ({
     itemIds: store.members(req.params.id),
   }));
-  const categoryBody = obj(
-    { name: str, parentId: { anyOf: [uuid, { type: "null" }] }, version },
-    ["name", "parentId"],
-  );
+  const categoryBody = obj({ name: str, parentId: { type: "null" }, version }, [
+    "name",
+  ]);
   const saveCategory = (req: any) => {
     const b = req.body,
       key = req.params.id || id();
     if (req.params.id)
       store.version(store.resource("categories", key), b.version);
-    let parent = b.parentId;
-    while (parent) {
-      requireThat(parent !== key, "Category cycle");
-      parent = store.resource("categories", parent).parentId;
-    }
     store.run(
       "INSERT INTO categories(id,name,parentId) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,parentId=excluded.parentId,version=version+1",
       key,
       b.name,
-      b.parentId,
+      null,
     );
     return store.resource("categories", key);
   };
@@ -280,10 +354,6 @@ export async function app(store: Store) {
         store.version(store.resource("categories", key), req.body.version);
         const refs = [
           ...store.all(
-            "SELECT id,name,'Category' AS kind FROM categories WHERE parentId=?",
-            key,
-          ),
-          ...store.all(
             "SELECT i.id,i.name,'Item' AS kind FROM items i JOIN item_categories r ON i.id=r.itemId WHERE r.categoryId=?",
             key,
           ),
@@ -303,6 +373,15 @@ export async function app(store: Store) {
   const web = resolve("dist/web");
   if (existsSync(web)) {
     await api.register(staticFiles, { root: web });
+    api.setNotFoundHandler((req, reply) => {
+      const path = req.url.split("?")[0];
+      if (
+        req.method === "GET" &&
+        /^\/(items|categories|templates|checklists)(\/[^/]+)?$/.test(path)
+      )
+        return reply.sendFile("index.html");
+      return reply.code(404).send({ message: "Not found" });
+    });
   }
   return api;
 }

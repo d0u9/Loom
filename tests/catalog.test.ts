@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store, password, id } from "../server/db.js";
 import { app } from "../server/app.js";
-test("catalog validates hierarchy, references, CSRF, versions and request replay", async () => {
+test("catalog validates flat categories, references, CSRF, versions and request replay", async () => {
   const store = new Store(":memory:");
   store.run(
     "INSERT INTO account VALUES(?,?)",
@@ -19,6 +19,13 @@ test("catalog validates hierarchy, references, CSRF, versions and request replay
     });
     const cookie = login.headers["set-cookie"]!.toString().split(";")[0],
       csrf = login.json().csrf;
+    assert.equal(login.json().username, "admin");
+    assert.equal(
+      (
+        await server.inject({ url: "/api/v1/session", headers: { cookie } })
+      ).json().username,
+      "admin",
+    );
     const call = async (method: any, url: string, payload?: any) =>
       await server.inject({
         method,
@@ -43,7 +50,7 @@ test("catalog validates hierarchy, references, CSRF, versions and request replay
     const child = (
       await call("POST", "/categories", {
         name: "Ingredients",
-        parentId: root.id,
+        parentId: null,
       })
     ).json();
     assert.equal(
@@ -54,6 +61,11 @@ test("catalog validates hierarchy, references, CSRF, versions and request replay
           version: 1,
         })
       ).statusCode,
+      400,
+    );
+    assert.equal(
+      (await call("POST", "/categories", { name: "nested", parentId: root.id }))
+        .statusCode,
       400,
     );
     const body = {

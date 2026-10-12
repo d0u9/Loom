@@ -21,7 +21,7 @@ export async function setup(path = ":memory:") {
     },
   };
 }
-export function entry(item: any = null) {
+export function entry(item: any = null): import("../shared/groups.js").Entry {
   return {
     id: id(),
     itemId: item?.id || null,

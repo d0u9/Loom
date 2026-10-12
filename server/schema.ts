@@ -31,17 +31,32 @@ const category = object({
   parentId: nullable(uuid),
   version: { type: "integer" },
 });
-const entry = object({
-  id: uuid,
-  itemId: nullable(uuid),
-  name: text,
-  quantity: text,
-  unit: text,
-  note: text,
-  checked: { type: "boolean" },
-  direct: { type: "boolean" },
-  groupIds: list(uuid),
-});
+const entry = object(
+  {
+    id: uuid,
+    itemId: nullable(uuid),
+    sectionId: nullable(uuid),
+    name: text,
+    quantity: text,
+    unit: text,
+    note: text,
+    checked: { type: "boolean" },
+    direct: { type: "boolean" },
+    groupIds: list(uuid),
+    sourceCount: { type: "integer" },
+  },
+  [
+    "id",
+    "itemId",
+    "name",
+    "quantity",
+    "unit",
+    "note",
+    "checked",
+    "direct",
+    "groupIds",
+  ],
+);
 const group = object(
   {
     id: uuid,
@@ -63,6 +78,9 @@ export const documentSchema = object(
     useDate: nullable(text),
     status: { type: "string", enum: ["active", "archived"] },
     source: nullable({ type: "object", additionalProperties: true }),
+    sections: list(
+      object({ id: uuid, name: text, parentSectionId: nullable(uuid) }),
+    ),
     entries: list(entry),
     groups: list(group),
     schemaVersion: { type: "integer" },
@@ -88,7 +106,14 @@ export function responseSchema(url: string, method: string) {
   if (path === "/openapi.json")
     return { type: "object", additionalProperties: true };
   if (path === "/login" || path === "/session")
-    return object({ csrf: nullable(text) });
+    return object(
+      {
+        csrf: nullable(text),
+        authEnabled: { type: "boolean" },
+        username: text,
+      },
+      ["csrf"],
+    );
   if (method === "DELETE" || path === "/logout")
     return object({ ok: { type: "boolean" } });
   if (path === "/tokens")
@@ -100,6 +125,8 @@ export function responseSchema(url: string, method: string) {
   if (path.endsWith("/members")) return object({ itemIds: list(uuid) });
   if (path === "/categories")
     return method === "GET" ? list(category) : category;
+  if (path.endsWith("/order"))
+    return object({ itemIds: list(uuid), version: { type: "integer" } });
   if (path.startsWith("/categories/")) return category;
   if (path === "/documents" && method === "GET") return list(summary);
   if (path.endsWith("/revisions"))
@@ -112,6 +139,7 @@ export function responseSchema(url: string, method: string) {
       categories: list(object({ id: uuid, name: text })),
       name: text,
       version: { type: "integer" },
+      duplicates: list(object({ itemId: uuid, entries: list(entry) })),
     });
   if (path.endsWith("/category-preview"))
     return object({
@@ -122,6 +150,12 @@ export function responseSchema(url: string, method: string) {
       duplicates: list(item),
     });
   if (path.endsWith("/category-compose"))
-    return object({ entries: list(entry), groups: list(group) });
+    return object({
+      entries: list(entry),
+      groups: list(group),
+      sections: list(
+        object({ id: uuid, name: text, parentSectionId: nullable(uuid) }),
+      ),
+    });
   return documentSchema;
 }

@@ -1,6 +1,6 @@
 # Loom Development Constraints
 
-Loom is a personal Web application centered on Checklist. The API is a formal product interface, and the future CLI will use the same API. Before implementation, read the [design document](docs/design.md) and [roadmap and milestones](docs/roadmap.md). Documents describe the target design, not completed functionality.
+Loom is a personal Web application centered on Checklist. The API is a formal product interface, and the future CLI will use the same API. Before implementation, read the [design document](docs/design.md), [UI Design](docs/ui-design.md), and [roadmap and milestones](docs/roadmap.md). Documents describe the target design, not completed functionality.
 
 ## Technology and Scope
 
@@ -13,15 +13,15 @@ Loom is a personal Web application centered on Checklist. The API is a formal pr
 
 ## Product Invariants
 
-- Core concepts are Item, Category, Template, and Checklist. Item is a shared identity. Category is centrally managed and may have hierarchy; an Item can belong to multiple Categories.
+- Core concepts are Item, Category, Template, and Checklist. Item is a shared identity. Category is centrally managed, does not allow hierarchy, and an Item can belong to multiple peer Categories.
 - Template and Checklist share entry editing behavior: Select from the Item list or Category, add entire categories, use temporary entries, quantities, units, notes, and sorting.
 - Temporary entries have no Item reference, can be used independently, and can be converted into Items. Do not automatically merge solely by matching names.
 - Checklist is an independent instance of a Template and can also be copied from a Checklist. Checked states belong only to the current Checklist and are not written to Item, Category, or Template.
 - Every explicit Template save creates an immutable revision. Renaming an Item does not create a Template revision.
 - Current Template editing pages and active Checklists show the latest Item names; historical revisions and archives show name snapshots at save time. Instantiating from old revisions uses the latest names of surviving Items, without name-change warnings.
 - Adding an entire category saves the member snapshot and Category source at that time, without ongoing automatic synchronization. `Update to latest` must preview changes before the user applies them.
-- Category updates retain existing entry quantity, unit, notes, order, and checked state; users must choose removal candidates. Losing one source cannot delete an entry that still has other sources.
-- Identify duplicate Items by ID and offer Merge / Keep both. Merge retains existing entry data and checked state without automatically summing quantity, and preserves multiple sources. Keep both creates independent entries.
+- Category updates retain existing entry quantity, unit, notes, order, and checked state; preview updates before applying. After unlinking sources, retain entries with another category or direct source and remove zero-source entries from the current document.
+- All Item additions to Template and Checklist automatically merge only by Item ID, with no Keep both option. Each nonempty Item ID has only one entry per document. Retain existing quantity, unit, notes, order, and checked state; do not automatically sum quantities. Do not merge temporary entries by name.
 - Items are editable and can be deleted only when the effective reference count is zero. Category memberships, current Template entries, and active Checklist entries count as references; historical revisions and archive snapshots do not. The deletion check and deletion must share a transaction, with database constraints preventing dangling references.
 - Snapshots must remain queryable after historical Items are deleted. On restore, copy, conversion to template, or instantiation from an old revision, offer linking missing Items to existing Items, creating new Items, or retaining them as temporary entries, without requiring identities to be filled in.
 - An archived Checklist is read-only and can be queried, restored, copied, or converted to a Template. Copying resets checked states; conversion to a template omits checked states. Restoring the original checklist retains its checked states.
@@ -34,27 +34,54 @@ Loom is a personal Web application centered on Checklist. The API is a formal pr
 
 The following defaults were chosen to implement the design. To adjust them, update the design documents first, then change the implementation.
 
-- Adding an entire category includes child categories; category trees prohibit cycles.
-- Record exclusions by category group + Item. After deleting an entry, establish an exclusion only if that group has no other entry for the same Item, avoiding exclusion of remaining Keep both entries. Updates do not automatically re-add exclusions; explicitly restoring or adding back to that group clears the exclusion.
+- All Categories are peers; parentId, child categories, and recursive membership are unsupported. Adding an entire category includes only its direct members.
+- Record exclusions by category group + Item. Manually deleting an entry unlinks all its sources and records exclusions for its former category sources. Updates do not automatically re-add exclusions; explicitly restoring or adding back to that group clears the exclusion. Removing an entire category group does not establish exclusions for other groups.
 - Mutable resources use version numbers for optimistic concurrency control. Stale edits return conflicts rather than silently overwriting. Checking does not validate structural version, and the last submission wins; structural editing does not write back checked.
 - Resource IDs use UUIDs and are never reused.
 - Template saves explicitly, with drafts only on the client; saving replaces current content and creates a revision in one transaction. Checklist autosaves, showing save status and failure retries.
 - Archiving deletes active entry rows to release references. Restoration rebuilds from the snapshot and deletes the archive snapshot.
-- Calculate category membership by recursive expansion. In preview-apply or Template-save transactions, compare the expanded collection and target version. Duplicates support bulk Merge/Keep both.
+- Query category members only through direct relationships. In preview-apply or save transactions, compare the member collection and target version. The server enforces merging by Item ID. Each document has at most one effective category group per Category; repeated addition does not increase source counts.
 - Missing Categories in historical operations restore by default as static groups preserving names and content, with updates disabled. They may be linked to existing Categories and then updated through normal preview; history remains unchanged.
 - Creation, instantiation, copying, conversion to template, template saving, historical restore, and checking use persistent requestId deduplication. Request results and business writes share a transaction; retries return the original result, the same ID with different content returns a conflict, and v1 does not automatically expire records.
-- Initialize the single account through the initialization command. Web uses secure sessions; external API access uses revocable tokens.
-- Delete a Category only when it has no child categories, members, or active category-group references; historical snapshots do not block deletion.
+- The default single account is created by the initialization command. Web uses secure sessions; external API access uses revocable tokens. Global loom.config.json auth.enabled=false can explicitly disable Web/API authentication, including LAN devices. Anonymous writes still validate CSRF and Origin (if supplied). Valid Bearer tokens remain usable; supplied invalid tokens still return 401.
+- Delete a Category only when it has no members or active category-group references; historical snapshots do not block deletion.
+
+- A Category can open its own Item member list, deduplicated by Item ID; do not show parent/child category navigation. Removal only unlinks the specified category relationship, preserving the Item and its other category relationships. Details reuse Page/AppLayout and the Item editing dialog.
 
 ## Web UI and Component Constraints
 
+- AppLayout shares a bottom account bar: When signed in, show the server-provided username, user icon, and vertical more menu; place sign-out in the account menu. Escape closes the menu and restores focus. Authentication-disabled mode shows a distinct indicator without a username or sign-out. On mobile, authentication-disabled mode keeps only the four navigation entries; authenticated mode retains the account-menu entry.
+
+- Checklist/Template/Item/Category navigation uses the shared AppLayout NavigationLink with real href and aria-current, not Button. Ordinary clicks use the existing leave guard; modifier keys, middle clicks, and copying links retain native browser behavior. Desktop uses the system sans-serif font measured in Memos, 13px/18px, weight 400, 28px line height, 8px horizontal padding, and 16px line icons. Mobile retains touch targets of at least 44px.
+
+- All buttons use Button from `web/button.tsx`, sharing five styles: primary, ordinary, dangerous, lightweight, and icon. Form submissions explicitly use `type="submit"`. Business pages set only layout and dimensions, without overriding base borders, backgrounds, hover, or disabled styles. Ordinary actions such as "Reload" retain visible borders; dangerous actions such as deletion use dangerous styling rather than ordinary text.
+
+- Template/Checklist "New section" appears directly in the shared Page top action area, not inside the Add entry dialog. Add entry shares searchable Item selection (click-to-add), category selection, and adjacent single-item/whole-category actions. Keep the dialog on failure and provide cancellation.
+
 - Reference Memos fonts, sizes, proportions, and compact hierarchy, starting with a light theme. Retain warm gray backgrounds, white cards, and green accents. Do not change the palette without user request; proportion adjustments must not sneak in theme changes.
-- All four pages must share AppLayout (sidebar, calendar, mobile navigation, right-side container) and Page (title, create button) from `web/layout.tsx`. Do not implement individual headers or position buttons per page. Create buttons on all four list pages must have aligned top/right edges; they may be hidden in detail editing.
+- All four pages must share AppLayout (sidebar, calendar, mobile navigation, right-side container) and Page (title, create button) from `web/layout.tsx`. Page centrally renders top view icons and the primary action; pages pass only `primaryAction` label/onClick, without injecting custom button-layout JSX. Do not implement individual headers or position buttons per page. Create buttons on all four list pages must have aligned top/right edges; they may be hidden in detail editing.
 - Item/Category share the catalog editing structure, and Checklist/Template share the Documents editor. Separate shared layout from business editors; different domains do not have to use identical fields.
 - Center the right-side area outside the sidebar, with a maximum width of 960px and adaptation to narrow screens. Keep font sizes, weights, spacing, and control heights consistent. Retain mobile touch targets; do not sacrifice usability to reduce proportions.
 - The desktop sidebar shares a calendar; mobile provides a collapsible calendar using the same Calendar component. Navigation clicks obey unsaved-change prompts and do not bypass leave protection.
 - Ordinary business input/textarea fields use `data-1p-ignore="true"` and `autoComplete="off"`. Login fields retain username/current-password autofill; do not disable password managers on the login page.
 - Dialogs share Modal, focusing the first control on opening and restoring focus to the trigger after Escape closes them. Close the native dialog before removing its DOM. Keyboard focus must be clearly visible.
+
+- Collections of all four resource types and Category members share Collection/RecordCard from web/collection.tsx, supporting card and list views. Page centrally provides the toggle; the choice is shared across all four pages and stored locally in the browser. Clicking a card/list row opens it, with keyboard support and no separate "Open" button. Internal edit/delete/remove actions do not trigger opening. Switching card/list views changes only the content collection, not Page or header width, position, background, border, or padding; do not rewrite the page shell based on content view. Lists organize rows in one white panel with fine dividers. RecordCard shares left record-main and right record-actions areas. Card views show descriptions below names; list rows use a single line with columns (name + information), without notes or wrapping, and do not spread descriptions and large buttons horizontally. Edit/delete use compact icon actions with accessible names. Category member addition uses a header action and Modal, avoiding multiple rows of persistent form toolbars.
+
+### Style System
+
+- Shared Button default text uses 13px/18px (`--font-sm`), independent of body or input font sizes. Retain 28px desktop button height and at least 44px on touch devices.
+
+- Maintain `web/style.css` in component sections, defining each selector once. Modify original rules in place rather than appending overrides at the end.
+- Font sizes, spacing, radii, control heights, and colors use `:root` variables, not scattered literals. Font sizes have only four tiers: 12/13/14/18 (`--font-xs/sm/md/lg`). Spacing: 4/8/12/16/24. Radii: 6 (controls/tags)/8 (cards)/10 (panels/dialogs).
+- Buttons, inputs, search boxes, and view toggles in the same row uniformly use `--control-h` (28px), with `--touch-h` (44px) for touch (`pointer: coarse`). Calendar cells are an exception and retain a compact grid.
+- Icons uniformly use `Icon` from `web/layout.tsx` or 16px line SVGs; do not use text characters such as ‹ › ⋯ × as icons.
+- Use only one narrow-screen breakpoint, `max-width: 650px`, with 16px mobile horizontal gutters (`--gutter`). Update this section before adding breakpoints.
+- List rows, Documents entries/category groups, and Category members share white panels with fine dividers. Editable entry inputs use a light fill to indicate editability (quantity/unit/notes: 12px, 26px high), showing borders on hover/focus; read-only fields have no fill and resemble ordinary text. Prefer shared Icon buttons for inline actions. Ordinary text actions use shared Button; do not remove button borders per page. Mobile entries have at most two lines: name/actions on one, quantity/unit/notes on the other.
+- Category references (Item categories, Documents category-group sources, and memberships) uniformly use `.category-tag` tags rather than plain text.
+- Settings Modals place fields above (inputs and related buttons aligned on one row) and actions below a divider using shared Button. Ordinary actions retain visible borders, and dangerous actions use dangerous styling; do not override them as borderless text lists.
+- Mobile headers do not wrap: Truncate titles to one line. When secondary actions are also present, show only the primary-action icon while preserving its accessible name.
+- Do not override component styles with broad element selectors such as `article button`; attach styles to component classes.
 
 ## Verification and Delivery
 
@@ -63,3 +90,33 @@ The following defaults were chosen to implement the design. To adjust them, upda
 - Update API documentation, migrations, and related callers. Errors must not cause loss of entries, checked states, or historical data.
 - Put the database in a persistent volume and actually verify backup and restore. Report measured container size and resource usage rather than promising them in advance.
 - Record each milestone status and acceptance evidence in the roadmap. Clearly mark anything incomplete or unverified.
+
+- Category members show a single-line name, without persistent notes/direct-member descriptions or check circles. Membership and removal appear directly as category tags on the right. Remove the "Back to categories / Member count" bar, retaining Add member at the top. Support direct entry dragging and keyboard up/down sorting; order belongs only to the current Category, is saved in the database, and is protected by version/requestId. Card edit/delete actions are in the top-right corner; changing content must not alter the page header.
+
+- Template/Checklist creation shares a Documents + Modal form; browser prompt is prohibited. Share name input, create/cancel, errors, and retries of the original request.
+
+- Template/Checklist details continue sharing Documents and Page without multiple rows of action toolbars. The header contains Back, resource name, More, Add, and necessary save actions. Put name/date/revision/history and dangerous actions in a shared Modal, and entry-source selection in the Add Modal. Retain explicit saving, retry, and read-only protection; do not remove features to clean up the interface.
+
+- Show Item categories as tags, not separate body paragraphs. Card notes use 12px, uniformly reserve two lines, and truncate long notes; reserve the space even when there are no notes. Titles are limited to one line and cards have equal heights. Show at most two category tags plus the remaining count; full names are available through title/Item editing. Keep edit/delete at the top right.
+
+- Creation dialogs for all four resource types share ResourceDialog from web/resource-dialog.tsx (title, name, errors, fields, submit/cancel); catalog editing reuses the same form. Pages pass only business fields, state, and save callbacks, without duplicating dialog-form scaffolding. All use Modal underneath, retaining failure retries and focus semantics.
+
+- Web URL routing is centrally managed by web/router.ts: /items, /categories, /templates, /checklists, with resource IDs appended for details and ?date=YYYY-MM-DD for calendar filtering. The root path defaults to /items in authenticated mode and /checklists in authentication-disabled mode. Refresh, direct navigation, and forward/back must retain resource location; browser-history navigation also obeys unsaved-change protection. The server provides SPA fallback only for Web routes; unknown API routes remain JSON 404 responses.
+- Session initialization must not display a login-like waiting page. The initial HTML uses the warm gray background; show content after session checking and catalog loading. Show the login form only for session 401 responses; other errors offer retry. Do not bypass server validation using locally cached authentication flags.
+
+- Category member sorting has no handle: Drag cards/list rows directly. Mouse movement must exceed a threshold to count as dragging; mobile dragging starts after a long press, while ordinary swipes still scroll. Retain arrow-key sorting. Dragging does not open records, and internal actions do not start dragging. Persist sorting through the existing version and requestId API.
+
+- Entry source count within a document = number of unique category-group sources + direct (0 or 1), calculated from relationships rather than manually incremented fields. Removing a category group from a document only unlinks that group source and also removes zero-source entries, without deleting Item or Category; save the entire change atomically. Item global deletion reference counts are independent of this source count.
+- 2026-10-12: Flat categories and merge-all behavior are implemented by migration 6; existing hierarchies, duplicate entries, and historical snapshots must not be silently damaged. See the roadmap for the migration plan.
+
+- Internal Template sections (Section) have at most three levels, excluding the root container and Items. Sections are independent of flat Categories and category-source groups. The server prohibits cycles, cross-document links, and subtree moves exceeding the depth limit.
+- Each entry has only one section position. Adding the same Item across sections still automatically merges and retains its existing position; explicit moves do not change source counts or checked state. Sections are not sources and have no checked state.
+- Template revisions save section structure; instantiating a Checklist copies sections for independent editing under the same three-level limit. Copy/archive/restore/convert-to-template preserve the structure. Existing content defaults to the root container; history is not rewritten.
+- Deleting a nonempty section promotes its contents to the parent by default, preserving relative order without implicitly deleting entries or sources. Implement sections through shared Documents and Modal, with API validation and historical snapshots synchronized.
+
+- Migration 6 retains legacy_category_parents and old duplicate rows. Conflicts require choosing retained values, and sources are unioned; database triggers protect new writes. Section JSON and entry sectionId are saved in one transaction. New snapshots use schemaVersion 2, with compatible reading of 1. Rollback restores the old schema from a pre-upgrade backup; old applications must not directly write to upgraded databases.
+
+- The server reads global configuration from loom.config.json at startup (LOOM_CONFIG can specify a path), with auth.enabled defaulting to true. Missing custom files, invalid JSON/types, and unknown fields must fail startup; a missing default file still enables authentication. Configuration changes require restart; the frontend must not decide whether to bypass authentication using local flags.
+- Authentication-disabled mode does not require account initialization. /session returns authEnabled:false and process-level CSRF; the root opens /checklists, direct links are preserved, and sign-out is hidden. Authenticated mode still defaults to /items, with unchanged session and password-manager behavior. Re-enabling authentication protects the same database without deleting accounts/data.
+
+- Before cleaning up zero-source entries, validate that groupIds belong to submitted groups or existing groups in the current document; do not silently filter unknown/cross-document sources. When CSRF is explicitly expired, Web refreshes /session and retries at most once, reusing the frozen request body and requestId. Origin/version conflicts and uncertain failures must not trigger this automatic retry.

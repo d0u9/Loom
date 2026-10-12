@@ -1,18 +1,25 @@
 # API Usage Contract
 
+Status: endpoints support flat Categories, Template/Checklist automatic merging, zero-source removal, and three section levels; runtime OpenAPI reflects actual request and response schemas.
+
 The service prefix is `/api/v1`, with JSON requests and responses. Authenticated `GET /openapi.json` provides complete OpenAPI generated from runtime validation rules; the following records operation sequences and rules that schemas alone cannot express.
 
 ## Authentication and Catalog
 
-`POST /login {username,password}` sets an HttpOnly session and returns csrf; `GET /session` can retrieve the current csrf. Session write requests submit `x-csrf-token`; `POST /logout {}` logs out. `POST /tokens {name}` creates a token shown only once; `GET /tokens` lists token IDs/names; `DELETE /tokens/:id` revokes a token. CLI uses `Authorization: Bearer TOKEN` without session CSRF.
+Successful login responses include `csrf` and `username`; with authentication enabled, `/session` returns `csrf`, `authEnabled:true`, and the actual account `username` for the sidebar account area. Without login requirements, `/session` returns `authEnabled:false` and anonymous CSRF, without a username.
 
-`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name,parentId}`; PUT adds version. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns deduplicated recursive `itemIds`.
+
+`POST /login {username,password}` sets an HttpOnly session and returns csrf; `GET /session` returns the current csrf and authEnabled; responses must not be cached. Session write requests submit `x-csrf-token`; `POST /logout {}` logs out. `POST /tokens {name}` creates a token shown only once; `GET /tokens` lists token IDs/names; `DELETE /tokens/:id` revokes a token. CLI uses `Authorization: Bearer TOKEN` without session CSRF.
+
+`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name}`; PUT adds version. During the transition, parentId:null may be included; nonempty parentId returns 400, and catalog responses return parentId:null. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns direct member `itemIds`.
 
 ## Template / Checklist
 
+Content may include sections, with section fields `{id,name,parentSectionId}`; array order determines sibling display order. Entry.sectionId:null/omitted means the root position. At most three section levels, excluding the root and Item.
+
 Shared `/documents`: GET lists summaries, POST `{kind,name,entries,groups,requestId}` creates, GET `/:id` retrieves details, and PUT `/:id` submits `{name,entries,groups,version,requestId}` to replace the structure. kind is template or checklist; Template PUT generates a revision each time.
 
-Entry fields: `id,itemId,name,quantity,unit,note,direct,groupIds`; quantity is text and supports expressions such as `1/2`; unit/note may be empty. Temporary entries have itemId null; the server resolves Item names. Each new entry uses a new UUID. A separate endpoint manages checked; structural saves ignore its old value. Copy/instantiate/restore generate new entry/group IDs; normal structural edits retain existing IDs.
+Entry fields: `id,itemId,sectionId?,name,quantity,unit,note,direct,groupIds`; quantity is text and supports expressions such as `1/2`; unit/note may be empty. Temporary entries have itemId null; the server resolves Item names. Each new entry uses a new UUID. A separate endpoint manages checked; structural saves ignore its old value. Copy/instantiate/restore generate new entry/group IDs; normal structural edits retain existing IDs.
 
 `PUT /checklists/:id/entries/:entryId/checked {checked,requestId}` sets the target state. The client waits for the previous request to complete before submitting the next; the UI temporarily disables checking that entry while saving, and failures can retry the original request. Checking does not change the structural version; the last submission across devices wins.
 
@@ -22,17 +29,17 @@ Entry fields: `id,itemId,name,quantity,unit,note,direct,groupIds`; quantity is t
 
 `POST /documents/:id/category-preview {entries,groups,version,categoryId,groupId?}`: no groupId means a new group; an existing groupId means an update. Returns group, expected as the complete member set, added, removed, duplicates.
 
-`POST /documents/:id/category-compose` submits the above content plus expected, `choices`, and `removeIds`. choices specifies `{mode:'merge',targetId}` or `{mode:'keep'}` by Item ID; removeIds contains confirmed entry IDs to remove. Returns new entries/groups without writing yet; save through documents PUT, whose transaction checks the member set again. Template still maintains a client-side draft; Checklist autosaves.
+`POST /documents/:id/category-compose` submits the above content plus expected, `choices`, and `removeIds`. All duplicate Items merge automatically, retaining existing values and positions. Legacy callers' merge choices/removeIds fields remain compatible but no longer control merging or zero-source removal; keep is rejected. Returns new entries/groups/sections without writing yet; save through documents PUT, whose transaction checks the member set again. Template still maintains a client-side draft; Checklist autosaves.
 
-Group fields: `id,categoryId,originalCategoryId,name,members,excluded,expected?`. expected is the confirmed expanded set and is not persisted as an ongoing synchronization constraint after saving. Exclusions are per group + Item and are created only when the last entry for that Item in the group is deleted. Static groups have categoryId null and retain the original identifier and content; after changing categoryId, the user saves normally and then requests an update preview.
+Group fields: `id,categoryId,originalCategoryId,name,members,excluded,expected?`. expected is the confirmed expanded set and is not persisted as an ongoing synchronization constraint after saving. Exclusions are per group + Item and are created when an entry is manually deleted. Static groups have categoryId null and retain the original identifier and content; after changing categoryId, the user saves normally and then requests an update preview.
 
 ## History Operations
 
 `POST /checklists/:id/archive {version,requestId}` atomically saves a snapshot and releases active relationships.
 
-`POST /documents/:id/history-preview {action,version,revision?}` returns missing items/categories and names. action is restore, copy, template, or instantiate; instantiate requires revision.
+`POST /documents/:id/history-preview {action,version,revision?}` returns missing items/categories, names, and duplicates (each group contains itemId and candidate entries). action is restore, copy, template, or instantiate; instantiate requires revision.
 
-`POST /documents/:id/history-apply {action,version,revision?,name,requestId,resolutions}` applies atomically. resolutions specifies `{mode:'temporary'}`, `{mode:'existing',itemId}`, or `{mode:'new',name}` by missing Item ID. Missing Categories automatically become static groups. restore retains checked and replaces the archive; copy/instantiate reset checked; template creates revision 1.
+`POST /documents/:id/history-apply {action,version,revision?,name,requestId,resolutions,mergeTargets?}` applies atomically. resolutions specifies `{mode:'temporary'}`, `{mode:'existing',itemId}`, or `{mode:'new',name}` by missing Item ID. mergeTargets specifies the entry ID whose data to retain by duplicate Item ID, taking the union of sources; unresolved conflicts between different field values return 409 with candidate entries and roll back the entire operation. Missing Categories automatically become static groups. restore retains checked and replaces the archive; copy/instantiate reset checked; template creates revision 1.
 
 ## Conflicts and Safe Retries
 
@@ -43,3 +50,19 @@ Writes requiring deduplication include a UUID requestId. After a timeout, retry 
 ## Use Date
 
 POST `/documents` and PUT `/documents/:id` may include `useDate: "2026-10-11" | null`. Only Checklist permits a nonempty date; invalid Gregorian dates return 400. GET list/detail responses return useDate. Omission on PUT preserves the previous value; null clears it. Writes follow version and idempotency constraints. Archive/restore retain the date; copy and template instantiation default to null.
+
+## Category Member Order
+
+GET `/categories/:id/order` returns `{itemIds,version}`, containing the display order of all current direct members. PUT to the same path submits `{itemIds,version,requestId}`; itemIds must be unique and equal the current direct member set. Version or set changes return 409. Success increments the Category version and uses persistent request deduplication. This affects only that category's display, without changing category relationships.
+
+## Merging, Sources, and Sections
+
+Nonempty Item IDs are unique within a document; the same Category has at most one active source group, and repeated additions do not increase the source count. GET documents returns entry.sourceCount = groupIds.length + Number(direct). A category group can be removed by deleting it through structural PUT; the server releases its sources and removes zero-source entries, without deleting global Item/Category records. Category preview/compose may include sections to retain the section structure; the preview shows source changes for removed entries, and saving is still required after applying. Temporary entries do not merge by name.
+
+Sections do not participate in source counts or checking; moving an entry changes only sectionId. When deleting a nonempty section, the client promotes child sections and entries to the parent, then submits the complete structure. The server validates absence of cycles, ownership by the same document, at most three levels, and valid references; invalid structures roll back the entire operation. New revisions/archives use schemaVersion:2; legacy schemaVersion:1 remains readable, and absent sections means the root position. Copy/restore/instantiate/convert to template assign new section IDs and remap parent-child relationships and entry positions.
+
+## Disabling Authentication through Configuration
+
+loom.config.json with auth.enabled:false, followed by a restart, makes anonymous GET /session return `{csrf,authEnabled:false}`; reading catalog/documents requires no login. Anonymous writes still submit x-csrf-token, and any supplied Origin must match the service; Bearer tokens are still validated. POST /login returns 409 in this mode; OpenAPI global security is []. The default auth.enabled:true continues to require authentication and does not automatically create accounts. Anonymous csrf changes after process restart; clients must fetch /session again before writing.
+
+During structural saves, source IDs must belong to submitted category groups or category groups in that document before saving; unknown sources or sources from other documents return 400 and roll back the entire save. Only sources of explicitly removed original category groups are released. When Web receives an explicit Invalid CSRF token / 403, it fetches session again and retries at most once with the original request content and requestId; other errors are not automatically retried.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { api, ApiError } from "../web/client.js";
+import { api, ApiError, setCsrf } from "../web/client.js";
 
 test("empty proxy response produces an actionable API error", async (t) => {
   t.mock.method(
@@ -50,4 +50,57 @@ test("valid success and JSON error responses retain their contract", async (t) =
       error.status === 401 &&
       error.message === "Invalid credentials",
   );
+});
+
+test("CSRF refresh retries exactly once with the original serialized request", async (t) => {
+  setCsrf("old");
+  const body = { name: "egg", requestId: "same-request" };
+  const calls: any[] = [];
+  t.mock.method(globalThis, "fetch", async (url: any, options: any) => {
+    calls.push({ url, ...options });
+    if (calls.length === 1) {
+      body.name = "changed while waiting";
+      return Response.json({ message: "Invalid CSRF token" }, { status: 403 });
+    }
+    if (url === "/api/v1/session")
+      return Response.json({ csrf: "new", authEnabled: false });
+    return Response.json({ id: "created" });
+  });
+  assert.deepEqual(await api("/items", "POST", body), { id: "created" });
+  assert.equal(calls.length, 3);
+  assert.equal(calls[0].body, calls[2].body);
+  assert.equal(calls[0].headers["x-csrf-token"], "old");
+  assert.equal(calls[2].headers["x-csrf-token"], "new");
+});
+test("CSRF retries stop after one refresh and unrelated failures never refresh", async (t) => {
+  const calls: string[] = [];
+  const fetch = t.mock.method(globalThis, "fetch", async (url: any) => {
+    calls.push(url);
+    return url === "/api/v1/session"
+      ? Response.json({ csrf: "new" })
+      : Response.json({ message: "Invalid CSRF token" }, { status: 403 });
+  });
+  await assert.rejects(
+    () => api("/items", "POST", {}),
+    (e) => e instanceof ApiError && e.status === 403,
+  );
+  assert.deepEqual(calls, [
+    "/api/v1/items",
+    "/api/v1/session",
+    "/api/v1/items",
+  ]);
+  calls.length = 0;
+  fetch.mock.mockImplementation(async (url: any) => {
+    calls.push(url);
+    return Response.json({ message: "Invalid origin" }, { status: 403 });
+  });
+  await assert.rejects(() => api("/items", "POST", {}), /Invalid origin/);
+  assert.deepEqual(calls, ["/api/v1/items"]);
+  calls.length = 0;
+  fetch.mock.mockImplementation(async (url: any) => {
+    calls.push(url);
+    return Response.json({ message: "Conflict" }, { status: 409 });
+  });
+  await assert.rejects(() => api("/items", "POST", {}), /Conflict/);
+  assert.deepEqual(calls, ["/api/v1/items"]);
 });

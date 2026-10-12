@@ -1,7 +1,9 @@
 import { Store } from "./db.js";
+import { readConfig } from "./config.js";
 import { app } from "./app.js";
+const config = readConfig();
 const store = new Store(process.env.LOOM_DB || "data/loom.sqlite");
-const server = await app(store);
+const server = await app(store, config);
 await server.listen({
   host: process.env.HOST || "127.0.0.1",
   port: Number(process.env.PORT || 3000),

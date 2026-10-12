@@ -10,6 +10,12 @@ export function migrateGroups(store: Store) {
 }
 export function writeGroups(store: Store, key: string, content: Content) {
   const ids = new Set(content.groups.map((g) => g.id));
+  const categories = content.groups.map((g) => g.categoryId).filter(Boolean);
+  requireThat(
+    new Set(categories).size === categories.length,
+    "Duplicate Category group; merge before saving",
+    409,
+  );
   requireThat(ids.size === content.groups.length, "Duplicate group ID");
   for (const e of content.entries) {
     requireThat(e.direct || e.groupIds.length, "Entry needs a source");
@@ -67,7 +73,7 @@ export function registerGroups(route: Route, store: Store) {
       choices: {
         type: "object",
         additionalProperties: object(
-          { mode: { type: "string", enum: ["merge", "keep"] }, targetId: uuid },
+          { mode: { type: "string", enum: ["merge"] }, targetId: uuid },
           ["mode"],
         ),
       },
@@ -86,11 +92,12 @@ export function registerGroups(route: Route, store: Store) {
         const content: Content = {
           entries: req.body.entries,
           groups: req.body.groups,
+          sections: req.body.sections ?? [],
         };
         const category = store.resource("categories", req.body.categoryId);
         const existing = req.body.groupId
           ? content.groups.find((g) => g.id === req.body.groupId)
-          : null;
+          : content.groups.find((g) => g.categoryId === category.id);
         requireThat(!req.body.groupId || existing, "Group not found");
         const group: Group = existing || {
           id: id(),
@@ -135,14 +142,7 @@ export function registerGroups(route: Route, store: Store) {
           "Category members changed; refresh preview",
           409,
         );
-        return compose(
-          content,
-          group,
-          items,
-          req.body.choices || {},
-          req.body.removeIds || [],
-          id,
-        );
+        return compose(content, group, items, id);
       },
     );
 }

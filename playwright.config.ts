@@ -18,14 +18,24 @@ export default defineConfig({
     },
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "desktop",
+      use: {
+        ...devices["Desktop Chrome"],
+        extraHTTPHeaders: { "x-forwarded-for": "192.0.2.1" },
+      },
+    },
     {
       name: "mobile",
-      use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" },
+      use: {
+        ...devices["iPhone 13"],
+        defaultBrowserType: "chromium",
+        extraHTTPHeaders: { "x-forwarded-for": "192.0.2.2" },
+      },
     },
   ],
   webServer: {
-    command: "node --import tsx e2e/start.ts",
+    command: "pnpm exec vite build && node --import tsx e2e/start.ts",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
   },

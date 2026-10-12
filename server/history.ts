@@ -5,6 +5,7 @@ import {
   createDocument,
   writeEntries,
   reid,
+  writeSections,
 } from "./documents.js";
 import {
   object as obj,
@@ -14,7 +15,11 @@ import {
   type Route,
 } from "./schema.js";
 import { writeGroups } from "./groups.js";
-import type { Content } from "../shared/groups.js";
+import {
+  mergeContent,
+  duplicateItems,
+  type Content,
+} from "../shared/groups.js";
 function source(store: Store, key: string, action: string, revision?: number) {
   const d = store.resource("documents", key);
   if (action === "instantiate") {
@@ -54,6 +59,7 @@ export function resolveContent(
   store: Store,
   snapshot: Content,
   resolutions: Record<string, any>,
+  mergeTargets: Record<string, string> = {},
 ): Content {
   const content = structuredClone(snapshot),
     mapping = new Map<string, string | null>();
@@ -99,7 +105,12 @@ export function resolveContent(
     g.excluded = remap(g.excluded);
     delete g.expected;
   }
-  return content;
+  const targets: Record<string, string> = {};
+  for (const entryId of Object.values(mergeTargets)) {
+    const e = content.entries.find((e) => e.id === entryId);
+    if (e?.itemId) targets[e.itemId] = entryId;
+  }
+  return mergeContent(content, targets);
 }
 export function registerHistory(route: Route, store: Store) {
   route(
@@ -112,12 +123,13 @@ export function registerHistory(route: Route, store: Store) {
         requireThat(d.kind === "checklist", "Not a checklist");
         store.version(d, req.body.version);
         const snapshot = {
-          schemaVersion: 1,
+          schemaVersion: 2,
           ...document(store, d.id),
           archivedAt: new Date().toISOString(),
         };
         store.run("DELETE FROM entries WHERE documentId=?", d.id);
         store.run("DELETE FROM groups WHERE documentId=?", d.id);
+        store.run("UPDATE documents SET sections='[]' WHERE id=?", d.id);
         store.run(
           "UPDATE documents SET archive=?,status='archived',version=version+1 WHERE id=?",
           JSON.stringify(snapshot),
@@ -135,6 +147,7 @@ export function registerHistory(route: Route, store: Store) {
     version,
     name: str,
     requestId: uuid,
+    mergeTargets: { type: "object", additionalProperties: uuid },
     resolutions: {
       type: "object",
       additionalProperties: obj(
@@ -162,7 +175,12 @@ export function registerHistory(route: Route, store: Store) {
         req.body.action,
         req.body.revision,
       );
-      return { ...missing(store, s), name: s.name, version: req.body.version };
+      return {
+        ...missing(store, s),
+        duplicates: duplicateItems(s),
+        name: s.name,
+        version: req.body.version,
+      };
     },
   );
   route(
@@ -175,7 +193,12 @@ export function registerHistory(route: Route, store: Store) {
         const d = store.resource("documents", req.params.id);
         store.version(d, req.body.version);
         const s = source(store, d.id, action, revision);
-        const content = resolveContent(store, s, resolutions);
+        const content = resolveContent(
+          store,
+          s,
+          resolutions,
+          req.body.mergeTargets,
+        );
         if (action === "restore") {
           const restored = reid(content);
           store.run(
@@ -183,6 +206,7 @@ export function registerHistory(route: Route, store: Store) {
             name,
             d.id,
           );
+          writeSections(store, d.id, restored);
           writeEntries(store, d.id, restored.entries, false);
           writeGroups(store, d.id, restored);
           return document(store, d.id);

@@ -43,19 +43,56 @@ test("catalog modal layout, keyboard and autofill semantics", async ({
 
 test("all sections share header actions and sidebar geometry", async ({
   page,
-}) => {
+}, info) => {
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
   let baseline: { x: number; y: number; width: number; height: number } | null =
     null;
   for (const section of ["Item", "Category", "Template", "Checklist"]) {
-    await page.getByRole("button", { name: section, exact: true }).click();
+    const navigation = page.getByRole("link", { name: section, exact: true });
+    await expect(navigation).toHaveAttribute(
+      "href",
+      "/" +
+        {
+          Item: "items",
+          Category: "categories",
+          Template: "templates",
+          Checklist: "checklists",
+        }[section],
+    );
+    await expect(navigation.locator("svg")).toHaveCount(1);
+    await expect(navigation).not.toHaveClass(/\bbutton\b/);
+    await navigation.click();
+    await expect(navigation).toHaveAttribute("aria-current", "page");
+    if (info.project.name === "desktop") {
+      await expect(navigation).toHaveCSS("font-size", "13px");
+      await expect(navigation).toHaveCSS("line-height", "18px");
+      await expect(navigation).toHaveCSS("height", "28px");
+      await expect(navigation).toHaveCSS("font-weight", "400");
+    } else {
+      expect((await navigation.boundingBox())!.height).toBeGreaterThanOrEqual(
+        44,
+      );
+    }
     const header = page.locator(".page-header");
     await expect(header).toHaveCount(1);
     await expect(
       header.getByRole("heading", { name: section, exact: true }),
     ).toBeVisible();
+    const before = await header.boundingBox();
+    const actionsBefore = await header.locator(".page-actions").boundingBox();
+    await header.getByRole("button", { name: localized["List"], exact: true }).click();
+    await expect(page.locator(".records-list")).toHaveCount(1);
+    expect(await header.boundingBox()).toEqual(before);
+    expect(await header.locator(".page-actions").boundingBox()).toEqual(
+      actionsBefore,
+    );
+    await expect(
+      header.getByRole("button", { name: localized["List"], exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await header.getByRole("button", { name: localized["Cards"], exact: true }).click();
+    await expect(page.locator(".cards")).toHaveCount(1);
     const create = header.getByRole("button", {
       name: localized["New "] + section,
       exact: true,
@@ -68,8 +105,107 @@ test("all sections share header actions and sidebar geometry", async ({
       baseline!.x + baseline!.width,
       0,
     );
+    await create.click();
+    const dialog = page.getByRole("dialog", {
+      name: localized["New "] + section,
+      exact: true,
+    });
+    await expect(dialog.locator(".resource-form")).toHaveCount(1);
+    const name = dialog.getByLabel(localized["Name"], { exact: true });
+    await expect(name).toBeFocused();
+    await expect(name).toHaveAttribute("required", "");
+    await expect(name).toHaveAttribute("maxlength", "200");
+    await expect(name).toHaveAttribute("data-1p-ignore", "true");
+    await expect(name).toHaveAttribute("autocomplete", "off");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(create).toBeFocused();
     await expect(page.getByRole("navigation", { name: localized["Main navigation"] })).toHaveCount(
       1,
     );
   }
+  // The list/cards choice is shared by every section and survives reloads.
+  const shared = page.locator(".page-header");
+  await shared.getByRole("button", { name: localized["List"], exact: true }).click();
+  for (const section of ["Category", "Template", "Checklist", "Item"]) {
+    await page.getByRole("link", { name: section, exact: true }).click();
+    await expect(
+      shared.getByRole("heading", { name: section, exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".records-list")).toHaveCount(1);
+    await expect(
+      shared.getByRole("button", { name: localized["List"], exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+  }
+  await page.reload();
+  await expect(page.locator(".records-list")).toHaveCount(1);
+  await shared.getByRole("button", { name: localized["Cards"], exact: true }).click();
+  await page.getByRole("link", { name: "Category", exact: true }).click();
+  await expect(page.locator(".cards")).toHaveCount(1);
+  const account = page.locator(".sidebar-account");
+  await expect(account.locator(".account-name")).toHaveText("admin");
+  const trigger = page.getByLabel(localized["Account menu"], { exact: true });
+  await trigger.click();
+  await expect(
+    account.getByRole("button", { name: localized["Sign out"], exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await expect(
+    account.getByRole("button", { name: localized["Sign out"], exact: true }),
+  ).toBeHidden();
+  await page.screenshot({
+    path: `test-results/${info.project.name}-account-footer.png`,
+  });
+});
+
+test("document actions use shared buttons with visible borders and keyboard activation", async ({
+  page,
+}, info) => {
+  await page.setExtraHTTPHeaders({
+    "x-forwarded-for":
+      info.project.name === "desktop" ? "192.0.2.41" : "192.0.2.42",
+  });
+  await page.goto("/templates");
+  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
+  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["fixture.7d56750df596"], exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByLabel(localized["Name"], { exact: true })
+    .fill("Buttons " + info.project.name);
+  await page.getByRole("button", { name: localized["Create"], exact: true }).click();
+  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
+  const reload = page.getByRole("button", { name: localized["Reload"], exact: true });
+  const remove = page.getByRole("button", { name: localized["Delete template"], exact: true });
+  for (const button of [reload, remove]) {
+    await expect(button).toHaveClass(/\bbutton\b/);
+    await expect(button).toHaveCSS("border-top-style", "solid");
+    await expect(button).toHaveCSS("border-top-width", "1px");
+    await expect(button).toBeEnabled();
+  }
+  await expect(remove).toHaveClass(/\bdanger\b/);
+  expect(await reload.evaluate((el) => getComputedStyle(el).color)).not.toBe(
+    await remove.evaluate((el) => getComputedStyle(el).color),
+  );
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll("button")].every((button) =>
+        button.classList.contains("button"),
+      ),
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: `test-results/${info.project.name}-document-buttons.png`,
+  });
+  await reload.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page
+      .locator(".page-header")
+      .getByRole("heading", { name: "Buttons " + info.project.name }),
+  ).toBeVisible();
 });

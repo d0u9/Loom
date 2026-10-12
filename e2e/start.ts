@@ -10,6 +10,8 @@ store.run(
   "admin",
   password("loom-browser-password"),
 );
+// Simulated desktop/mobile clients arrive through the local test proxy.
+process.env.TRUST_PROXY = "loopback";
 const server = await app(store);
 await server.listen({ host: "127.0.0.1", port: 3100 });
 for (const signal of ["SIGTERM", "SIGINT"] as const)

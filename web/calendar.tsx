@@ -1,5 +1,7 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { Button } from "./button.js";
 import React, { useState } from "react";
+import { Icon } from "./layout.js";
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export function Calendar({
@@ -39,22 +41,24 @@ export function Calendar({
           })}
         </strong>
         <div>
-          <button
+          <Button
+            variant="ghost"
             aria-label={localized["Previous month"]}
             onClick={() =>
               setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))
             }
           >
-            ‹
-          </button>
-          <button
+            <Icon name="back" />
+          </Button>
+          <Button
+            variant="ghost"
             aria-label={localized["Next month"]}
             onClick={() =>
               setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))
             }
           >
-            ›
-          </button>
+            <Icon name="forward" />
+          </Button>
         </div>
       </div>
       <div className="calendar-grid">
@@ -72,7 +76,8 @@ export function Calendar({
             key = dateKey(day),
             count = counts.get(key) || 0;
           return (
-            <button
+            <Button
+              variant="ghost"
               key={key}
               className={`${day.getMonth() !== month.getMonth() ? "outside" : ""} ${date === key ? "selected" : ""} ${today === key ? "today" : ""}`}
               aria-label={`${key}${localized["Calendar count separator"]}${count}${localized[" checklists"]}`}
@@ -82,19 +87,20 @@ export function Calendar({
             >
               {day.getDate()}
               {count > 0 && <span className="calendar-dot" />}
-            </button>
+            </Button>
           );
         })}
       </div>
       <div className="calendar-actions">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => {
             const now = new Date();
             setMonth(new Date(now.getFullYear(), now.getMonth(), 1));
             onSelect(today);
           }}
-        >{localized["\n          Today\n        "]}</button>
-        <button onClick={() => onSelect(null)}>{localized["All checklists"]}</button>
+        >{localized["\n          Today\n        "]}</Button>
+        <Button variant="ghost" onClick={() => onSelect(null)}>{localized["\n          All checklists\n        "]}</Button>
       </div>
     </section>
   );

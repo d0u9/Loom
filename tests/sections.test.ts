@@ -1,0 +1,557 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { setup, entry } from "./helpers.js";
+import { id } from "../server/db.js";
+import {
+  removeGroup,
+  removeSection,
+  mergeContent,
+  validateSections,
+} from "../shared/groups.js";
+
+test("category sources merge, repeated addition is idempotent, zero sources remove only document entries", async () => {
+  const h = await setup();
+  try {
+    const cats = [];
+    for (const name of ["food", "lab"])
+      cats.push((await h.call("POST", "/categories", { name })).json());
+    const egg = (
+      await h.call("POST", "/items", {
+        name: "egg",
+        categoryIds: cats.map((c) => c.id),
+        requestId: id(),
+      })
+    ).json();
+    let d = (
+      await h.call("POST", "/documents", {
+        kind: "checklist",
+        name: "sources",
+        entries: [],
+        groups: [],
+        requestId: id(),
+      })
+    ).json();
+    const save = async (content: any) => {
+      const body = {
+        name: d.name,
+        version: d.version,
+        entries: content.entries,
+        groups: content.groups,
+        sections: content.sections,
+        requestId: id(),
+      };
+      const r = await h.call("PUT", `/documents/${d.id}`, body);
+      assert.equal(r.statusCode, 200, r.body);
+      assert.deepEqual(
+        (await h.call("PUT", `/documents/${d.id}`, body)).json(),
+        r.json(),
+      );
+      d = r.json();
+    };
+    const add = async (category: any) => {
+      const body = {
+        entries: d.entries,
+        groups: d.groups,
+        version: d.version,
+        categoryId: category.id,
+      };
+      const p = (
+        await h.call("POST", `/documents/${d.id}/category-preview`, body)
+      ).json();
+      const r = await h.call("POST", `/documents/${d.id}/category-compose`, {
+        ...body,
+        expected: p.expected,
+      });
+      assert.equal(r.statusCode, 200, r.body);
+      await save(r.json());
+    };
+    await add(cats[0]);
+    await add(cats[1]);
+    await add(cats[1]);
+    assert.equal(d.entries.length, 1);
+    assert.equal(d.groups.length, 2);
+    assert.equal(d.entries[0].sourceCount, 2);
+    await h.call(
+      "PUT",
+      `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
+      { checked: true, requestId: id() },
+    );
+    await save(removeGroup(d, d.groups[0].id));
+    assert.equal(d.entries[0].sourceCount, 1);
+    assert.equal(d.entries[0].checked, true);
+    await save({ ...d, groups: [] });
+    assert.equal(d.entries.length, 0);
+    assert.equal((await h.call("GET", "/items")).json().length, 1);
+    await add(cats[0]);
+    await save({
+      ...d,
+      entries: d.entries.map((e: any) => ({ ...e, direct: true })),
+    });
+    await save(removeGroup(d, d.groups[0].id));
+    assert.equal(d.entries[0].sourceCount, 1);
+    const prior = d.entries[0];
+    await save({
+      ...d,
+      entries: [
+        prior,
+        {
+          ...prior,
+          id: id(),
+          quantity: "999",
+          note: "replace?",
+          checked: true,
+        },
+      ],
+    });
+    assert.equal(d.entries.length, 1);
+    assert.equal(d.entries[0].quantity, prior.quantity);
+    assert.equal(d.entries[0].note, prior.note);
+    assert.throws(
+      () =>
+        h.store.run(
+          "INSERT INTO entries SELECT ?,documentId,itemId,name,quantity,unit,note,position,checked,direct,sectionId FROM entries WHERE id=?",
+          id(),
+          d.entries[0].id,
+        ),
+      /Duplicate Item/,
+    );
+    await save({ ...d, entries: [] });
+    await add(cats[0]);
+    await add(cats[1]);
+    let item = (await h.call("GET", "/items"))
+      .json()
+      .find((i: any) => i.id === egg.id);
+    let r = await h.call("PUT", `/items/${egg.id}`, {
+      name: item.name,
+      note: item.note,
+      categoryIds: [cats[1].id],
+      version: item.version,
+      requestId: id(),
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    await add(cats[0]);
+    assert.equal(d.entries[0].sourceCount, 1);
+    item = (await h.call("GET", "/items"))
+      .json()
+      .find((i: any) => i.id === egg.id);
+    r = await h.call("PUT", `/items/${egg.id}`, {
+      name: item.name,
+      note: item.note,
+      categoryIds: [],
+      version: item.version,
+      requestId: id(),
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    await add(cats[1]);
+    assert.equal(d.entries.length, 0);
+    assert.equal((await h.call("GET", "/items")).json().length, 1);
+  } finally {
+    await h.close();
+  }
+});
+
+test("three-level sections validate atomically, revisions/instances/archive preserve structure", async () => {
+  const h = await setup();
+  try {
+    const sections = [
+      { id: id(), name: "A", parentSectionId: null as string | null },
+      { id: id(), name: "B", parentSectionId: null as string | null },
+      { id: id(), name: "C", parentSectionId: null as string | null },
+    ];
+    sections[1].parentSectionId = sections[0].id;
+    sections[2].parentSectionId = sections[1].id;
+    const e = { ...entry(), sectionId: sections[2].id };
+    const r = await h.call("POST", "/documents", {
+      kind: "template",
+      name: "Tree",
+      sections,
+      entries: [e],
+      groups: [],
+      requestId: id(),
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    const d = r.json();
+    assert.equal(d.sections.length, 3);
+    const fourth = { id: id(), name: "D", parentSectionId: d.sections[2].id };
+    const body = {
+      name: d.name,
+      version: d.version,
+      entries: d.entries,
+      groups: [],
+      sections: [...d.sections, fourth],
+      requestId: id(),
+    };
+    assert.equal(
+      (await h.call("PUT", `/documents/${d.id}`, body)).statusCode,
+      400,
+    );
+    const cycle = d.sections.map((s: any, index: number) =>
+      index === 0 ? { ...s, parentSectionId: d.sections[2].id } : s,
+    );
+    assert.equal(
+      (
+        await h.call("PUT", `/documents/${d.id}`, {
+          ...body,
+          sections: cycle,
+          requestId: id(),
+        })
+      ).statusCode,
+      400,
+    );
+    assert.equal((await h.call("GET", `/documents/${d.id}`)).json().version, 1);
+    assert.equal(
+      (await h.call("GET", `/templates/${d.id}/revisions`)).json().length,
+      1,
+    );
+    const rev = (await h.call("GET", `/templates/${d.id}/revisions/1`)).json();
+    assert.deepEqual(rev.sections, d.sections);
+    const instance = (
+      await h.call("POST", `/documents/${d.id}/history-apply`, {
+        action: "instantiate",
+        revision: 1,
+        version: 1,
+        name: "Use",
+        resolutions: {},
+        requestId: id(),
+      })
+    ).json();
+    assert.equal(instance.sections.length, 3);
+    assert.notEqual(instance.sections[0].id, d.sections[0].id);
+    assert.equal(instance.entries[0].sectionId, instance.sections[2].id);
+    await h.call(
+      "PUT",
+      `/checklists/${instance.id}/entries/${instance.entries[0].id}/checked`,
+      { checked: true, requestId: id() },
+    );
+    const archived = (
+      await h.call("POST", `/checklists/${instance.id}/archive`, {
+        version: 1,
+        requestId: id(),
+      })
+    ).json();
+    assert.deepEqual(archived.sections, instance.sections);
+    const restored = (
+      await h.call("POST", `/documents/${instance.id}/history-apply`, {
+        action: "restore",
+        version: archived.version,
+        name: "Use",
+        resolutions: {},
+        requestId: id(),
+      })
+    ).json();
+    assert.equal(restored.entries[0].checked, true);
+    assert.equal(restored.entries[0].sectionId, restored.sections[2].id);
+    const promoted = removeSection(restored, restored.sections[1].id);
+    assert.equal(
+      promoted.sections![1].parentSectionId,
+      promoted.sections![0].id,
+    );
+    assert.equal(promoted.entries[0].sectionId, promoted.sections![1].id);
+    validateSections(promoted);
+    assert.equal(
+      (
+        await h.call("POST", "/documents", {
+          kind: "template",
+          name: "Foreign",
+          entries: [{ ...entry(), sectionId: d.sections[0].id }],
+          groups: [],
+          sections: [],
+          requestId: id(),
+        })
+      ).statusCode,
+      400,
+    );
+  } finally {
+    await h.close();
+  }
+});
+
+test("legacy duplicates require explicit field selection and retain every source", () => {
+  const item = { id: id(), name: "egg" },
+    a = entry(item),
+    b = { ...entry(item), quantity: "4", checked: true };
+  const groups = [
+    {
+      id: id(),
+      categoryId: id(),
+      originalCategoryId: id(),
+      name: "food",
+      members: [item.id],
+      excluded: [],
+    },
+  ];
+  a.groupIds = [groups[0].id];
+  assert.throws(
+    () => mergeContent({ entries: [a, b], groups }),
+    /Choose values/,
+  );
+  const merged = mergeContent({ entries: [a, b], groups }, { [item.id]: b.id });
+  assert.equal(merged.entries.length, 1);
+  assert.equal(merged.entries[0].quantity, "4");
+  assert.equal(merged.entries[0].checked, true);
+  assert.deepEqual(merged.entries[0].groupIds, a.groupIds);
+  assert.equal(
+    mergeContent({ entries: [entry(), entry()], groups: [] }).entries.length,
+    2,
+  );
+});
+
+test("flat migration preserves old parent links and historical duplicates without rewriting snapshots", async () => {
+  const { Store } = await import("../server/db.js");
+  const { app } = await import("../server/app.js");
+  const store = new Store(":memory:");
+  const parent = id(),
+    child = id(),
+    item = id(),
+    doc = id();
+  store.run("INSERT INTO categories(id,name) VALUES(?,?)", parent, "Parent");
+  store.run(
+    "INSERT INTO categories(id,name,parentId) VALUES(?,?,?)",
+    child,
+    "Child",
+    parent,
+  );
+  store.run("INSERT INTO items(id,name) VALUES(?,?)", item, "egg");
+  store.run("INSERT INTO item_categories VALUES(?,?)", item, child);
+  store.db.exec(
+    "CREATE TABLE documents(id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,status TEXT NOT NULL DEFAULT 'active',source TEXT,archive TEXT); CREATE TABLE entries(id TEXT PRIMARY KEY,documentId TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,itemId TEXT REFERENCES items(id),name TEXT NOT NULL,quantity TEXT NOT NULL,unit TEXT NOT NULL,note TEXT NOT NULL,position INTEGER NOT NULL,checked INTEGER NOT NULL DEFAULT 0,direct INTEGER NOT NULL DEFAULT 1)",
+  );
+  const a = entry({ id: item, name: "egg" }),
+    b = { ...entry({ id: item, name: "egg" }), quantity: "9" };
+  const snapshot = JSON.stringify({
+    schemaVersion: 1,
+    id: doc,
+    kind: "checklist",
+    name: "old",
+    version: 1,
+    status: "archived",
+    entries: [a, b],
+    groups: [],
+  });
+  store.run(
+    "INSERT INTO documents(id,kind,name,status,archive) VALUES(?,'checklist','old','archived',?)",
+    doc,
+    snapshot,
+  );
+  let server = await app(store);
+  try {
+    assert.equal(store.resource("categories", child).parentId, null);
+    assert.equal(
+      store.get(
+        "SELECT parentId FROM legacy_category_parents WHERE id=?",
+        child,
+      ).parentId,
+      parent,
+    );
+    assert.deepEqual(store.members(parent), []);
+    assert.deepEqual(store.members(child), [item]);
+    assert.equal(store.resource("documents", doc).archive, snapshot);
+    assert.throws(
+      () =>
+        store.run("UPDATE categories SET parentId=? WHERE id=?", parent, child),
+      /flat/,
+    );
+    assert.equal(store.get("PRAGMA integrity_check").integrity_check, "ok");
+    assert.deepEqual(store.all("PRAGMA foreign_key_check"), []);
+    await server.close();
+    server = await app(store);
+    assert.equal(store.all("SELECT * FROM legacy_category_parents").length, 1);
+    assert.equal(store.resource("documents", doc).archive, snapshot);
+  } finally {
+    await server.close();
+    store.close();
+  }
+});
+
+test("old revisions expose duplicates and history apply merges selected values atomically", async () => {
+  const h = await setup();
+  try {
+    const item = (
+      await h.call("POST", "/items", {
+        name: "egg",
+        categoryIds: [],
+        requestId: id(),
+      })
+    ).json();
+    const d = (
+      await h.call("POST", "/documents", {
+        kind: "template",
+        name: "old",
+        entries: [],
+        groups: [],
+        requestId: id(),
+      })
+    ).json();
+    const a = entry(item),
+      b = { ...entry(item), quantity: "7", checked: true };
+    const snapshot = JSON.stringify({
+      ...d,
+      schemaVersion: 1,
+      revision: 2,
+      entries: [a, b],
+    });
+    h.store.run(
+      "INSERT INTO template_revisions VALUES(?,?,?)",
+      d.id,
+      2,
+      snapshot,
+    );
+    const body = {
+      action: "instantiate",
+      revision: 2,
+      version: d.version,
+      name: "new",
+      resolutions: {},
+      requestId: id(),
+    };
+    const p = (
+      await h.call("POST", `/documents/${d.id}/history-preview`, {
+        action: "instantiate",
+        revision: 2,
+        version: d.version,
+      })
+    ).json();
+    assert.equal(p.duplicates.length, 1);
+    assert.equal(
+      (await h.call("POST", `/documents/${d.id}/history-apply`, body))
+        .statusCode,
+      409,
+    );
+    assert.equal(h.store.all("SELECT * FROM documents").length, 1);
+    const r = await h.call("POST", `/documents/${d.id}/history-apply`, {
+      ...body,
+      mergeTargets: { [item.id]: b.id },
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().entries.length, 1);
+    assert.equal(r.json().entries[0].quantity, "7");
+    assert.equal(r.json().entries[0].checked, false);
+    assert.equal(
+      h.store.get(
+        "SELECT snapshot FROM template_revisions WHERE documentId=? AND revision=2",
+        d.id,
+      ).snapshot,
+      snapshot,
+    );
+  } finally {
+    await h.close();
+  }
+});
+
+test("upgrade backup restores the old schema and parent relationships for rollback", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { Store } = await import("../server/db.js");
+  const { app } = await import("../server/app.js");
+  const { backupDatabase, restoreDatabase } =
+    await import("../server/backup.js");
+  const folder = mkdtempSync(join(tmpdir(), "loom-v6-"));
+  const path = join(folder, "old.sqlite"),
+    backup = join(folder, "before.sqlite"),
+    rollback = join(folder, "rollback.sqlite");
+  const store = new Store(path);
+  const parent = id(),
+    child = id();
+  store.run("INSERT INTO categories(id,name) VALUES(?,?)", parent, "P");
+  store.run(
+    "INSERT INTO categories(id,name,parentId) VALUES(?,?,?)",
+    child,
+    "C",
+    parent,
+  );
+  try {
+    await backupDatabase(path, backup);
+    const server = await app(store);
+    await server.close();
+    assert.equal(store.resource("categories", child).parentId, null);
+    await restoreDatabase(backup, rollback);
+    const old = new Store(rollback);
+    try {
+      assert.equal(old.resource("categories", child).parentId, parent);
+      assert.equal(
+        old.get("SELECT 1 FROM migrations WHERE version=6"),
+        undefined,
+      );
+      assert.equal(old.get("PRAGMA integrity_check").integrity_check, "ok");
+    } finally {
+      old.close();
+    }
+  } finally {
+    store.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("unknown and foreign sources reject the whole save, including checked state and revisions", async () => {
+  const h = await setup();
+  try {
+    const item = (
+      await h.call("POST", "/items", {
+        name: "egg",
+        categoryIds: [],
+        requestId: id(),
+      })
+    ).json();
+    const foreign = (
+      await h.call("POST", "/documents", {
+        kind: "template",
+        name: "other",
+        entries: [],
+        groups: [
+          {
+            id: id(),
+            categoryId: null,
+            originalCategoryId: id(),
+            name: "static",
+            members: [],
+            excluded: [],
+          },
+        ],
+        requestId: id(),
+      })
+    ).json();
+    for (const kind of ["template", "checklist"]) {
+      const d = (
+        await h.call("POST", "/documents", {
+          kind,
+          name: "protected",
+          entries: [entry(item)],
+          groups: [],
+          requestId: id(),
+        })
+      ).json();
+      if (kind === "checklist")
+        await h.call(
+          "PUT",
+          `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
+          { checked: true, requestId: id() },
+        );
+      const before = (await h.call("GET", `/documents/${d.id}`)).json();
+      for (const sourceId of [id(), foreign.groups[0].id]) {
+        const r = await h.call("PUT", `/documents/${d.id}`, {
+          name: "should roll back",
+          version: before.version,
+          entries: [
+            { ...before.entries[0], direct: false, groupIds: [sourceId] },
+          ],
+          groups: [],
+          requestId: id(),
+        });
+        assert.equal(r.statusCode, 400, r.body);
+        assert.equal(r.json().message, "Unknown source group");
+        assert.deepEqual(
+          (await h.call("GET", `/documents/${d.id}`)).json(),
+          before,
+        );
+      }
+      if (kind === "template")
+        assert.equal(
+          (await h.call("GET", `/templates/${d.id}/revisions`)).json().length,
+          1,
+        );
+    }
+  } finally {
+    await h.close();
+  }
+});

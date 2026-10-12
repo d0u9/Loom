@@ -1,6 +1,12 @@
 import { Store, id, requireThat } from "./db.js";
 import { migrateGroups, writeGroups } from "./groups.js";
-import type { Entry, Content } from "../shared/groups.js";
+import {
+  validateSections,
+  mergeContent,
+  duplicateItems,
+  type Entry,
+  type Content,
+} from "../shared/groups.js";
 import { object as obj, uuid, short, version, type Route } from "./schema.js";
 export function migrateDocuments(store: Store) {
   store.migrate(
@@ -14,16 +20,38 @@ export function migrateDocuments(store: Store) {
   );
   migrateGroups(store);
   store.migrate(4, "ALTER TABLE documents ADD COLUMN useDate TEXT");
+  store.migrate(
+    6,
+    `
+    CREATE TABLE legacy_category_parents AS SELECT id,parentId FROM categories WHERE parentId IS NOT NULL;
+    UPDATE categories SET parentId=NULL,version=version+1 WHERE parentId IS NOT NULL;
+    CREATE TRIGGER categories_flat_insert BEFORE INSERT ON categories WHEN NEW.parentId IS NOT NULL BEGIN SELECT RAISE(ABORT,'Categories are flat'); END;
+    CREATE TRIGGER categories_flat_update BEFORE UPDATE OF parentId ON categories WHEN NEW.parentId IS NOT NULL BEGIN SELECT RAISE(ABORT,'Categories are flat'); END;
+    ALTER TABLE documents ADD COLUMN sections TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE entries ADD COLUMN sectionId TEXT;
+    CREATE TRIGGER entries_unique_item_insert BEFORE INSERT ON entries WHEN NEW.itemId IS NOT NULL AND EXISTS(SELECT 1 FROM entries WHERE documentId=NEW.documentId AND itemId=NEW.itemId) BEGIN SELECT RAISE(ABORT,'Duplicate Item'); END;
+    CREATE TRIGGER entries_unique_item_update BEFORE UPDATE OF itemId,documentId ON entries WHEN NEW.itemId IS NOT NULL AND EXISTS(SELECT 1 FROM entries WHERE documentId=NEW.documentId AND itemId=NEW.itemId AND id<>NEW.id) BEGIN SELECT RAISE(ABORT,'Duplicate Item'); END;
+  `,
+  );
 }
 export function document(store: Store, key: string, live = true): any {
   const d = store.resource("documents", key);
   if (d.status === "archived") {
     const snapshot = JSON.parse(d.archive);
-    requireThat(snapshot.schemaVersion === 1, "Unsupported snapshot schema");
+    requireThat(
+      [1, 2].includes(snapshot.schemaVersion),
+      "Unsupported snapshot schema",
+    );
     const { archive, ...metadata } = d;
     return {
       ...metadata,
       ...snapshot,
+      sections: snapshot.sections ?? [],
+      entries: snapshot.entries.map((e: Entry) => ({
+        ...e,
+        sectionId: e.sectionId ?? null,
+        sourceCount: e.groupIds.length + Number(e.direct),
+      })),
       status: d.status,
       version: d.version,
       useDate: snapshot.useDate ?? d.useDate ?? null,
@@ -36,6 +64,12 @@ export function document(store: Store, key: string, live = true): any {
       name: live && e.itemId ? store.resource("items", e.itemId).name : e.name,
       checked: !!e.checked,
       direct: !!e.direct,
+      sourceCount:
+        Number(e.direct) +
+        store.get(
+          "SELECT count(*) AS n FROM entry_sources WHERE entryId=?",
+          e.id,
+        ).n,
       groupIds: store
         .all("SELECT groupId FROM entry_sources WHERE entryId=?", e.id)
         .map((x) => x.groupId),
@@ -44,6 +78,7 @@ export function document(store: Store, key: string, live = true): any {
     ...d,
     source: d.source ? JSON.parse(d.source) : null,
     entries,
+    sections: JSON.parse(d.sections),
     groups: store
       .all("SELECT * FROM groups WHERE documentId=?", key)
       .map((g) => ({
@@ -70,6 +105,7 @@ export function writeEntries(
       .map((e) => [e.id, e.checked]),
   );
   const seen = new Set<string>();
+  const itemIds = new Set<string>();
   for (const e of entries) {
     requireThat(!seen.has(e.id), "Duplicate entry ID");
     seen.add(e.id);
@@ -82,13 +118,21 @@ export function writeEntries(
       "Entry belongs to another document",
       409,
     );
-    if (e.itemId) e.name = store.resource("items", e.itemId).name;
+    if (e.itemId) {
+      requireThat(
+        !itemIds.has(e.itemId),
+        "Duplicate Item; merge before saving",
+        409,
+      );
+      itemIds.add(e.itemId);
+      e.name = store.resource("items", e.itemId).name;
+    }
     requireThat(e.name.trim(), "Entry needs a name");
   }
   store.run("DELETE FROM entries WHERE documentId=?", key);
   entries.forEach((e, p) =>
     store.run(
-      "INSERT INTO entries VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO entries(id,documentId,itemId,name,quantity,unit,note,position,checked,direct,sectionId) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
       e.id,
       key,
       e.itemId,
@@ -99,6 +143,7 @@ export function writeEntries(
       p,
       preserveChecks ? old.get(e.id) || 0 : e.checked ? 1 : 0,
       e.direct ? 1 : 0,
+      e.sectionId ?? null,
     ),
   );
 }
@@ -121,7 +166,16 @@ export function createDocument(
     source ? JSON.stringify(source) : null,
     useDate,
   );
-  const copied = reid(content);
+  validateSections(content);
+  const copied = reid(
+    mergeContent(
+      content,
+      Object.fromEntries(
+        duplicateItems(content).map((d) => [d.itemId, d.entries[0].id]),
+      ),
+    ),
+  );
+  writeSections(store, key, copied);
   if (!preserve) copied.entries.forEach((e) => (e.checked = false));
   writeEntries(store, key, copied.entries, false);
   writeGroups(store, key, copied);
@@ -130,13 +184,22 @@ export function createDocument(
 }
 export function reid(content: Content): Content {
   const mapping = new Map(content.groups.map((g) => [g.id, id()]));
+  const sections = new Map((content.sections ?? []).map((s) => [s.id, id()]));
   return {
     entries: content.entries.map((e) => ({
       ...e,
       id: id(),
+      sectionId: e.sectionId ? sections.get(e.sectionId)! : null,
       groupIds: e.groupIds.map((k) => mapping.get(k)!),
     })),
     groups: content.groups.map((g) => ({ ...g, id: mapping.get(g.id)! })),
+    sections: (content.sections ?? []).map((s) => ({
+      ...s,
+      id: sections.get(s.id)!,
+      parentSectionId: s.parentSectionId
+        ? sections.get(s.parentSectionId)!
+        : null,
+    })),
   };
 }
 export function saveRevision(store: Store, key: string) {
@@ -150,7 +213,7 @@ export function saveRevision(store: Store, key: string) {
     "INSERT INTO template_revisions VALUES(?,?,?)",
     key,
     rev,
-    JSON.stringify({ schemaVersion: 1, ...snapshot, revision: rev }),
+    JSON.stringify({ schemaVersion: 2, ...snapshot, revision: rev }),
   );
   return rev;
 }
@@ -175,6 +238,7 @@ const str = { type: "string", maxLength: 10000 };
 const entry = obj(
   {
     id: uuid,
+    sectionId: { anyOf: [uuid, { type: "null" }] },
     itemId: { anyOf: [uuid, { type: "null" }] },
     name: short,
     quantity: { type: "string", maxLength: 100 },
@@ -199,7 +263,35 @@ const group = obj(
   },
   ["id", "categoryId", "originalCategoryId", "name", "members", "excluded"],
 );
+export function writeSections(store: Store, key: string, content: Content) {
+  validateSections(content);
+  const sections = content.sections ?? [];
+  const owned = new Set(
+    store
+      .all(
+        "SELECT sections FROM documents WHERE id<>? AND status='active'",
+        key,
+      )
+      .flatMap((d) => JSON.parse(d.sections).map((s: any) => s.id)),
+  );
+  for (const s of sections)
+    requireThat(!owned.has(s.id), "Section belongs to another document", 409);
+  store.run(
+    "UPDATE documents SET sections=? WHERE id=?",
+    JSON.stringify(sections),
+    key,
+  );
+}
 export const contentSchema = {
+  sections: {
+    type: "array",
+    maxItems: 1000,
+    items: obj({
+      id: uuid,
+      name: short,
+      parentSectionId: { anyOf: [uuid, { type: "null" }] },
+    }),
+  },
   entries: { type: "array", maxItems: 10000, items: entry },
   groups: { type: "array", maxItems: 1000, items: group },
 };
@@ -258,6 +350,18 @@ export function registerDocuments(route: Route, store: Store) {
       store.once("save-document:" + req.params.id, req.body, () => {
         const d = active(store, req.params.id);
         store.version(d, req.body.version);
+        const knownGroups = new Set([
+          ...req.body.groups.map((g: Content["groups"][number]) => g.id),
+          ...store
+            .all("SELECT id FROM groups WHERE documentId=?", d.id)
+            .map((g) => g.id),
+        ]);
+        requireThat(
+          req.body.entries.every((e: Entry) =>
+            e.groupIds.every((k) => knownGroups.has(k)),
+          ),
+          "Unknown source group",
+        );
         const useDate =
           req.body.useDate === undefined ? d.useDate : req.body.useDate;
         validateUseDate(d.kind, useDate);
@@ -267,8 +371,36 @@ export function registerDocuments(route: Route, store: Store) {
           useDate,
           d.id,
         );
-        writeEntries(store, d.id, req.body.entries);
-        writeGroups(store, d.id, req.body);
+        const targets: Record<string, string> = {};
+        for (const duplicate of duplicateItems(req.body)) {
+          const prior = store.all(
+            "SELECT id FROM entries WHERE documentId=? AND itemId=?",
+            d.id,
+            duplicate.itemId,
+          );
+          if (
+            prior.length === 1 &&
+            duplicate.entries.some((e) => e.id === prior[0].id)
+          )
+            targets[duplicate.itemId] = prior[0].id;
+        }
+        const content = mergeContent(
+          {
+            ...req.body,
+            sections: req.body.sections ?? document(store, d.id).sections,
+          },
+          targets,
+        );
+        const groupIds = new Set(content.groups.map((g) => g.id));
+        content.entries = content.entries
+          .map((e) => ({
+            ...e,
+            groupIds: e.groupIds.filter((k) => groupIds.has(k)),
+          }))
+          .filter((e) => e.direct || e.groupIds.length);
+        writeSections(store, d.id, content);
+        writeEntries(store, d.id, content.entries);
+        writeGroups(store, d.id, content);
         if (d.kind === "template") saveRevision(store, d.id);
         return document(store, d.id);
       }),

@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { id } from "../server/db.js";
 import { setup, entry } from "./helpers.js";
 import { removeEntry } from "../shared/groups.js";
-test("recursive previews reject stale members; merge preserves state and all sources", async () => {
+test("direct member previews reject stale members; merge preserves state and all sources", async () => {
   const h = await setup();
   try {
     const cat = async (name: string, parentId: string | null = null) =>
       (await h.call("POST", "/categories", { name, parentId })).json();
     const food = await cat("Food"),
-      sub = await cat("Ingredients", food.id),
+      sub = food,
       lab = await cat("Lab");
     const egg = (
       await h.call("POST", "/items", {
@@ -99,20 +99,13 @@ test("recursive previews reject stale members; merge preserves state and all sou
       409,
     );
     const added = await preview(lab.id);
-    await apply(lab.id, added, "keep");
-    const group = d.groups[2];
-    assert.equal(d.entries.length, 2);
-    const copy = { ...d.entries[1], id: id() };
-    let content = { entries: [...d.entries, copy], groups: d.groups };
-    content = removeEntry(content, copy.id);
-    assert.equal(
-      content.groups.find((g: any) => g.id === group.id).excluded.length,
-      0,
-    );
-    content = removeEntry(content, d.entries[1].id);
+    await apply(lab.id, added);
+    assert.equal(d.groups.length, 2);
+    assert.equal(d.entries.length, 1);
+    let content = removeEntry(d, d.entries[0].id);
     assert.deepEqual(
-      content.groups.find((g: any) => g.id === group.id).excluded,
-      [egg.id],
+      content.groups.map((g) => g.excluded),
+      [[egg.id], [egg.id]],
     );
   } finally {
     await h.close();

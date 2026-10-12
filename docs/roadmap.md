@@ -1,6 +1,6 @@
 # Loom Roadmap & Milestones
 
-Status: M1–M4 complete; M5 implementation/local verification complete, container acceptance awaits a runtime. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
+Status: M1–M4 complete under original rules; 2026-10-12 design changes implemented. M5 implementation/local verification complete, container acceptance awaits a runtime. Proceed by acceptance results without preset completion dates. Product rules: [Design Doc](design.md) and [AGENTS.md](../AGENTS.md).
 
 ## Milestones
 
@@ -15,9 +15,9 @@ Status: M1–M4 complete; M5 implementation/local verification complete, contain
 
 ## Verification priorities
 
-- Database/API integration: reference checks/deletion remain transactionally consistent; historical snapshots do not block deletion, category cycles are prohibited, and failures leave no partial results.
+- Database/API integration: reference checks/deletion remain transactionally consistent; historical snapshots do not block deletion, category hierarchy is rejected, and failures leave no partial results.
 - Templates/names: repeated saves retain old revisions; Item renaming affects only current views, while instantiating old revisions uses latest surviving names without changing history itself.
-- Category operations: when egg belongs to both Ingredients/Experimental materials, Merge retains multiple sources and Keep both stays independent; membership updates do not overwrite quantity/notes/order/checked states, and exclusions are not automatically re-added.
+- Category operations: when egg belongs to both Ingredients/Experimental materials, automatically merge into one entry; as sources go 2→1→0, retain→retain→remove. Membership updates do not overwrite quantity/notes/order/checked states, and exclusions are not automatically re-added.
 - History operations: archives are read-only; history remains readable after Item deletion; restore/copy/convert to template all support linking/creating/temporary entries. Copy and restore have different checked-state semantics.
 - End-to-end: create Item/Category → save Template → instantiate → check/additional entries → category update → archive → delete unreferenced Item → copy/restore → backup/restore.
 - Usability: desktop keyboard operation, mobile touch selection/checking/sorting/conflict handling, save-failure retries, and stale-version notices.
@@ -88,3 +88,161 @@ This section consolidates final rules after the baseline commit without adding m
 - Checklist use dates, calendar dots, filtering, and creation on the selected date are implemented. Archive/restore preserves dates; copy/instantiation clears them. Checklist navigation always returns to all checklists.
 - Verification: 17 API/database tests passed; 10 desktop/mobile end-to-end tests passed after shared-component refactoring, including alignment of New buttons' top/right edges on four pages. Before final commit, reran `pnpm run build`, `pnpm test` (17 tests), and `pnpm run test:e2e` (10 tests); all passed, including Checklist navigation clearing date filters.
 - Desktop/mobile screenshots checked. Actual 1Password extension not tested; reminders, times, recurring schedules, and external calendar synchronization not implemented. Remaining Docker acceptance unchanged.
+
+### Category member details (2026-10-12)
+
+- Category gains an open action; details show recursive Items, child-category navigation, and specific membership relationships, deduplicated by Item ID. Supports adding existing Items, editing via the shared dialog, and removing a specified category relationship while preserving the Item and other relationships.
+- Reuse AppLayout/Page and existing Item API without database migration; synchronize design and constraints.
+- Build/type checking passed; existing 10 desktop/mobile end-to-end tests passed, plus 2 new Category desktop/mobile regressions covering recursive deduplication, editing, retention after removing relationships, addition, and child-category navigation.
+
+### Shared collection views (2026-10-12)
+
+- Four resource types and Category members share Collection/RecordCard and Page card/list switching; whole-card/row clicks and keyboard open, while internal delete/remove actions remain independent.
+- Category member addition uses a header action and Modal. Lists become continuous white panels with row separators, without category checked state.
+- Build, type checking, and 12 desktop/mobile end-to-end tests passed, covering four-page view switching, title-action alignment, recursive member operations, and keyboard opening; Category list screenshots checked on desktop/mobile.
+
+### Shared top action area (2026-10-12)
+
+- Page owns card/list SVG icons, the primary-action plus, button sizing, and spacing. Pages only pass primaryAction label/onClick, no custom button JSX. Category Add members shares the other pages' create position and component.
+- Build and 12 desktop/mobile end-to-end tests passed, covering four-page button alignment, view switching, and Category-detail operations.
+
+### Consistent list row content (2026-10-12)
+
+- RecordCard gains shared record-main/record-actions: left-aligned stacked names/descriptions and compact right-side edit/delete icons. List rows and whitespace below titles are tightened while retaining touch targets.
+- Build and 12 end-to-end tests passed; 2 added desktop/mobile assertions passed for Category-list name/description left alignment and edit icons not accidentally opening details, with actual list screenshots checked.
+
+### Stable view-switch page shell fix (2026-10-12)
+
+- Remove :has styles that changed Page background, border, and padding based on list content; white list panels apply only to Collection. View switching no longer moves titles or actions.
+- Build and 4 desktop/mobile style regressions passed, comparing complete header/page-actions boundingBox before/after switching on each page and finding equality. Other business end-to-end tests not rerun this time.
+
+### Single-line Category members and sorting (2026-10-12)
+
+- Members display one row with handle, name, and right-side relationship entry, without direct-member/note second lines or check circles. Remove Back/member-count bar, retaining Add member. Move card editing/deletion to the upper right; Page header position remains.
+- Add Category order API and migration 5; transactionally validate the complete recursive member set/version, persisting order and requestId retry results. Refresh catalog versions after ordering.
+- Fix card internal-action layers obscuring mobile navigation. Build and 18 API/database tests passed; final 14 desktop/mobile end-to-end tests passed, including dragging, keyboard sorting, refresh persistence, and stable header dimensions. Mobile is browser simulation; real touch devices not tested.
+
+### Shared creation forms (2026-10-12)
+
+- Template/Checklist creation replaces native prompt with a shared Modal name form, Create/Cancel, validation, and retries of failed original requests; calendar default dates remain. Business inputs continue to ignore 1Password.
+- Build and 14 end-to-end tests passed; 2 added desktop/mobile flows passed for new-modal focus/Escape focus return and freezing names/retrying after lost creation responses.
+
+### Consolidate detail-page actions (2026-10-12)
+
+- The shared Template/Checklist editor removes permanently visible multi-row actions; Page unifies Back, resource title, More, Add, and necessary save actions. Settings and history operations move into Modals, as does source selection; the body focuses on entries, retaining save/retry and archived read-only semantics.
+- Build and 14 end-to-end tests passed; after the final shared Save-icon adjustment, rebuild and 2 desktop/mobile full-flow tests passed, with Template-detail screenshots checked.
+
+### Item category tags and equal-height cards (2026-10-12)
+
+- Categories become tags; notes use 12px and reserve two lines consistently, names stay on one line, and card actions remain at the upper right. Show two categories plus remaining count, retaining full data.
+- Build and 2 desktop/mobile regressions passed, verifying equal card heights with long/no notes, 36px note areas, 12px text, and category tags; screenshots checked.
+
+### Extract shared collections and resource dialogs (2026-10-12)
+
+- Collection/RecordCard move into web/collection.tsx for all four resources and category members. Page still owns view choice; layout and colors retain their existing values.
+- ResourceDialog unifies creation for four resources and catalog editing: form shell, name validation, errors, and actions. Callers retain business fields and original save/retry logic. While retry is pending, both Cancel and Escape refuse closure to preserve request identity.
+- Build and 16 desktop/mobile browser end-to-end tests passed, covering focus, validation, password-manager attributes, and restored focus after closing all four resource-creation modals, plus stable header geometry during view switching, ordering, retries after lost save responses, and archive restoration. Mobile uses a simulated browser; real devices not tested.
+
+### Show category relationships directly (2026-10-12)
+
+- Remove member-row More menus and relationship modals; category names display inline as tags, whose × unlinks that specific relationship. Retain single-row main structure; narrow-screen multiple categories may wrap, with ordering/editing retained.
+- Build and 8 relevant desktop/mobile end-to-end tests passed, covering multiple-category display, removing only the specified relationship, keyboard editing, persistent ordering, and stable header geometry. Mobile uses browser simulation; real devices not tested.
+
+### Session initialization on refresh (2026-10-12)
+
+- Login state initially awaits checking; show main page/login form only after /session, avoiding a login flash during refresh. Only 401 enters login; other session errors show errors/retry, and catalog failures retain authenticated state with errors.
+- Build and 8 desktop/mobile regressions passed; new controlled delayed-session tests verify no password field while waiting and direct main-page display on success. 503 does not show login; after retry, actual unauthenticated responses show login. Mobile uses browser simulation; real devices not tested.
+
+### URL routing and initial-screen flash fix (2026-10-12)
+
+- Four catalogs and resource details use independent URLs; Checklist date filtering uses query parameters. Refresh/direct access restores location, History API forward/back synchronizes the interface and protects unsaved drafts. Catalog Item editing can be directly linked; editing within categories retains category context.
+- Remove the login-like waiting interface; initial HTML retains the warm-gray background, showing the main interface only after catalog initialization without a login-form or visible checking transition. Actual page reloads still load data.
+- Fastify falls back to index.html only for defined Web paths; unknown API routes remain JSON 404.
+- Build, 18 API/database tests, and 22 desktop/mobile browser end-to-end tests passed, including detail refresh/direct access, forward/back, retained URL/content after refusing draft discard, date filtering, and no login shell during session delay. New routing tests use independent dates to avoid calendar-count interference. Mobile uses simulated browser; real devices not tested.
+
+### Automatic development backend reload (2026-10-12)
+
+- Diagnose old backend process not reloading, causing new pages to fail calls to the new ordering endpoint; pnpm dev backend now uses Node --watch, frontend remains Vite.
+- Restarted local development service on original host/port; touching app.ts triggered an actual restart, with logs confirming backend listening again on 3000. Static detail routes return 200; 18 API/database tests passed (including ordering/development proxy). Did not probe the ordering API through the personal account or read its session/password.
+
+### Remove sort handles (2026-10-12)
+
+- Category members no longer show sorting handles; shared SortableRow supports directly dragging cards/list rows. Sorting starts only after the mouse threshold, clicks still open, and internal category-removal buttons do not start dragging. Mobile dragging starts after a 250ms long press, while ordinary swipes still scroll; arrow keys sort after focusing the Open button.
+- Persistent ordering reuses existing Category API, retaining versions/request retries. Build and 22 desktop/mobile end-to-end tests passed, including whole-row mouse dragging, keyboard ordering, refresh retention, and CDP native-touch long-press dragging without opening entries. Real touch devices not tested.
+
+### Flat Categories and merge-all (2026-10-12, design approved; implementation evidence below)
+
+These new rules supersede earlier category-tree and Merge/Keep both designs; completed milestones/old acceptance records remain historical evidence and do not establish implementation of new rules.
+
+1. Data/contracts: flat Category, remove parentId/recursive membership; retain Category IDs, direct membership, category order, and all historical snapshots. After backup, preview effects of removing old hierarchy, clearly explaining parents no longer include child-category members, without automatically copying relationships. API documents synchronize target contracts and distinguish currently available endpoints.
+2. Sources/merging: all Template/Checklist Item additions merge automatically by ID; Items, Category groups, and source relationships are unique within documents. Backend computes source counts from category-source relationships and direct; zero-source cleanup and structural writes share transactions, retaining version/requestId safe retries. Direct sources retain entries; temporary entries do not merge by name.
+3. Compatibility/history: normalize old duplicate entries/category groups after previews; differing quantities/units/notes/checked states require selecting retained values without silent overwrites. Old revisions/archives are not rewritten; restore/copy/instantiate/convert to template resolve conflicts before producing valid content.
+4. Web/verification: shared editor removes Keep both, category editing removes parent/child-category entries; update previews show source counts/final removal. Cover egg in two categories, direct sources, repeated additions/request retries, manual-delete exclusions, group removal, updating last sources, stale versions, failed-migration rollback, and historical conflicts; run API/database and desktop/mobile regressions.
+
+This section records design-stage plans; implementation/verification appears in delivery records below. Direct addition counts as one source, retained separately from category sources; global Item-deletion reference restrictions remain independently enforced.
+
+### Three-level internal Template sections (2026-10-12, design approved; implementation evidence below)
+
+- Add document Section structure and entry display positions independently of Category/source groups; three levels count only sections, excluding Item/root. Instantiated Checklists copy structure independently with the same three-level limit.
+- The same Item remains unique across sections; repeated addition retains its existing position, and moving does not change source counts. Deleting a nonempty section defaults to promoting content to the parent, retaining entries, sources, and relative order.
+- Implementation must synchronize relationship storage, versioned historical snapshots, API schemas, and shared Documents editor; legacy entries default to root, and old history is not rewritten. Handle compatibility together with the flat-category/automatic-merge changes above.
+- Acceptance covers usable third/rejected fourth level, cycle/cross-document rejection, subtree-movement depth, cross-section merging, moving/source cleanup, content retention deleting nonempty sections, and revision/instantiation/archive-restoration structure/order. Verified by tests in delivery records below.
+
+### New design implementation and acceptance (2026-10-12)
+
+- Migration 6: Categories become flat; old parent relationships remain in legacy_category_parents. Direct members, resource IDs, old duplicate rows, revisions, and archive originals are preserved. Adds section JSON and entry.sectionId; database triggers reject new hierarchies and duplicate Items per document. Conflicting old duplicate values require explicit choice during editing/history operations, merging all sources.
+- All Template/Checklist additions merge automatically; repeated whole-category addition does not duplicate counts, and GET documents returns sourceCount. Removing a source group or removing the last source through category updates cleans up entries, retaining other sources, direct sources, checked states, and global Items. Structural writes and cleanup run transactionally, retaining versions and persistent requestId.
+- Shared Documents/ResourceDialog/Modal support three section levels, renaming, parent changes, moving up among siblings, moving entries, and promoting content when deleting nonempty sections. New historical schemaVersion 2 remains compatible with reading 1; instantiation/restoration remap section IDs. Sections have no sources or checked state; mobile entries use two lines, with movement through a shared modal.
+- `pnpm run build`, final `pnpm run check`, and `git diff --check` passed. All 24 `pnpm test` tests passed, covering sources 2→1→0, direct sources, category membership updates, repeated additions/safe retries/database uniqueness, three-level and cycle constraints, atomic failures, revision/instantiation/archive restoration, legacy data migration, historical conflicts, and restoring the old schema from a pre-upgrade backup.
+- All 26 desktop/mobile `pnpm test:e2e` tests passed, including section creation/excessive-depth rejection/renaming/deletion with promotion/entry movement/refresh persistence, two-category merging and source cleanup, and existing routing, search, calendar, layout, ordering, and full history flows. Desktop/mobile three-level section screenshots were checked; mobile uses a simulated browser, real touch devices were not tested, and container acceptance still awaits a runtime.
+- README documents upgrade/rollback: back up before starting migration; rollback restores the pre-upgrade database to a new path and runs old code, never writing upgraded schema with old code. Rollback backup excludes writes after backup. Git not yet committed.
+
+### Global configuration and anonymous access (2026-10-12)
+
+- Add loom.config.json and server/config.ts, default auth.enabled:true; LOOM_CONFIG specifies another path. Runtime validation at startup rejects invalid configuration/missing custom paths; a missing default file retains authentication. Changes require restart. Docker image includes default configuration.
+- User explicitly confirmed: auth.enabled:false allows every device that can reach the service (including LAN phones) to anonymously use Web/API. No account initialization; anonymous writes still validate process-level CSRF and supplied Origin, and invalid Bearer tokens cannot bypass validation. /session returns authEnabled/csrf with no caching; no fake accounts/sessions created.
+- Web resolves the root route after receiving the server mode: without login requirements, enter /checklists and hide Logout; default login mode remains /items, retaining direct paths. Re-enabling authentication protects the original database, retaining data and existing accounts.
+- pnpm run build and git diff --check passed; all 26 pnpm test tests passed, covering configuration booleans/invalid types/unknown fields/missing files, account-free anonymous reads/writes, CSRF/Origin rejection, safe retries, and protection after re-enabling authentication. All 28 desktop/mobile pnpm test:e2e tests passed, adding actual production-process file configuration, login-free homepage, creation/refresh, direct links, and authentication-enabled restart flows. Personal account data was neither read nor changed; default configuration remains true, Git not committed. Containers and real touch devices not tested.
+
+### Loom site icon (2026-10-12)
+
+- Add a green/warm-white kitten checklist SVG shared by browser favicon and AppLayout branding; generate a 32px PNG fallback and 180px Apple touch icon. Retain brand dimensions and current colors, without dependencies. Render locally in a browser and inspect previews.
+- pnpm run build and git diff --check passed; business regressions not rerun, iOS home-screen bookmarking not tested.
+
+### Uncommitted change review fixes (2026-10-12)
+
+- Fix unknown sources silently being filtered and deleting entries: structural saving first validates source ownership by submitted groups or original groups of the current document; unknown/other-document sources return 400. Normal removal of original category groups still releases sources and cleans up zero-source entries. Regressions confirm failure does not change entries, checked, name, version, or Template revision.
+- Fix stale CSRF blocking saves after anonymous process restart: shared API client fetches session again on explicit Invalid CSRF token / 403 and retries once only. The body is serialized in advance, keeping requestId and content unchanged. Origin/version conflicts are not retried; refresh failure or a second failure reports normally.
+- pnpm run build, pnpm run check, and git diff --check passed; 29 pnpm test tests and 28 desktop/mobile pnpm test:e2e tests passed. Anonymous tests retained the original page, restarted the actual production backend, then edited an entry and verified saving without refresh or login. Containers and real touch devices not tested; Git not committed.
+
+## Improve editor add operations (2026-10-12)
+
+- Template/Checklist share a New section action directly in the Page header; the addition modal supports searching then clicking an Item to add, side-by-side category actions, and cancellation, remaining open on failure.
+- Acceptance: build/type checking and 4 desktop/mobile section/full-checklist-flow regressions passed; modal/header screenshots checked at both screen sizes. Real phones not yet verified; Git not committed.
+
+## Shared button component and styles (2026-10-12)
+
+- Migrate all Web buttons to Button with primary, normal, dangerous, light, and icon variants; remove duplicate button skins in cards, entries, and document menus. Reload shows a normal button border; Delete template uses the dangerous variant, retaining form submission, disabled conditions, and handlers.
+- Acceptance: build/type checking and all 30 desktop/mobile regressions passed; add button-border/dangerous-style/keyboard-activation/all-buttons-use-shared-component checks, and inspect desktop/mobile action-modal screenshots. Real phones not verified; Git not committed.
+
+## Navigation links compared with Memos styles (2026-10-12)
+
+- Read fonts, line heights, icons, buttons, and theme variables from developer tools on the user's already open memo.d0u9.cc; measured values recorded in design, retaining Loom's green theme.
+- Four navigation entries share NavigationLink, real links, and aria-current; normal clicks use leave protection, while modifiers retain new-tab behavior. Desktop navigation uses 13px/18px, normal weight, 28px rows, and four shared line icons. Buttons/single-line inputs use 28px, icon stroke 1.8px, mobile touch targets at least 44px.
+- Acceptance: build/type checking and 30 desktop/mobile regressions passed, including real links, selected states, navigation proportions, new tabs, date filtering, and unsaved leave protection; desktop/mobile screenshots checked. One restart-test process shutdown timed out; complete rerun passed. Real phones not tested; Git not committed.
+
+## Smaller button text (2026-10-12)
+
+- Shared action buttons change from 14px/20px to 13px/18px, retaining existing heights, colors, navigation, input, and body settings.
+- Acceptance: build, type checking, and 6 desktop/mobile style regressions passed; Git not committed, real phones not tested.
+
+## UI Design specification cleanup (2026-10-12)
+
+- Add docs/ui-design.md to centralize final visual parameters, boundaries between shared buttons/navigation, page/collection/editor/modal rules, and mobile/acceptance requirements. Record Memos reference values separately from Loom's adopted values.
+- design and AGENTS add the entry point and correct the old "borderless settings actions" constraint. Documentation changes only; relative links and diff checked, business tests not rerun, Git not committed.
+
+## Sidebar account footer (2026-10-12)
+
+- AppLayout adds a Memos-style account footer: thin separator, user icon, actual server account name, and vertical more menu. Sign out moves into the menu; Escape closes it and restores focus. Login/session responses add optional username; response schemas and API docs are updated.
+- Login-free mode shows an unlock icon and "No login required", without username, account menu, or Logout; mobile login-free mode retains only four navigation entries, while logged-in mode provides a bottom account menu.
+- Acceptance: build passed; 6 API/configuration tests, 6 desktop/mobile style checks, and 2 login-free checks passed. Username refresh/menu keyboard closure verified with screenshots; restart test once timed out closing a process and passed separately. Real phones not tested; Git not committed.

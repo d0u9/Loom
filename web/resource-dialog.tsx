@@ -1,0 +1,67 @@
+import localized from "../locales/zh.json" with { type: "json" };
+import { Button } from "./button.js";
+import React from "react";
+import { Modal } from "./modal.js";
+
+export function ResourceDialog({
+  title,
+  name,
+  onNameChange,
+  onSubmit,
+  onClose,
+  error,
+  fieldsDisabled,
+  submitDisabled,
+  cancelDisabled,
+  submitLabel,
+  children,
+}: {
+  title: string;
+  name: string;
+  onNameChange: (name: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+  error?: string;
+  fieldsDisabled?: boolean;
+  submitDisabled?: boolean;
+  cancelDisabled?: boolean;
+  submitLabel: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Modal aria-label={title} onClose={onClose}>
+      <form
+        className="resource-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+      >
+        <h3>{title}</h3>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <fieldset className="form-fields" disabled={fieldsDisabled}>
+          <label>{localized["\n            Name\n            "]}<input
+              required
+              maxLength={200}
+              data-1p-ignore="true"
+              autoComplete="off"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+            />
+          </label>
+          {children}
+        </fieldset>
+        <div className="form-actions">
+          <Button type="submit" variant="primary" disabled={submitDisabled}>
+            {submitLabel}
+          </Button>
+          <Button type="button" disabled={cancelDisabled} onClick={onClose}>{localized["\n            Cancel\n          "]}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

@@ -117,7 +117,7 @@ export class Store {
   members(categoryId: string): string[] {
     this.resource("categories", categoryId);
     return this.all(
-      `WITH RECURSIVE tree(id) AS (SELECT id FROM categories WHERE id=? UNION ALL SELECT c.id FROM categories c JOIN tree t ON c.parentId=t.id) SELECT DISTINCT itemId FROM item_categories WHERE categoryId IN (SELECT id FROM tree) ORDER BY itemId`,
+      "SELECT itemId FROM item_categories WHERE categoryId=? ORDER BY itemId",
       categoryId,
     ).map((x) => x.itemId);
   }
