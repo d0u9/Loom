@@ -52,3 +52,6 @@ pnpm-debug.log*
 # Browser test output
 /test-results/
 /playwright-report/
+
+# Local Claude Code preview settings
+.claude/
