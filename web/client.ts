@@ -1,11 +1,13 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t, message, type LocalizedText } from "./i18n.js";
+import { errorKey } from "./labels.js";
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string,
+    public localized: LocalizedText,
     public details?: any,
   ) {
-    super(message);
+    super(t(localized));
   }
 }
 export let csrf = "";
@@ -30,7 +32,10 @@ export async function api(
     if (!data || typeof data !== "object")
       throw new ApiError(
         response.ok ? 502 : response.status,
-        `${label}${localized[" returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."]}`,
+        message(
+          { literal: label },
+          localized[" returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."],
+        ),
       );
     if (
       attempt === 0 &&
@@ -47,8 +52,23 @@ export async function api(
     if (!response.ok)
       throw new ApiError(
         response.status,
-        (data.message ?? `${label}${localized["fixture.b99864aaa910"]}`) +
-          (data.details ? " " + JSON.stringify(data.details) : ""),
+        message(
+          errorKey(data.message ?? "", response.status),
+          ...(Array.isArray(data.details)
+            ? [
+                localized[" References:"],
+                ...data.details.flatMap((ref: any, index: number) => [
+                  ...(index ? [{ literal: localized["Reference separator"] }] : []),
+                  ref.kind === "Category"
+                    ? localized["Category"]
+                    : ref.kind === "template"
+                      ? localized["Template"]
+                      : localized["Checklist"],
+                  { literal: `${localized["Reference opening quote"]}${ref.name}${localized["Reference closing quote"]}` },
+                ]),
+              ]
+            : []),
+        ),
         data.details,
       );
     return data;

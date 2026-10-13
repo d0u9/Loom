@@ -6,7 +6,7 @@ test("Item category badges and reserved note space align cards", async ({
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const post = async (path: string, data: any) =>
     (
@@ -44,7 +44,7 @@ test("Item category badges and reserved note space align cards", async ({
   const compact = multiCard.locator(".category-compact-tag");
   if (info.project.name === "mobile") {
     await expect(compact).toBeVisible();
-    await expect(compact).toHaveText(localized["fixture.d7ceb3549000"]);
+    await expect(compact).toHaveText(localized["fixture.c49044b713d3"]);
     await expect(
       multiCard.locator(".category-detail-tag").first(),
     ).toBeHidden();

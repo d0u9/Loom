@@ -1,4 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t, message, type LocalizedText } from "./i18n.js";
+import { errorText, resourceLabels } from "./labels.js";
 import { ActionTools } from "./action-tools.js";
 import { ItemSummary } from "./item-summary.js";
 import { Button } from "./button.js";
@@ -53,7 +55,7 @@ export function Documents({
     // Checklist read mode: tick only, no add rows or add actions; view choice, never saved.
     [reading, setReading] = useState(false),
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
-    [status, setStatus] = useState(""),
+    [status, setStatus] = useState<LocalizedText>(""),
     [revisions, setRevisions] = useState<any[]>([]),
     [history, setHistory] = useState<any>(null),
     [editingName, setEditingName] = useState<string | null>(null),
@@ -79,7 +81,7 @@ export function Documents({
     [newName, setNewName] = useState(""),
     [createBusy, setCreateBusy] = useState(false),
     [pickerOpen, setPickerOpen] = useState(false),
-    [sectionError, setSectionError] = useState("");
+    [sectionError, setSectionError] = useState<LocalizedText>("");
   const latest = useRef<any>(null),
     saving = useRef(false),
     pending = useRef<any>(null),
@@ -108,7 +110,7 @@ export function Documents({
     checks.current.clear();
     failedChecks.current.clear();
     void refresh().catch((e) => {
-      if (active) setStatus(String(e));
+      if (active) setStatus(errorText(e));
     });
     if (documentId)
       void (async () => {
@@ -126,7 +128,7 @@ export function Documents({
           if (active) setRevisions(revisions);
         }
       })().catch((e) => {
-        if (active) setStatus(String(e));
+        if (active) setStatus(errorText(e));
       });
     return () => {
       active = false;
@@ -141,7 +143,7 @@ export function Documents({
     leaveGuard.guard = () =>
       !saving.current &&
       ((!dirty && !checks.current.size && !failedChecks.current.size) ||
-        ask(localized["Discard pending changes and leave?"], localized["Discard and leave"]));
+        ask(t(localized["Discard pending changes and leave?"]), t(localized["Discard and leave"])));
     window.addEventListener("beforeunload", leave);
     return () => {
       window.removeEventListener("beforeunload", leave);
@@ -152,7 +154,7 @@ export function Documents({
     try {
       await fn();
     } catch (e) {
-      setStatus(String(e));
+      setStatus(errorText(e));
       if (
         e instanceof ApiError &&
         Array.isArray(e.details) &&
@@ -176,7 +178,7 @@ export function Documents({
         saving.current ||
         checks.current.size ||
         failedChecks.current.size) &&
-      !(await ask(localized["Discard changes and open another checklist?"], localized["Discard changes"]))
+      !(await ask(t(localized["Discard changes and open another checklist?"]), t(localized["Discard changes"])))
     )
       return;
     if (key !== documentId) {
@@ -260,7 +262,7 @@ export function Documents({
       if (kind === "template")
         setRevisions(await api("/templates/" + result.id + "/revisions"));
     } catch (e) {
-      setStatus(String(e) + localized["; retry is available. Reload if there is a conflict."]);
+      setStatus(message(errorText(e), localized["; retry is available. Reload if there is a conflict."]));
     } finally {
       saving.current = false;
     }
@@ -274,7 +276,7 @@ export function Documents({
   const newEntry = (item: any) => ({
     id: crypto.randomUUID(),
     itemId: item?.id || null,
-    name: item?.name || localized["New entry"],
+    name: item?.name || t(localized["New entry"]),
     quantity: "",
     unit: "",
     note: "",
@@ -318,7 +320,7 @@ export function Documents({
       setStatus(localized["Check saved"]);
     } catch (e) {
       failedChecks.current.set(key, { docId, request });
-      setStatus(String(e) + localized["; retry the check."]);
+      setStatus(message(errorText(e), localized["; retry the check."]));
     } finally {
       checks.current.delete(key);
       setDoc({ ...latest.current });
@@ -421,7 +423,7 @@ export function Documents({
       await open(d.id);
     } catch (e) {
       if (e instanceof ApiError && e.status < 500) creation.current = null;
-      setStatus(String(e));
+      setStatus(errorText(e));
     } finally {
       setCreateBusy(false);
     }
@@ -429,18 +431,18 @@ export function Documents({
   if (documentId && !doc)
     return (
       <Page
-        title={kind === "template" ? "Template" : "Checklist"}
+        title={kind === "template" ? t(localized["Template"]) : t(localized["Checklist"])}
         showView={false}
         onBack={() => onNavigate(null)}
       >
-        <p role="status">{status || localized["Loading…"]}</p>
+        <p role="status">{t(status) || t(localized["Loading…"])}</p>
       </Page>
     );
   const display = history || doc;
   // Progress and success fit beside the title; problems stay in the page.
   const quiet =
-    [localized["Saving…"], localized["Saved"], localized["Check saved"]].includes(status) ||
-    status.startsWith(localized["Completed "]);
+    [t(localized["Saving…"]), t(localized["Saved"]), t(localized["Check saved"])].includes(t(status)) ||
+    t(status).startsWith(t(localized["Completed "]));
   function sectionLabel(key: string): string {
     const section = (doc?.sections ?? []).find((s: any) => s.id === key);
     const parts: string[] = [];
@@ -488,7 +490,7 @@ export function Documents({
   }
   function sectionOptions() {
     return [
-      { value: "", label: localized["Root"] },
+      { value: "", label: t(localized["Root"]) },
       ...(doc.sections ?? []).map((s: any) => ({
         value: s.id,
         label: sectionLabel(s.id),
@@ -537,8 +539,10 @@ export function Documents({
       >
         <Icon name="add" />
         <input
-          aria-label={label ? localized["New temporary entry · "] + label : localized["New temporary entry"]}
-          placeholder={label ? localized["Add to “"] + label + localized["Add prompt suffix"] : localized["Add temporary entry…"]}
+          aria-label={label ? t(localized["New temporary entry · "]) + label : t(localized["New temporary entry"])}
+          placeholder={
+            label ? t(localized["Add to “"]) + label + localized["Add prompt suffix"] : t(localized["Add temporary entry…"])
+          }
           value={value}
           data-1p-ignore="true"
           autoComplete="off"
@@ -580,16 +584,14 @@ export function Documents({
         query,
         d.name,
         d.useDate,
-        d.status === "archived" ? localized["Archived"] : localized["Active"],
+        d.status === "archived" ? t(localized["Archived"]) : t(localized["Active"]),
       ),
   );
 
   return (
     <Page
       search={!doc ? { value: query, onChange: onSearch } : undefined}
-      title={
-        doc ? display.name : kind === "template" ? "Template" : "Checklist"
-      }
+      title={doc ? display.name : kind === "template" ? t(localized["Template"]) : t(localized["Checklist"])}
       onBack={
         doc
           ? async () => {
@@ -609,7 +611,7 @@ export function Documents({
               ...(kind === "checklist"
                 ? [
                     {
-                      label: reading ? localized["Edit mode"] : localized["Reading mode"],
+                      label: reading ? t(localized["Edit mode"]) : t(localized["Reading mode"]),
                       icon: reading
                         ? ("edit" as const)
                         : ("checklist" as const),
@@ -618,7 +620,7 @@ export function Documents({
                       onClick: () => setReading((value) => !value),
                     },
                     {
-                      label: hideDone ? localized["Show completed"] : localized["Hide completed"],
+                      label: hideDone ? t(localized["Show completed"]) : t(localized["Hide completed"]),
                       icon: "filter" as const,
                       pressed: hideDone,
                       iconOnly: true,
@@ -627,7 +629,7 @@ export function Documents({
                   ]
                 : []),
               {
-                label: localized["New section"],
+                label: t(localized["New section"]),
                 icon: "sectionAdd",
                 iconOnly: true,
                 hidden: reading,
@@ -640,14 +642,14 @@ export function Documents({
               ...(kind === "template"
                 ? [
                     {
-                      label: localized["Add entries"],
+                      label: t(localized["Add entries"]),
                       icon: "add" as const,
                       iconOnly: true,
                       onClick: () => setAddOpen(true),
                     },
                     // Common action: instantiate the latest revision directly.
                     {
-                      label: localized["Create checklist"],
+                      label: t(localized["Create checklist"]),
                       icon: "checklist" as const,
                       iconOnly: true,
                       disabled: !revisions.length,
@@ -662,19 +664,19 @@ export function Documents({
       primaryAction={
         !doc
           ? {
-              label: localized["New "] + (kind === "template" ? "Template" : "Checklist"),
+              label: t(localized["New "]) + (kind === "template" ? t(localized["Template"]) : t(localized["Checklist"])),
               onClick: create,
             }
           : kind === "template"
             ? {
-                label: localized["fixture.9031f7ab2f77"],
+                label: t(localized["Save revision"]),
                 icon: "save",
                 onClick: () => void save(),
                 disabled: saving.current || !!history,
               }
             : !history && doc.status === "active"
               ? {
-                  label: localized["Add entries"],
+                  label: t(localized["Add entries"]),
                   hidden: reading,
                   onClick: () => setAddOpen(true),
                 }
@@ -688,20 +690,24 @@ export function Documents({
     >
       {!quiet && status && (
         <p role="alert" className="error">
-          {status}
+          {t(status)}
         </p>
       )}
       {creating && (
         <ResourceDialog
-          title={localized["New "] + (kind === "template" ? "Template" : "Checklist")}
+          title={t(localized["New "]) + (kind === "template" ? t(localized["Template"]) : t(localized["Checklist"]))}
           name={newName}
           onNameChange={setNewName}
-          error={status}
+          error={t(status)}
           fieldsDisabled={createBusy || !!creation.current}
           cancelDisabled={createBusy || !!creation.current}
           submitDisabled={createBusy}
           submitLabel={
-            createBusy ? localized["Creating…"] : creation.current ? localized["Retry creation"] : localized["Create"]
+            createBusy
+              ? t(localized["Creating…"])
+              : creation.current
+                ? t(localized["Retry creation"])
+                : t(localized["Create"])
           }
           onSubmit={() => {
             void submitCreate();
@@ -711,7 +717,9 @@ export function Documents({
           }}
         >
           {kind === "checklist" && (
-            <label>{localized["\n              Use date (optional)\n              "]}<input
+            <label>
+              {t(localized["Use date (optional)"])}
+              <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
@@ -727,14 +735,16 @@ export function Documents({
             for (const [key, failed] of failedChecks.current)
               void sendCheck(failed.docId, key, failed.request);
           }}
-        >{localized["\n          Retry check\n        "]}</Button>
+        >
+          {t(localized["Retry check"])}
+        </Button>
       )}
       {pickerOpen && (
         <Modal
-          aria-label={localized["fixture.276901239a13"]}
+          aria-label={t(localized["Choose item from category"])}
           onClose={() => setPickerOpen(false)}
         >
-          <h3>{localized["fixture.420ecfe42f1c"]}</h3>
+          <h3>{t(localized["Choose item"])}</h3>
           {picker.length ? (
             picker.map((i) => (
               <Button
@@ -748,15 +758,17 @@ export function Documents({
               </Button>
             ))
           ) : (
-            <p>{localized["fixture.b0e7d3a8e1a7"]}</p>
+            <p>{t(localized["This category has no items"])}</p>
           )}
-          <Button onClick={() => setPickerOpen(false)}>{localized["Cancel"]}</Button>
+          <Button onClick={() => setPickerOpen(false)}>{t(localized["Cancel"])}</Button>
         </Modal>
       )}
       {linking && (
-        <Modal aria-label={localized["fixture.5b90b5e5288b"]} onClose={() => setLinking(null)}>
-          <label>{localized["fixture.6d10b531e1ca"]}<Select
-              aria-label={localized["fixture.616dd958fcd2"]}
+        <Modal aria-label={t(localized["Link category"])} onClose={() => setLinking(null)}>
+          <label>
+            {t(localized["Target category"])}
+            <Select
+              aria-label={t(localized["Target category"])}
               value={linking.categoryId}
               onChange={(categoryId) => setLinking({ ...linking, categoryId })}
               options={categories.map((c) => ({ value: c.id, label: c.name }))}
@@ -778,29 +790,34 @@ export function Documents({
               });
               setLinking(null);
             }}
-          >{localized["\n            Link\n          "]}</Button>
-          <Button onClick={() => setLinking(null)}>{localized["Cancel"]}</Button>
+          >
+            {t(localized["Link"])}
+          </Button>
+          <Button onClick={() => setLinking(null)}>{t(localized["Cancel"])}</Button>
         </Modal>
       )}
       {doc &&
         !history &&
         doc.status === "active" &&
         duplicateItems(doc).length > 0 && (
-          <Modal aria-label={localized["Merge duplicate entries"]} onClose={() => onNavigate(null)}>
-            <h3>{localized["Duplicate entries: choose data to keep"]}</h3>
+          <Modal
+            aria-label={t(localized["Merge duplicate entries"])}
+            onClose={() => onNavigate(null)}
+          >
+            <h3>{t(localized["Duplicate entries: choose data to keep"])}</h3>
             {duplicateItems(doc).map((d) => (
               <label key={d.itemId}>
                 {d.entries[0].name}
                 <Select
-                  aria-label={localized["Keep "] + d.entries[0].name}
-                  placeholder={localized["Choose values to keep"]}
+                  aria-label={t(localized["Keep "]) + d.entries[0].name}
+                  placeholder={t(localized["Choose values to keep"])}
                   value={mergeTargets[d.itemId] || ""}
                   onChange={(id) =>
                     setMergeTargets({ ...mergeTargets, [d.itemId]: id })
                   }
                   options={d.entries.map((e) => ({
                     value: e.id,
-                    label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]]
+                    label: [e.note, e.checked ? t(localized["Checked"]) : t(localized["Unchecked"])]
                       .filter(Boolean)
                       .join(" · "),
                   }))}
@@ -815,13 +832,20 @@ export function Documents({
                 change({ ...doc, ...mergeContent(doc, mergeTargets) });
                 setMergeTargets({});
               }}
-            >{localized["\n              Merge and keep all sources\n            "]}</Button>
+            >
+              {t(localized["Merge and keep all sources"])}
+            </Button>
           </Modal>
         )}
       {noteEditor && (
-        <Modal aria-label={localized["Edit note"]} onClose={() => setNoteEditor(null)}>
-          <h3>{noteEditor.name}{localized[" 's note"]}</h3>
-          <label>{localized["\n            Note\n            "]}<textarea
+        <Modal aria-label={t(localized["Edit note"])} onClose={() => setNoteEditor(null)}>
+          <h3>
+            {noteEditor.name}
+            {t(localized["'s note"])}
+          </h3>
+          <label>
+            {t(localized["Note"])}
+            <textarea
               data-1p-ignore="true"
               autoComplete="off"
               autoFocus
@@ -838,16 +862,23 @@ export function Documents({
                 updateEntry(noteEditor.id, { note: noteEditor.note });
                 setNoteEditor(null);
               }}
-            >{localized["\n              Save\n            "]}</Button>
-            <Button onClick={() => setNoteEditor(null)}>{localized["Cancel"]}</Button>
+            >
+              {t(localized["Save"])}
+            </Button>
+            <Button onClick={() => setNoteEditor(null)}>{t(localized["Cancel"])}</Button>
           </div>
         </Modal>
       )}
       {entryMove && (
-        <Modal aria-label={localized["Move entry"]} onClose={() => setEntryMove(null)}>
-          <h3>{localized["Move "]}{entryMove.name}</h3>
-          <label>{localized["\n            Section\n            "]}<Select
-              aria-label={localized["Section "] + entryMove.name}
+        <Modal aria-label={t(localized["Move entry"])} onClose={() => setEntryMove(null)}>
+          <h3>
+            {t(localized["Move"])}
+            {entryMove.name}
+          </h3>
+          <label>
+            {t(localized["Section"])}
+            <Select
+              aria-label={t(localized["Section "]) + entryMove.name}
               value={entryMove.sectionId || ""}
               onChange={(id) =>
                 setEntryMove({ ...entryMove, sectionId: id || null })
@@ -860,14 +891,16 @@ export function Documents({
               updateEntry(entryMove.id, { sectionId: entryMove.sectionId });
               setEntryMove(null);
             }}
-          >{localized["\n            Move\n          "]}</Button>
-          <Button onClick={() => setEntryMove(null)}>{localized["Cancel"]}</Button>
+          >
+            {t(localized["Move"])}
+          </Button>
+          <Button onClick={() => setEntryMove(null)}>{t(localized["Cancel"])}</Button>
         </Modal>
       )}
       {sectionEditor && (
         <ResourceDialog
-          submitLabel={localized["Save section"]}
-          title={sectionEditor.id ? localized["Edit section"] : localized["New section"]}
+          submitLabel={t(localized["Save section"])}
+          title={sectionEditor.id ? t(localized["Edit section"]) : t(localized["New section"])}
           name={sectionName}
           onNameChange={setSectionName}
           error={sectionError}
@@ -893,12 +926,14 @@ export function Documents({
               setSectionEditor(null);
               setSectionError("");
             } catch (e) {
-              setSectionError(String(e));
+              setSectionError(errorText(e));
             }
           }}
         >
-          <label>{localized["\n            Parent section\n            "]}<Select
-              aria-label={localized["Parent section"]}
+          <label>
+            {t(localized["Parent section"])}
+            <Select
+              aria-label={t(localized["Parent section"])}
               value={sectionParent}
               onChange={setSectionParent}
               options={sectionOptions().filter(
@@ -936,33 +971,40 @@ export function Documents({
                   {kind === "checklist" ? (
                     <span
                       className="document-progress"
-                      aria-label={`${localized["Completed "]}${d.done}/${d.total}`}
-                      title={`${localized["Completed "]}${d.done}/${d.total}`}
+                      aria-label={t(localized["Completed "]) + d.done + "/" + d.total + ""}
+                      title={t(localized["Completed "]) + d.done + "/" + d.total + ""}
                     >
                       <Icon name="check" />
                       {d.done}/{d.total}
                     </span>
                   ) : (
-                    `${d.total}${localized[" items"]}`
+                    "" + d.total + t(localized[" items"])
                   )}
                   {d.status === "archived" && (
                     <span className="document-archive">
-                      <span className="document-meta-separator"> · </span>{localized["Archived\n                    "]}</span>
+                      <span className="document-meta-separator"> · </span>
+                      {t(localized["Archived"])}
+                    </span>
                   )}
                 </p>
               </RecordCard>
             ))}
           </Collection>
           {query.trim() && records.length === 0 && (
-            <p className="empty">{localized["No matching results."]}</p>
+            <p className="empty">{t(localized["No matching results."])}</p>
           )}
         </>
       ) : (
         <>
           {menuOpen && (
-            <Modal aria-label={localized["Checklist settings"]} onClose={() => setMenuOpen(false)}>
-              <h3>{localized["Settings and actions"]}</h3>
-              <label>{localized["\n                Name\n                "]}<input
+            <Modal
+              aria-label={t(localized["Checklist settings"])}
+              onClose={() => setMenuOpen(false)}
+            >
+              <h3>{t(localized["Settings and actions"])}</h3>
+              <label>
+                {t(localized["Name"])}
+                <input
                   data-1p-ignore="true"
                   autoComplete="off"
                   value={display.name}
@@ -973,9 +1015,11 @@ export function Documents({
                 />
               </label>
               {kind === "checklist" && (
-                <label>{localized["\n                  Use date\n                  "]}<input
+                <label>
+                  {t(localized["Use date"])}
+                  <input
                     type="date"
-                    aria-label={localized["Use date"]}
+                    aria-label={t(localized["Use date"])}
                     data-1p-ignore="true"
                     value={display.useDate ?? ""}
                     disabled={!!history || doc.status === "archived"}
@@ -1010,10 +1054,10 @@ export function Documents({
                         )
                       }
                       options={[
-                        { value: "", label: localized["Current content"] },
+                        { value: "", label: t(localized["Current content"]) },
                         ...revisions.map((r) => ({
                           value: String(r.revision),
-                          label: "revision " + r.revision,
+                          label: t(localized["Revision "]) + r.revision,
                         })),
                       ]}
                     />
@@ -1024,7 +1068,9 @@ export function Documents({
                         await startHistory("instantiate");
                       })
                     }
-                  >{localized["fixture.ad0f2d04ee05"]}</Button>
+                  >
+                    {t(localized["Create checklist from this revision"])}
+                  </Button>
                 </div>
               )}
               <div
@@ -1040,7 +1086,10 @@ export function Documents({
                       void attempt(async () => {
                         if (
                           !dirty ||
-                          (await ask(localized["Discard local changes and reload?"], localized["Reload"]))
+                          (await ask(
+                            t(localized["Discard local changes and reload?"]),
+                            t(localized["Reload"]),
+                          ))
                         ) {
                           pending.current = null;
                           setDirty(false);
@@ -1048,14 +1097,18 @@ export function Documents({
                         }
                       })
                     }
-                  >{localized["\n                    Reload\n                  "]}</Button>
+                  >
+                    {t(localized["Reload"])}
+                  </Button>
                 </div>
                 <div className="toolbar">
                   {kind === "checklist" && doc.status === "active" && (
                     <Button
                       disabled={saving.current || !!history}
                       onClick={() => void save()}
-                    >{localized["\n                      Save / Retry\n                    "]}</Button>
+                    >
+                      {t(localized["Save / Retry"])}
+                    </Button>
                   )}
                   {kind === "checklist" && doc.status === "active" && (
                     <Button
@@ -1084,25 +1137,33 @@ export function Documents({
                           await refresh();
                         })
                       }
-                    >{localized["\n                      Archive\n                    "]}</Button>
+                    >
+                      {t(localized["Archive"])}
+                    </Button>
                   )}
                   {doc.status === "archived" && (
                     <Button
                       onClick={() =>
                         void attempt(() => startHistory("restore"))
                       }
-                    >{localized["\n                      Restore archive\n                    "]}</Button>
+                    >
+                      {t(localized["Restore archive"])}
+                    </Button>
                   )}
                   {kind === "checklist" && (
                     <>
                       <Button
                         onClick={() => void attempt(() => startHistory("copy"))}
-                      >{localized["\n                        Copy checklist\n                      "]}</Button>
+                      >
+                        {t(localized["Copy checklist"])}
+                      </Button>
                       <Button
                         onClick={() =>
                           void attempt(() => startHistory("template"))
                         }
-                      >{localized["\n                        Convert to template\n                      "]}</Button>
+                      >
+                        {t(localized["Convert to template"])}
+                      </Button>
                     </>
                   )}
                   {kind === "template" && (
@@ -1117,8 +1178,8 @@ export function Documents({
                       onClick={async () => {
                         if (
                           await ask(
-                            localized["fixture.ad75728133c6"],
-                            localized["Delete template"],
+                            t(localized["Delete the template and all revisions? Existing checklists will remain."]),
+                            t(localized["Delete template"]),
                           )
                         )
                           void attempt(async () => {
@@ -1132,7 +1193,9 @@ export function Documents({
                           });
                       }}
                     >
-                      <Icon name="trash" />{localized["\n                      Delete template\n                    "]}</Button>
+                      <Icon name="trash" />
+                      {t(localized["Delete template"])}
+                    </Button>
                   )}
                   {kind === "checklist" && (
                     <Button
@@ -1144,7 +1207,12 @@ export function Documents({
                         failedChecks.current.size > 0
                       }
                       onClick={async () => {
-                        if (await ask(localized["Permanently delete this checklist? This cannot be undone."], localized["Delete checklist"]))
+                        if (
+                          await ask(
+                            t(localized["Permanently delete this checklist? This cannot be undone."]),
+                            t(localized["Delete checklist"]),
+                          )
+                        )
                           void attempt(async () => {
                             await api("/checklists/" + doc.id, "DELETE", {
                               version: doc.version,
@@ -1156,17 +1224,27 @@ export function Documents({
                           });
                       }}
                     >
-                      <Icon name="trash" />{localized["\n                      Delete checklist\n                    "]}</Button>
+                      <Icon name="trash" />
+                      {t(localized["Delete checklist"])}
+                    </Button>
                   )}
                 </div>
               </div>
             </Modal>
           )}
           {historyAction && (
-            <Modal onClose={() => setHistoryAction(null)} aria-label={localized["History actions"]}>
-              <h3>{localized["Confirm "]}{historyAction.action}</h3>
-              <p className="error">{status}</p>
-              <label>{localized["\n                Name\n                "]}<input
+            <Modal
+              onClose={() => setHistoryAction(null)}
+              aria-label={t(localized["History actions"])}
+            >
+              <h3>
+                {t(localized["Confirm"])}
+                {historyAction.action}
+              </h3>
+              <p className="error">{t(status)}</p>
+              <label>
+                {t(localized["Name"])}
+                <input
                   data-1p-ignore="true"
                   autoComplete="off"
                   value={historyAction.name}
@@ -1181,7 +1259,9 @@ export function Documents({
               </label>
               {(historyAction.action === "instantiate" ||
                 historyAction.action === "copy") && (
-                <label>{localized["\n                  Use date (optional)\n                  "]}<input
+                <label>
+                  {t(localized["Use date (optional)"])}
+                  <input
                     type="date"
                     value={historyAction.useDate}
                     onChange={(e) =>
@@ -1196,14 +1276,17 @@ export function Documents({
               )}
               {historyAction.items.map((i: any) => (
                 <fieldset key={i.id}>
-                  <legend>{localized["fixture.3ff2c475d562"]}{i.name}</legend>
+                  <legend>
+                    {t(localized["Deleted item:"])}
+                    {i.name}
+                  </legend>
                   <Select
-                    aria-label={localized["Resolution "] + i.name}
+                    aria-label={t(localized["Resolution "]) + i.name}
                     value={resolutions[i.id]?.mode ?? "temporary"}
                     options={[
-                      { value: "temporary", label: localized["Keep as temporary entry"] },
-                      { value: "existing", label: localized["fixture.9a8dfd51e08d"] },
-                      { value: "new", label: localized["fixture.2b109ccf2461"] },
+                      { value: "temporary", label: t(localized["Keep as temporary entry"]) },
+                      { value: "existing", label: t(localized["Link existing item"]) },
+                      { value: "new", label: t(localized["Create new item"]) },
                     ]}
                     onChange={(mode) => {
                       setHistoryAction({
@@ -1222,8 +1305,8 @@ export function Documents({
                   />
                   {resolutions[i.id]?.mode === "existing" && (
                     <Select
-                      aria-label={localized["fixture.5a10ca43d247"]}
-                      placeholder={localized["fixture.420ecfe42f1c"]}
+                      aria-label={t(localized["Target item"])}
+                      placeholder={t(localized["Choose item [744e14fef1f3]"])}
                       value={resolutions[i.id]?.itemId || ""}
                       options={items.map((x) => ({
                         value: x.id,
@@ -1248,7 +1331,7 @@ export function Documents({
                     <input
                       data-1p-ignore="true"
                       autoComplete="off"
-                      aria-label={localized["fixture.4877ba70dffd"]}
+                      aria-label={t(localized["New item name"])}
                       value={resolutions[i.id]?.name || ""}
                       onChange={(e) => {
                         setHistoryAction({
@@ -1269,13 +1352,15 @@ export function Documents({
               ))}
               {(historyAction.duplicates ?? []).map((d: any) => (
                 <label key={d.itemId}>
-                  {d.entries[0].name}{localized[": choose values to keep\n                  "]}<Select
-                    aria-label={d.entries[0].name + localized[": choose values to keep"]}
-                    placeholder={localized["Choose"]}
+                  {d.entries[0].name}
+                  {t(localized[": choose values to keep"])}
+                  <Select
+                    aria-label={d.entries[0].name + t(localized[": choose values to keep"])}
+                    placeholder={t(localized["Choose"])}
                     value={mergeTargets[d.itemId] || ""}
                     options={d.entries.map((e: any) => ({
                       value: e.id,
-                      label: [e.note, e.checked ? localized["Checked"] : localized["Unchecked"]]
+                      label: [e.note, e.checked ? t(localized["Checked"]) : t(localized["Unchecked"])]
                         .filter(Boolean)
                         .join(" · "),
                     }))}
@@ -1293,7 +1378,10 @@ export function Documents({
                 </label>
               ))}
               {historyAction.categories.map((g: any) => (
-                <p key={g.id}>{g.name}{localized[" Deleted; kept as a static group."]}</p>
+                <p key={g.id}>
+                  {g.name}
+                  {t(localized["Deleted; kept as a static group."])}
+                </p>
               ))}
               <Button
                 onClick={() =>
@@ -1318,26 +1406,34 @@ export function Documents({
                       body,
                     );
                     setHistoryAction(null);
-                    setStatus(localized["Completed "] + result.name);
+                    setStatus(message(localized["Completed "], { literal: result.name }));
                     await refreshCatalog();
                     await refresh();
                     if (result.kind === kind) await open(result.id);
                   })
                 }
-              >{localized["\n                Confirm / Retry\n              "]}</Button>
-              <Button onClick={() => setHistoryAction(null)}>{localized["Cancel"]}</Button>
+              >
+                {t(localized["Confirm / Retry"])}
+              </Button>
+              <Button onClick={() => setHistoryAction(null)}>
+                {t(localized["Cancel"])}
+              </Button>
             </Modal>
           )}
           {kind === "checklist" && (
             <p className="entries-progress">
               {display.entries.filter((e: any) => e.checked).length} /{" "}
-              {display.entries.length}{localized[" Completed\n            "]}</p>
+              {display.entries.length}
+              {t(localized["Completed"])}
+            </p>
           )}
           {addOpen && !history && doc.status === "active" && (
-            <Modal aria-label={localized["Add entries"]} onClose={() => setAddOpen(false)}>
-              <h3>{localized["Add entries"]}</h3>
-              <label>{localized["\n                Add to section\n                "]}<Select
-                  aria-label={localized["Add to section"]}
+            <Modal aria-label={t(localized["Add entries"])} onClose={() => setAddOpen(false)}>
+              <h3>{t(localized["Add entries"])}</h3>
+              <label>
+                {t(localized["Add to section"])}
+                <Select
+                  aria-label={t(localized["Add to section"])}
                   value={targetSection}
                   onChange={setTargetSection}
                   options={sectionOptions()}
@@ -1348,14 +1444,16 @@ export function Documents({
                 <div
                   className="view-switch source-switch"
                   role="tablist"
-                  aria-label={localized["Entry source"]}
+                  aria-label={t(localized["Entry source"])}
                 >
                   {(["Item", "Category"] as const).map((mode) => (
                     <Button
                       key={mode}
                       variant="ghost"
                       role="tab"
-                      aria-label={`${localized["From "]}${mode}${localized[" add"]}`}
+                      aria-label={
+                        mode === "Item" ? t(localized["Add from items"]) : t(localized["Add from categories"])
+                      }
                       aria-selected={addMode === mode}
                       onClick={() => {
                         setAddMode(mode);
@@ -1363,14 +1461,14 @@ export function Documents({
                       }}
                     >
                       <Icon name={mode === "Item" ? "item" : "category"} />
-                      {mode}
+                      {mode === "Item" ? t(localized["Item"]) : t(localized["Category"])}
                     </Button>
                   ))}
                 </div>
               </div>
               <input
-                aria-label={localized["Search "] + addMode}
-                placeholder={localized["Search by name or pinyin "] + addMode}
+                aria-label={t(localized["Search "]) + resourceLabels[addMode]}
+                placeholder={t(localized["Search by name or pinyin "]) + resourceLabels[addMode]}
                 data-1p-ignore="true"
                 autoComplete="off"
                 value={itemQuery}
@@ -1401,7 +1499,7 @@ export function Documents({
                         <span>{c.name}</span>
                         <Button
                           variant="ghost"
-                          aria-label={localized["From "] + c.name + localized[" Choose item"]}
+                          aria-label={t(localized["From "]) + c.name + t(localized[" Choose item"])}
                           onClick={() =>
                             void attempt(async () => {
                               const members = await api(
@@ -1416,25 +1514,34 @@ export function Documents({
                               setPickerOpen(true);
                             })
                           }
-                        >{localized["\n                          Choose item\n                        "]}</Button>
+                        >
+                          {t(localized["Choose item [f00f6cfadf64]"])}
+                        </Button>
                         <Button
                           variant="ghost"
-                          aria-label={localized["Add category "] + c.name}
+                          aria-label={t(localized["Add category "]) + c.name}
                           onClick={() =>
                             void attempt(async () => {
                               await categoryPreview(c.id);
                               setAddOpen(false);
                             })
                           }
-                        >{localized["\n                          Add category\n                        "]}</Button>
+                        >
+                          {t(localized["Add category"])}
+                        </Button>
                       </div>
                     ))}
                 {!(addMode === "Item" ? items : categories).some((x) =>
                   matchesSearch(itemQuery, x.name),
-                ) && <p>{localized["No matching "]}{addMode}</p>}
+                ) && (
+                  <p>
+                    {t(localized["No matching"])}
+                    {" " + resourceLabels[addMode]}
+                  </p>
+                )}
               </div>
               <div className="form-actions">
-                <Button onClick={() => setAddOpen(false)}>{localized["Cancel"]}</Button>
+                <Button onClick={() => setAddOpen(false)}>{t(localized["Cancel"])}</Button>
               </div>
             </Modal>
           )}
@@ -1451,14 +1558,14 @@ export function Documents({
                       g.name}
                   </span>
                   <span className="entry-group-kind">
-                    {g.categoryId ? localized["Category snapshot"] : localized["Static group"]}
+                    {g.categoryId ? t(localized["Category snapshot"]) : t(localized["Static group"])}
                   </span>
                   {!history && doc.status === "active" && (
                     <>
                       <Button
                         variant="icon"
-                        aria-label={localized["fixture.5b90b5e5288b"]}
-                        title={localized["fixture.5b90b5e5288b"]}
+                        aria-label={t(localized["Link category"])}
+                        title={t(localized["Link category"])}
                         onClick={() => {
                           setLinking({
                             groupId: g.id,
@@ -1470,8 +1577,8 @@ export function Documents({
                       </Button>
                       <Button
                         variant="icon"
-                        aria-label="Update to latest"
-                        title="Update to latest"
+                        aria-label={t(localized["Update to latest"])}
+                        title={t(localized["Update to latest"])}
                         disabled={!g.categoryId}
                         onClick={() =>
                           void attempt(() =>
@@ -1483,8 +1590,8 @@ export function Documents({
                       </Button>
                       <Button
                         variant="icon"
-                        aria-label={localized["Remove category source"]}
-                        title={localized["Remove category source"]}
+                        aria-label={t(localized["Remove category source"])}
+                        title={t(localized["Remove category source"])}
                         onClick={() =>
                           change({ ...doc, ...removeGroup(doc, g.id) })
                         }
@@ -1498,21 +1605,38 @@ export function Documents({
             </div>
           )}
           {preview && (
-            <Modal onClose={() => setPreview(null)} aria-label={localized["Category update preview"]}>
-              <h3>{preview.group.name}{localized[" · Update preview"]}</h3>
-              <p className="error">{status}</p>
-              <p>{localized["\n                Added "]}{preview.added.length}{localized[", removed sources "]}{preview.removed.length}
+            <Modal
+              onClose={() => setPreview(null)}
+              aria-label={t(localized["Category update preview"])}
+            >
+              <h3>
+                {preview.group.name}
+                {t(localized["· Update preview"])}
+              </h3>
+              <p className="error">{t(status)}</p>
+              <p>
+                {t(localized["Added"])}
+                {preview.added.length}
+                {t(localized[", removed sources"])}
+                {preview.removed.length}
               </p>
               {preview.added.map((i: any) => (
                 <p key={i.id}>+ {i.name}</p>
               ))}
               {preview.duplicates.map((i: any) => (
-                <p key={i.id}>{i.name}{localized[": merge automatically, keeping existing data and position"]}</p>
+                <p key={i.id}>
+                  {i.name}
+                  {t(localized[": merge automatically, keeping existing data and position"])}
+                </p>
               ))}
               {preview.excluded.length > 0 && (
                 <section className="excluded-picker">
                   <div className="excluded-head">
-                    <h4>{localized["Excluded "]}{preview.excluded.length}{localized[" entries · ignored by default"]}</h4>
+                    <h4>
+                      {t(localized["Excluded"])}
+                      {preview.excluded.length}
+                      {t(localized["entries · ignored by default"])}
+                    </h4>
                     <Button
                       variant="ghost"
                       onClick={() =>
@@ -1521,7 +1645,9 @@ export function Documents({
                           restore: preview.excluded.map((i: any) => i.id),
                         })
                       }
-                    >{localized["\n                      Restore all\n                    "]}</Button>
+                    >
+                      {t(localized["Restore all"])}
+                    </Button>
                   </div>
                   <div className="entries">
                     {preview.excluded.map((i: any) => (
@@ -1542,7 +1668,9 @@ export function Documents({
                         />
                         <span>{i.name}</span>
                         <span className="excluded-hint">
-                          {preview.restore.includes(i.id) ? localized["Restore"] : localized["Ignore"]}
+                          {preview.restore.includes(i.id)
+                            ? t(localized["Restore"])
+                            : t(localized["Ignore"])}
                         </span>
                       </label>
                     ))}
@@ -1551,11 +1679,13 @@ export function Documents({
               )}
               {preview.removed.map((e: any) => (
                 <p key={e.id}>
-                  {e.name}{localized[": sources "]}{e.groupIds.length + Number(e.direct)} →{" "}
+                  {e.name}
+                  {t(localized[": sources"])}
+                  {e.groupIds.length + Number(e.direct)} →{" "}
                   {e.groupIds.length - 1 + Number(e.direct)}
                   {e.direct || e.groupIds.length > 1
-                    ? localized["(keep entry)"]
-                    : localized["(remove entry)"]}
+                    ? t(localized["(keep entry)"])
+                    : t(localized["(remove entry)"])}
                 </p>
               ))}
               <Button
@@ -1590,8 +1720,10 @@ export function Documents({
                     setPreview(null);
                   })
                 }
-              >{localized["\n                Apply selection\n              "]}</Button>
-              <Button onClick={() => setPreview(null)}>{localized["Cancel"]}</Button>
+              >
+                {t(localized["Apply selection"])}
+              </Button>
+              <Button onClick={() => setPreview(null)}>{t(localized["Cancel"])}</Button>
             </Modal>
           )}
           <div className="entries">
@@ -1622,7 +1754,7 @@ export function Documents({
                       ? 0
                       : undefined
                   }
-                  aria-label={localized["Section "] + row.section.name}
+                  aria-label={t(localized["Section "]) + row.section.name}
                   // The whole heading toggles; its edit/delete buttons do not.
                   onClick={(event) => {
                     if (
@@ -1654,8 +1786,9 @@ export function Documents({
                     className="section-toggle"
                     aria-expanded={!collapsed.has(row.section.id)}
                     aria-label={
-                      (collapsed.has(row.section.id) ? localized["Expand "] : localized["Collapse "]) +
-                      row.section.name
+                      (collapsed.has(row.section.id)
+                        ? t(localized["Expand "])
+                        : t(localized["Collapse "])) + row.section.name
                     }
                   >
                     <Icon name="forward" />
@@ -1665,7 +1798,7 @@ export function Documents({
                     <ActionTools name={row.section.name}>
                       <Button
                         variant="icon"
-                        aria-label={localized["Edit section "] + row.section.name}
+                        aria-label={t(localized["Edit section "]) + row.section.name}
                         onClick={() => {
                           setSectionEditor(row.section);
                           setSectionName(row.section.name);
@@ -1677,8 +1810,8 @@ export function Documents({
                       <Button
                         className="danger"
                         variant="icon"
-                        aria-label={localized["Delete section "] + row.section.name}
-                        title={localized["Delete section and move content up"]}
+                        aria-label={t(localized["Delete section "]) + row.section.name}
+                        title={t(localized["Delete section and move content up"])}
                         onClick={() =>
                           change({
                             ...doc,
@@ -1708,7 +1841,7 @@ export function Documents({
                           "name entry-name-display " +
                           (e.checked ? "checked" : "")
                         }
-                        aria-label={localized["Entry name"]}
+                        aria-label={t(localized["Entry name"])}
                         onClick={() => setEditingName(e.id)}
                       >
                         {e.name}
@@ -1730,7 +1863,7 @@ export function Documents({
                         }}
                         data-1p-ignore="true"
                         autoComplete="off"
-                        aria-label={localized["Entry name"]}
+                        aria-label={t(localized["Entry name"])}
                         className={"name " + (e.checked ? "checked" : "")}
                         value={linkedItem?.name || e.name}
                         disabled={
@@ -1785,7 +1918,7 @@ export function Documents({
                           <input
                             data-1p-ignore="true"
                             autoComplete="off"
-                            aria-label={localized["Check "] + e.name}
+                            aria-label={t(localized["Check "]) + e.name}
                             type="checkbox"
                             style={{
                               marginRight: "0",
@@ -1818,10 +1951,10 @@ export function Documents({
                         title={
                           e.groupIds.length +
                           Number(e.direct) +
-                          localized[" sources (category and direct)"]
+                          t(localized[" sources (category and direct)"])
                         }
                         aria-label={
-                          e.groupIds.length + Number(e.direct) + localized[" sources"]
+                          e.groupIds.length + Number(e.direct) + t(localized[" sources"])
                         }
                       >
                         <Icon name="source" />
@@ -1832,8 +1965,8 @@ export function Documents({
                           {editable && (
                             <Button
                               variant="icon"
-                              aria-label={localized["Edit note "] + e.name}
-                              title={localized["Edit note"]}
+                              aria-label={t(localized["Edit note "]) + e.name}
+                              title={t(localized["Edit note"])}
                               onClick={() =>
                                 setNoteEditor({
                                   id: e.id,
@@ -1850,8 +1983,8 @@ export function Documents({
                               {(doc.sections ?? []).length > 0 && (
                                 <Button
                                   variant="icon"
-                                  aria-label={localized["Move "] + e.name}
-                                  title={localized["Move to section"]}
+                                  aria-label={t(localized["Move "]) + e.name}
+                                  title={t(localized["Move to section"])}
                                   onClick={() => setEntryMove(e)}
                                 >
                                   <Icon name="forward" />
@@ -1859,8 +1992,8 @@ export function Documents({
                               )}
                               <Button
                                 variant="icon"
-                                aria-label={localized["Remove "] + e.name}
-                                title={localized["Remove"]}
+                                aria-label={t(localized["Remove "]) + e.name}
+                                title={t(localized["Remove"])}
                                 onClick={() =>
                                   change({
                                     ...doc,

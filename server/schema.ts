@@ -136,6 +136,7 @@ export function responseSchema(url: string, method: string) {
     return method === "GET" ? list(category) : category;
   if (path.endsWith("/order"))
     return object({ itemIds: list(uuid), version: { type: "integer" } });
+  if (path.endsWith("/checklists") && method === "POST") return documentSchema;
   if (path.startsWith("/categories/")) return category;
   if (path === "/documents" && method === "GET") return list(summary);
   if (path.endsWith("/revisions"))

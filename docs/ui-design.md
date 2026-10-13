@@ -215,3 +215,15 @@ Completed Checklist entries display after incomplete entries and child sections 
 - Checklist header reading/editing mode uses checklist/pencil icons (checklist while editing, pencil while reading); hiding completed uses a fixed ListFilter icon. Both express active state with aria-pressed: pale-green background/green icon when active, pale-gray background/body-text icon when inactive; hover retains active highlighting.
 
 - Checklist list metadata uses separate date, completion progress, and archive-status columns. Retain the date column even without an execution date; align progress icons/numbers across rows and use no separator dots. Cards retain left-aligned dates and right-aligned progress.
+
+- Item catalog offers sorting by name or Group, ascending/descending, defaulting to name ascending, using Chinese name comparison and natural numeric sorting. Within each sorted group, sort by name; Ungrouped is an empty group (first ascending, last descending). Sorting intersects with search/Group filtering, is shared by cards/lists, and changes neither database nor Category member order.
+
+Mobile Item Group bar occupies one horizontally scrollable line; show each edge's 24px fade only when tags remain offscreen on that side. Desktop retains wrapping. Keyboard selection scrolls into view, first/last tags reach the boundary, and group drag/drop remains.
+
+- Category member addition supports continuous operations: successful addition of existing or newly created Items keeps the Modal open. Clear name, notes, and Group in the creation form, restore the current category default, and focus name. Failure retains input and original requestId for retry; exit only when the user explicitly cancels or closes.
+
+- A Checklist can be created directly from the Category detail header, defaulting its name to the category name and offering an optional execution date. Within a transaction, the server validates the Category version and member set, then creates an independent member snapshot and category source. Deduplicate with requestId so retrying the original request does not create duplicates; subsequent category changes do not synchronize automatically.
+
+- The framework interface is consistently Chinese, with Chinese equivalents of Item, Category, Template, Checklist, Group, revision, and Update to latest. Navigation, buttons, dialogs, accessible names, states, and user errors use consistent terminology; internal API/routes/code identifiers and user-data names stay unchanged, retaining Loom branding and necessary technical diagnostic names.
+
+- The interface switches between Chinese/English using centralized translations in web/i18n.ts and web/translations.ts. Chinese is currently the default; browsers persist loom.language across refresh. Login and shared account areas offer switching; anonymous phone mode retains four resource links and language access. Synchronize all fixed text, accessible labels, calendar, and errors; user names/notes/Group data are not translated. New copy requires English translations too, without API/database changes. This replaces the earlier Chinese-only rule.

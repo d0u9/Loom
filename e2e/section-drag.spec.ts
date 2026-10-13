@@ -11,7 +11,7 @@ test("dragging changes section levels and moves entries into any section", async
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const [a, b, c] = [
     crypto.randomUUID(),

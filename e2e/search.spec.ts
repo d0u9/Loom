@@ -7,7 +7,7 @@ test("four resource directories share live search in card and list views", async
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -39,10 +39,10 @@ test("four resource directories share live search in card and list views", async
     });
   }
   for (const [path, section] of [
-    ["items", "Item"],
-    ["categories", "Category"],
-    ["templates", "Template"],
-    ["checklists", "Checklist"],
+    ["items", localized["Item"]],
+    ["categories", localized["Category"]],
+    ["templates", localized["Template"]],
+    ["checklists", localized["Checklist"]],
   ]) {
     await page.goto("/" + path);
     const search = page.getByRole("searchbox", { name: localized["Search"], exact: true });
@@ -65,15 +65,15 @@ test("four resource directories share live search in card and list views", async
     await expect(
       cards.getByRole("heading", { name, exact: true }),
     ).toBeVisible();
-    if (section === "Item") {
+    if (section === localized["Item"]) {
       await search.fill("remarkneedle " + info.project.name);
       await expect(cards).toHaveCount(1);
-    } else if (section === "Category") {
+    } else if (section === localized["Category"]) {
       await search.fill(name);
       await expect(
         cards.getByRole("heading", { name, exact: true }),
       ).toBeVisible();
-    } else if (section === "Checklist") {
+    } else if (section === localized["Checklist"]) {
       await search.fill("2027-05-23");
       await expect(
         cards.getByRole("heading", { name, exact: true }),
@@ -93,11 +93,11 @@ test("four resource directories share live search in card and list views", async
     .getByRole("searchbox", { name: localized["Search"], exact: true })
     .fill(name.toLowerCase());
   await expect(page.locator(".record-card")).toHaveCount(0);
-  await page.getByRole("link", { name: "Checklist", exact: true }).click();
+  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
   await expect(
     page.locator(".record-card").getByRole("heading", { name, exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Template", exact: true }).click();
+  await page.getByRole("link", { name: localized["Template"], exact: true }).click();
   await expect(
     page.getByRole("searchbox", { name: localized["Search"], exact: true }),
   ).toHaveValue("");

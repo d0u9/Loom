@@ -6,7 +6,7 @@ test("category single rows sort with keyboard and pointer and survive reload", a
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const post = async (path: string, data: any) =>
     (
@@ -30,7 +30,7 @@ test("category single rows sort with keyboard and pointer and survive reload", a
   });
   async function open() {
     await page.reload();
-    await page.getByRole("link", { name: "Category", exact: true }).click();
+    await page.getByRole("link", { name: localized["Category"], exact: true }).click();
     await page
       .getByRole("button", { name: localized["Open "] + c.name, exact: true })
       .click();

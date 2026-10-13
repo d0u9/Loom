@@ -1,6 +1,7 @@
 import { Store, id, requireThat } from "./db.js";
 import { writeGroups } from "./groups.js";
 import {
+  compose,
   validateSections,
   mergeContent,
   duplicateItems,
@@ -292,6 +293,58 @@ export const contentSchema = {
   groups: { type: "array", maxItems: 1000, items: group },
 };
 export function registerDocuments(route: Route, store: Store) {
+  route(
+    "POST",
+    "/categories/:id/checklists",
+    obj(
+      {
+        name: short,
+        useDate: useDateSchema,
+        version,
+        requestId: uuid,
+        memberIds: { type: "array", items: uuid, uniqueItems: true },
+      },
+      ["name", "version", "memberIds", "requestId"],
+    ),
+    (req: any) =>
+      store.once("category-checklist:" + req.params.id, req.body, () => {
+        const category = store.resource("categories", req.params.id);
+        store.version(category, req.body.version);
+        const memberIds = store.members(category.id);
+        requireThat(
+          memberIds.length === req.body.memberIds.length &&
+            memberIds.every((key) => req.body.memberIds.includes(key)),
+          "Category members changed; reload before creating",
+          409,
+        );
+        const members = store.all(
+          "SELECT i.* FROM item_categories c JOIN items i ON i.id=c.itemId WHERE c.categoryId=? ORDER BY c.position, c.itemId",
+          category.id,
+        );
+        const content = compose(
+          { entries: [], groups: [], sections: [] },
+          {
+            id: id(),
+            categoryId: category.id,
+            originalCategoryId: category.id,
+            name: category.name,
+            members: [],
+            excluded: [],
+          },
+          members,
+          id,
+        );
+        return createDocument(
+          store,
+          "checklist",
+          req.body.name,
+          content,
+          null,
+          false,
+          req.body.useDate ?? null,
+        );
+      }),
+  );
   route("GET", "/documents", null, () =>
     store
       .all(

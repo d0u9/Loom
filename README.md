@@ -73,7 +73,7 @@ Database schema is currently version 1 (`server/db.ts`, recorded in `PRAGMA user
 
 ### Global Configuration and Authentication-Disabled Mode
 
-Root `loom.config.json` is global configuration read at startup, retaining login by default:
+`data/loom.config.json` is global configuration read at startup, retaining login by default:
 
 ```json
 {
@@ -83,6 +83,12 @@ Root `loom.config.json` is global configuration read at startup, retaining login
 
 Set enabled to false, then restart `pnpm dev` or the production service to use Web and API without login. The root opens `/checklists` directly, other direct links retain their paths, and sign-out is hidden; account initialization is unnecessary. Writes still first obtain csrf from `/api/v1/session` and then supply x-csrf-token; valid Bearer tokens also remain usable.
 
-`LOOM_CONFIG=/absolute/path/config.json pnpm start` specifies a configuration file. Docker can mount it at `/app/loom.config.json` or specify LOOM_CONFIG. Invalid JSON/types/unknown fields and missing custom paths fail startup, preventing invalid configuration from silently taking effect. A missing default file still enables login. Optional `auth.loginRateLimit` (positive integer, login attempts per minute) defaults to 10; retain the production default. Only e2e passes a higher value in `e2e/start.ts`. Database, listening address, and port continue using existing environment variables.
+`LOOM_CONFIG=/absolute/path/config.json pnpm start` specifies a configuration file. Docker can mount it at `/data/loom.config.json` or specify LOOM_CONFIG. Invalid JSON/types/unknown fields and missing custom paths fail startup, preventing invalid configuration from silently taking effect. A missing default file still enables login. Optional `auth.loginRateLimit` (positive integer, login attempts per minute) defaults to 10; retain the production default. Only e2e passes a higher value in `e2e/start.ts`. Database, listening address, and port continue using existing environment variables.
 
 Disabling login lets anyone who can connect to the service access and modify all data, including LAN devices. Re-enabling login does not delete data or accounts. If no account was initialized, first create it using the init steps above, then enable login and restart.
+
+Move to another machine: Stop the service and wait for exit, copy the entire `data/` into `data/` in the same project version, then start without reinitializing the account. Default configuration moves together with the database. If `LOOM_DB` or `LOOM_CONFIG` was set, copy the specified files separately. Move old project-root `loom.config.json` to `data/loom.config.json`; the new location does not automatically read the old one. A missing default file enables authentication. `data/` is private local data; do not commit it to Git or include it in images.
+
+## Interface Language
+
+Chinese and English are supported. Switch using English / Chinese on the login page and at the bottom of navigation, also available on mobile and with authentication disabled. Chinese is the default. The current browser stores the language choice and retains it on refresh; user data such as item names, notes, and group names remains unchanged.

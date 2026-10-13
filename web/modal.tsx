@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import React, { useLayoutEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "./button.js";
@@ -61,7 +62,7 @@ export function ask(message: string, confirmLabel: string): Promise<boolean> {
           <Button autoFocus variant="danger" onClick={() => done(true)}>
             {confirmLabel}
           </Button>
-          <Button onClick={() => done(false)}>{localized["Cancel"]}</Button>
+          <Button onClick={() => done(false)}>{t(localized["Cancel"])}</Button>
         </div>
       </Modal>,
     );

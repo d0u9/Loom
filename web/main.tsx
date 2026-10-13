@@ -1,4 +1,12 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import {
+  t,
+  message,
+  type LocalizedText,
+  useLanguage,
+  setLanguage,
+} from "./i18n.js";
+import { resourceLabels, errorText } from "./labels.js";
 import { ItemSummary } from "./item-summary.js";
 import { ItemFields } from "./item-fields.js";
 import { Button } from "./button.js";
@@ -7,27 +15,69 @@ import { CategoryList } from "./category-list.js";
 import { AppLayout, Page, Icon } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { ResourceDialog } from "./resource-dialog.js";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 import { api, setCsrf, leave, ApiError } from "./client.js";
 import { Documents } from "./documents.js";
 import { ask } from "./modal.js";
 function App() {
+  const language = useLanguage();
   const route = useRoute();
   const { section, date } = route;
   const categoryId = section === "Category" ? route.id : null;
   const [schedule, setSchedule] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [movingItem, setMovingItem] = useState(false);
+  const groupTabs = useRef<HTMLDivElement>(null);
+  const [itemSort, setItemSort] = useState("name");
+  const [itemSortDirection, setItemSortDirection] = useState("asc");
   const [itemGroup, setItemGroup] = useState<string | null>(null);
+  const [categoryCreation, setCategoryCreation] = useState<any>(null);
+  const [categoryCreateBusy, setCategoryCreateBusy] = useState(false);
+  const [categoryCreateError, setCategoryCreateError] =
+    useState<LocalizedText>("");
+  const categoryCreatePending = useRef<any>(null);
+  async function createCategoryChecklist() {
+    if (categoryCreateBusy) return;
+    setCategoryCreateBusy(true);
+    setCategoryCreateError("");
+    categoryCreatePending.current ??= {
+      categoryId: categoryCreation.id,
+      body: {
+        name: categoryCreation.name.trim(),
+        useDate: categoryCreation.useDate || null,
+        version: categoryCreation.version,
+        memberIds: categoryCreation.memberIds,
+        requestId: crypto.randomUUID(),
+      },
+    };
+    try {
+      const pending = categoryCreatePending.current;
+      const created = await api(
+        `/categories/${pending.categoryId}/checklists`,
+        "POST",
+        pending.body,
+      );
+      categoryCreatePending.current = null;
+      setCategoryCreation(null);
+      route.navigate(resourcePath("Checklist", created.id));
+      void refreshSchedule().catch((e) => setError(errorText(e)));
+    } catch (e) {
+      if (e instanceof ApiError && e.status < 500)
+        categoryCreatePending.current = null;
+      setCategoryCreateError(errorText(e));
+    } finally {
+      setCategoryCreateBusy(false);
+    }
+  }
   const refreshSchedule = async () => setSchedule(await api("/documents"));
   const [authEnabled, setAuthEnabled] = useState(true);
   const [username, setUsername] = useState("");
   const [logged, setLogged] = useState<boolean | null>(null),
     [items, setItems] = useState<any[]>([]),
     [categories, setCategories] = useState<any[]>([]),
-    [error, setError] = useState(""),
+    [error, setError] = useState<LocalizedText>(""),
     [editing, setEditing] = useState<any>(null),
     [addingMembers, setAddingMembers] = useState(false),
     [editingKind, setEditingKind] = useState("Item"),
@@ -50,13 +100,13 @@ function App() {
       if (e instanceof ApiError && e.status === 401) {
         route.resolveRoot("/items");
         setLogged(false);
-      } else setError(String(e));
+      } else setError(errorText(e));
       return;
     }
     try {
       await refresh();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     }
     setLogged(true);
   }
@@ -85,7 +135,7 @@ function App() {
       await fn();
     } catch (e) {
       if (e instanceof ApiError && e.status < 500) setCatalogPending(null);
-      setError(String(e));
+      setError(errorText(e));
     }
   }
   const categoryName = (id: string) =>
@@ -97,6 +147,25 @@ function App() {
   useEffect(() => {
     if (itemGroup && !itemGroups.includes(itemGroup)) setItemGroup(null);
   }, [items, itemGroup]);
+  useEffect(() => {
+    const tabs = groupTabs.current;
+    if (!tabs) return;
+    const update = () => {
+      tabs.dataset.fadeLeft = String(tabs.scrollLeft > 1);
+      tabs.dataset.fadeRight = String(
+        tabs.scrollWidth - tabs.clientWidth - tabs.scrollLeft > 1,
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(tabs);
+    for (const child of tabs.children) observer.observe(child);
+    tabs.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => {
+      observer.disconnect();
+      tabs.removeEventListener("scroll", update);
+    };
+  }, [section, logged, itemGroups.join("\n")]);
   const records = (section === "Item" ? items : categories).filter(
     (x) =>
       (section !== "Item" ||
@@ -110,24 +179,42 @@ function App() {
       ),
   );
 
+  if (section === "Item") {
+    const compare = new Intl.Collator("zh-CN", { numeric: true }).compare;
+    records.sort((a, b) => {
+      const order =
+        (itemSort === "group"
+          ? compare(a.itemGroup ?? "", b.itemGroup ?? "")
+          : 0) ||
+        compare(a.name, b.name) ||
+        compare(a.id, b.id);
+      return itemSortDirection === "asc" ? order : -order;
+    });
+  }
+
   if (logged === null)
     return error ? (
       <main className="login">
         <p className="error" role="alert">
-          {error}
+          {t(error)}
         </p>
-        <Button onClick={() => void loadSession()}>{localized["Retry"]}</Button>
+        <Button onClick={() => void loadSession()}>{t(localized["Retry"])}</Button>
       </main>
     ) : (
       <div aria-busy="true">
-        <p className="session-status" role="status">{localized["\n          Checking session…\n        "]}</p>
+        <p className="session-status" role="status">
+          {t(localized["Checking session…"])}
+        </p>
       </div>
     );
   if (!logged)
     return (
       <main className="login">
         <h1>Loom</h1>
-        <p>{localized["A place for everything on your checklist."]}</p>
+        <Button onClick={() => setLanguage(language === "zh" ? "en" : "zh")}>
+          {language === "zh" ? "English" : localized["fixture.72726d8818f6"]}
+        </Button>
+        <p>{t(localized["A place for everything on your checklist."])}</p>
         <form
           method="post"
           onSubmit={(e) => {
@@ -142,23 +229,29 @@ function App() {
             });
           }}
         >
-          <label>{localized["\n            Username\n            "]}<input
+          <label>
+            {t(localized["Username"])}
+            <input
               name="username"
               defaultValue="admin"
               autoComplete="username"
               required
             />
           </label>
-          <label>{localized["\n            Password\n            "]}<input
+          <label>
+            {t(localized["Password"])}
+            <input
               name="password"
               type="password"
               autoComplete="current-password"
               required
             />
           </label>
-          <Button type="submit" variant="primary">{localized["\n            Sign in\n          "]}</Button>
+          <Button type="submit" variant="primary">
+            {t(localized["Sign in"])}
+          </Button>
         </form>
-        <p role="alert">{error}</p>
+        <p role="alert">{t(error)}</p>
       </main>
     );
   return (
@@ -179,11 +272,48 @@ function App() {
           : undefined
       }
     >
+      {categoryCreation && (
+        <ResourceDialog
+          title={t(localized["Create checklist"])}
+          name={categoryCreation.name}
+          onNameChange={(name) =>
+            setCategoryCreation({ ...categoryCreation, name })
+          }
+          error={categoryCreateError}
+          fieldsDisabled={categoryCreateBusy || !!categoryCreatePending.current}
+          submitDisabled={categoryCreateBusy}
+          cancelDisabled={categoryCreateBusy || !!categoryCreatePending.current}
+          submitLabel={
+            categoryCreatePending.current ? t(localized["Retry creation"]) : t(localized["Create"])
+          }
+          onSubmit={() => void createCategoryChecklist()}
+          onClose={() => {
+            if (!categoryCreateBusy && !categoryCreatePending.current)
+              setCategoryCreation(null);
+          }}
+        >
+          <label>
+            {t(localized["Use date [8e8a943bc35e]"])}
+            <input
+              type="date"
+              data-1p-ignore="true"
+              autoComplete="off"
+              value={categoryCreation.useDate}
+              onChange={(e) =>
+                setCategoryCreation({
+                  ...categoryCreation,
+                  useDate: e.target.value,
+                })
+              }
+            />
+          </label>
+        </ResourceDialog>
+      )}
       <p role="alert" className="error">
-        {error}
+        {t(error)}
       </p>
       {!route.valid ? (
-        <p role="alert">{localized["Page not found."]}</p>
+        <p role="alert">{t(localized["Page not found."])}</p>
       ) : ["Item", "Category"].includes(section) ? (
         <Page
           search={
@@ -194,16 +324,41 @@ function App() {
           title={
             currentCategory && section === "Category"
               ? currentCategory.name
-              : section
+              : resourceLabels[section]
+          }
+          secondaryActions={
+            currentCategory && section === "Category"
+              ? [
+                  {
+                    label: t(localized["Create checklist"]),
+                    icon: "checklist",
+                    iconOnly: true,
+                    onClick: () => {
+                      setCategoryCreateError("");
+                      setCategoryCreation({
+                        id: currentCategory.id,
+                        version: currentCategory.version,
+                        memberIds: items
+                          .filter((i) =>
+                            i.categoryIds.includes(currentCategory.id),
+                          )
+                          .map((i) => i.id),
+                        name: currentCategory.name,
+                        useDate: date ?? "",
+                      });
+                    },
+                  },
+                ]
+              : undefined
           }
           primaryAction={
             currentCategory && section === "Category"
               ? {
-                  label: localized["Add members"],
+                  label: t(localized["Add members"]),
                   onClick: () => setAddingMembers(true),
                 }
               : {
-                  label: localized["New "] + section,
+                  label: t(localized["New "]) + resourceLabels[section],
                   onClick: () => {
                     setEditingKind(section);
                     setEditing({
@@ -220,7 +375,7 @@ function App() {
           !(section === "Category"
             ? currentCategory
             : items.find((i) => i.id === route.id)) ? (
-            <p role="alert">{localized["This resource does not exist or was deleted."]}</p>
+            <p role="alert">{t(localized["This resource does not exist or was deleted."])}</p>
           ) : section === "Category" && currentCategory ? (
             <CategoryList
               key={currentCategory.id}
@@ -252,9 +407,10 @@ function App() {
             <>
               {section === "Item" && (
                 <div
+                  ref={groupTabs}
                   className="item-group-tabs"
                   role="tablist"
-                  aria-label={localized["fixture.6a9cef532671"]}
+                  aria-label={t(localized["Item groups"])}
                 >
                   {[null, "", ...itemGroups].map((group) => (
                     <Button
@@ -283,19 +439,72 @@ function App() {
                                   tabs.length) %
                                 tabs.length;
                         tabs[target].click();
-                        tabs[target].focus();
+                        tabs[target].focus({ preventScroll: true });
+                        tabs[target].scrollIntoView({
+                          block: "nearest",
+                          inline: "nearest",
+                        });
+                        if (target === 0 || target === tabs.length - 1) {
+                          const container = event.currentTarget.parentElement!;
+                          container.scrollLeft =
+                            target === 0 ? 0 : container.scrollWidth;
+                        }
                       }}
                       aria-selected={itemGroup === group}
                       aria-controls="item-directory"
                       onClick={() => setItemGroup(group)}
                     >
-                      {group === null ? localized["All"] : group || localized["Ungrouped"]}
+                      {group === null ? t(localized["All"]) : group || t(localized["Ungrouped"])}
                     </Button>
                   ))}
                 </div>
               )}
+              {section === "Item" && (
+                <div className="item-sort-controls" aria-label={t(localized["Item sorting"])}>
+                  <div
+                    className="view-switch"
+                    role="group"
+                    aria-label={t(localized["Sort by"])}
+                  >
+                    {[
+                      ["name", t(localized["Name [79464200f2c3]"])],
+                      ["group", t(localized["Group"])],
+                    ].map(([value, label]) => (
+                      <Button
+                        key={value}
+                        variant="ghost"
+                        aria-pressed={itemSort === value}
+                        onClick={() => setItemSort(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <div
+                    className="view-switch"
+                    role="group"
+                    aria-label={t(localized["Sort direction"])}
+                  >
+                    {[
+                      ["asc", t(localized["Ascending"])],
+                      ["desc", t(localized["Descending"])],
+                    ].map(([value, label]) => (
+                      <Button
+                        key={value}
+                        variant="ghost"
+                        aria-pressed={itemSortDirection === value}
+                        onClick={() => setItemSortDirection(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {section === "Item" && movingItem && (
-                <p role="status" className="empty">{localized["\n                  Updating group…\n                "]}</p>
+                <p role="status" className="empty">
+                  {t(localized["Updating group…"])}
+                </p>
               )}
               <div
                 id={section === "Item" ? "item-directory" : undefined}
@@ -303,8 +512,8 @@ function App() {
                 aria-label={
                   section === "Item"
                     ? itemGroup === null
-                      ? localized["fixture.46bced5539f0"]
-                      : itemGroup || localized["fixture.326b3cdcb7f6"]
+                      ? t(localized["All items"])
+                      : itemGroup || t(localized["Ungrouped items"])
                     : undefined
                 }
               >
@@ -349,8 +558,8 @@ function App() {
                         <>
                           <Button
                             variant="icon"
-                            aria-label={localized["Edit"]}
-                            title={localized["Edit"]}
+                            aria-label={t(localized["Edit"])}
+                            title={t(localized["Edit"])}
                             onClick={() => {
                               if (section === "Item")
                                 route.navigate(resourcePath(section, x.id));
@@ -365,10 +574,12 @@ function App() {
                           <Button
                             variant="icon"
                             className="danger"
-                            aria-label={localized["Delete"]}
-                            title={localized["Delete"]}
+                            aria-label={t(localized["Delete"])}
+                            title={t(localized["Delete"])}
                             onClick={async () => {
-                              if (await ask(localized["Delete "] + x.name + localized["Question mark"], localized["Delete"]))
+                              if (
+                                await ask(t(localized["Delete "]) + x.name + localized["Question mark"], t(localized["Delete"]))
+                              )
                                 void attempt(async () => {
                                   await api(
                                     "/" +
@@ -394,8 +605,11 @@ function App() {
                       ) : (
                         <>
                           <h3>{x.name}</h3>
-                          <div className="category-tags" aria-label={localized["Parent category"]}>
-                            <span className="empty">{localized["Category"]}</span>
+                          <div
+                            className="category-tags"
+                            aria-label={t(localized["Parent category"])}
+                          >
+                            <span className="empty">{t(localized["Category"])}</span>
                           </div>
                         </>
                       )}
@@ -404,19 +618,22 @@ function App() {
                 </Collection>
               </div>
               {query.trim() && records.length === 0 && (
-                <p className="empty">{localized["No matching results."]}</p>
+                <p className="empty">{t(localized["No matching results."])}</p>
               )}
             </>
           )}
           {editing && (
             <ResourceDialog
-              title={(editing.id ? localized["Edit "] : localized["New "]) + editingKind}
+              title={
+                (editing.id ? t(localized["Edit "]) : t(localized["New "])) +
+                resourceLabels[editingKind]
+              }
               name={editing.name}
               onNameChange={(name) => setEditing({ ...editing, name })}
               error={error}
               fieldsDisabled={!!catalogPending}
               cancelDisabled={!!catalogPending}
-              submitLabel={catalogPending ? localized["Retry save"] : localized["Save"]}
+              submitLabel={catalogPending ? t(localized["Retry save"]) : t(localized["Save"])}
               onClose={() => {
                 if (!catalogPending) closeEditing();
               }}

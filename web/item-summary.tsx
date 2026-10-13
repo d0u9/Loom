@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import React, { useLayoutEffect, useRef } from "react";
 import { Icon } from "./layout.js";
 
@@ -42,16 +43,16 @@ export function ItemSummary({
       </p>
       <div
         className="category-tags"
-        aria-label={localized["Group and categories"]}
+        aria-label={t(localized["Group and categories"])}
         title={names.join(" · ")}
       >
         <span
           className="category-tag item-group-tag"
-          aria-label={localized["Group label prefix"] + (item.itemGroup || localized["Ungrouped"])}
-          title={localized["Group label prefix"] + (item.itemGroup || localized["Ungrouped"])}
+          aria-label={t(localized["Group:"]) + (item.itemGroup || t(localized["Ungrouped"]))}
+          title={t(localized["Group:"]) + (item.itemGroup || t(localized["Ungrouped"]))}
         >
           <Icon name="group" />
-          <span>{item.itemGroup || localized["Ungrouped"]}</span>
+          <span>{item.itemGroup || t(localized["Ungrouped"])}</span>
         </span>
         {shown.map((name: string) => (
           <span className="category-tag category-detail-tag" key={name}>
@@ -60,7 +61,7 @@ export function ItemSummary({
         ))}
         {rest > 0 && (
           <span className="category-tag category-tag-more category-detail-tag">
-            {shown.length ? "+" + rest : rest + localized[" categories"]}
+            {shown.length ? "+" + rest : rest + t(localized[" categories"])}
           </span>
         )}
         {names.length > 1 && (
@@ -68,7 +69,9 @@ export function ItemSummary({
             className="category-tag category-compact-tag"
             title={names.join(" · ")}
           >
-            {names.length}{localized[" categories\n          "]}</span>
+            {names.length}
+            {t(localized["categories"])}
+          </span>
         )}
       </div>
     </div>

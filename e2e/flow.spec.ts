@@ -7,15 +7,15 @@ test("catalog to template, checklist, archive and restore", async ({
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await page.getByRole("link", { name: "Category", exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.eb6e24aee1a6"] }).click();
+  await page.getByRole("link", { name: localized["Category"], exact: true }).click();
+  await page.getByRole("button", { name: localized["fixture.aa50ecc050be"] }).click();
   await page.getByLabel(localized["Name"], { exact: true }).fill("Food " + suffix);
   await page.getByRole("button", { name: localized["Save"], exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Food " + suffix, exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Item", exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.aa7084084271"] }).click();
+  await page.getByRole("link", { name: localized["Item"], exact: true }).click();
+  await page.getByRole("button", { name: localized["New item"] }).click();
   let droppedItem = false;
   await page.route("**/api/v1/items", async (route) => {
     if (route.request().method() === "POST" && !droppedItem) {
@@ -35,17 +35,15 @@ test("catalog to template, checklist, archive and restore", async ({
   await expect(
     page.getByRole("heading", { name: "egg " + suffix, exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Template", exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.7d56750df596"] }).click();
+  await page.getByRole("link", { name: localized["Template"], exact: true }).click();
+  await page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] }).click();
   await expect(
     page.getByRole("dialog").getByLabel(localized["Name"], { exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: localized["fixture.7d56750df596"] }),
-  ).toBeFocused();
-  await page.getByRole("button", { name: localized["fixture.7d56750df596"] }).click();
+  await expect(page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] })).toBeFocused();
+  await page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] }).click();
   let droppedDocument = false;
   await page.route("**/api/v1/documents", async (route) => {
     if (route.request().method() === "POST" && !droppedDocument) {
@@ -88,14 +86,10 @@ test("catalog to template, checklist, archive and restore", async ({
   await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
   // Item and Category are alternative sources, one tab each.
   const dialogBox = await page.getByRole("dialog").boundingBox();
-  await page
-    .getByRole("tab", { name: localized["fixture.2cec23ad2305"], exact: true })
-    .click();
+  await page.getByRole("tab", { name: localized["Add from categories"], exact: true }).click();
   expect(await page.getByRole("dialog").boundingBox()).toEqual(dialogBox);
-  await expect(page.getByLabel(localized["fixture.2de8d9b98b44"], { exact: true })).toHaveCount(0);
-  await page
-    .getByLabel(localized["fixture.132c3a2fd757"], { exact: true })
-    .fill("Food " + suffix);
+  await expect(page.getByLabel(localized["fixture.bb732b6bd964"], { exact: true })).toHaveCount(0);
+  await page.getByLabel(localized["fixture.ccb9b92a9911"], { exact: true }).fill("Food " + suffix);
   await page
     .getByRole("button", { name: localized["fixture.1db821558226"] + suffix, exact: true })
     .click();
@@ -103,7 +97,7 @@ test("catalog to template, checklist, archive and restore", async ({
   await expect(page.getByLabel(localized["Entry name"])).toHaveValue("egg " + suffix);
   // Quantity and unit are hidden for now.
   await expect(page.getByLabel("quantity", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: localized["fixture.9031f7ab2f77"] }).click();
+  await page.getByRole("button", { name: localized["Save revision"] }).click();
   await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
   // Instantiating is a top-level action, not hidden in the more menu.
   await page
@@ -116,7 +110,7 @@ test("catalog to template, checklist, archive and restore", async ({
     .fill("2026-10-20");
   await page.getByRole("button", { name: localized["Confirm / Retry"] }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("link", { name: "Checklist", exact: true }).click();
+  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
   await expect(
     page
       .getByRole("article")

@@ -6,7 +6,7 @@ test("category details show direct members and remove only the chosen membership
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -67,9 +67,7 @@ test("category details show direct members and remove only the chosen membership
   if (info.project.name === "mobile")
     await parentRow.locator(".action-tools summary").click();
   await parentRow.getByRole("button", { name: localized["Edit"], exact: true }).click();
-  await expect(
-    page.getByRole("dialog", { name: localized["fixture.2a9fc4c4bcc7"] }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: localized["fixture.b46f0b9bd727"] })).toBeVisible();
   // Touch has no Escape: tapping the backdrop closes the Modal.
   if (info.project.name === "mobile") await page.mouse.click(4, 4);
   else await page.keyboard.press("Escape");
@@ -157,9 +155,9 @@ test("category details show direct members and remove only the chosen membership
     .locator(".page-header")
     .getByRole("button", { name: localized["Add members"], exact: true })
     .click();
-  await page.getByLabel(localized["fixture.96e7231a24a2"], { exact: true }).click();
+  await page.getByLabel(localized["Add existing item"], { exact: true }).click();
   // The open list floats above the modal instead of being clipped by it.
-  const list = page.getByRole("listbox", { name: localized["fixture.96e7231a24a2"] });
+  const list = page.getByRole("listbox", { name: localized["Add existing item"] });
   const box = (await list.boundingBox())!;
   expect(
     await page.evaluate(
@@ -169,7 +167,7 @@ test("category details show direct members and remove only the chosen membership
   ).toBe(true);
   // Pinyin initials and syllables filter Chinese names: "jid" finds eggs.
   await page
-    .getByRole("combobox", { name: localized["fixture.96e7231a24a2"], exact: true })
+    .getByRole("combobox", { name: localized["Add existing item"], exact: true })
     .fill("jid");
   await expect(
     page.getByRole("option", { name: egg.name, exact: true }),
@@ -178,14 +176,14 @@ test("category details show direct members and remove only the chosen membership
     page.getByRole("option", { name: other.name, exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("combobox", { name: localized["fixture.96e7231a24a2"], exact: true })
+    .getByRole("combobox", { name: localized["Add existing item"], exact: true })
     .fill(other.name);
   await page.getByRole("option", { name: other.name, exact: true }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: localized["Add members"], exact: true })
     .click();
-  await expect(page.getByLabel(localized["fixture.96e7231a24a2"], { exact: true })).toHaveValue(
+  await expect(page.getByLabel(localized["Add existing item"], { exact: true })).toHaveValue(
     "",
   );
   await page.keyboard.press("Escape");
@@ -204,7 +202,7 @@ test("category details show direct members and remove only the chosen membership
         .click();
     await page
       .getByRole("dialog", { name: localized["Add members"], exact: true })
-      .getByRole("button", { name: localized["fixture.aa7084084271"], exact: true })
+      .getByRole("button", { name: localized["New item"], exact: true })
       .click();
   };
   await openCreate();
@@ -248,15 +246,35 @@ test("category details show direct members and remove only the chosen membership
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(1);
   await creation.getByRole("button", { name: localized["Retry save"], exact: true }).click();
-
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue("");
+  await expect(creation.getByLabel(localized["Name"], { exact: true })).toBeFocused();
+  await expect(creation.getByLabel(localized["Note"], { exact: true })).toHaveValue("");
+  await expect(
+    creation.getByRole("checkbox", { name: parent.name, exact: true }),
+  ).toBeChecked();
+  const secondName = "Another member " + info.project.name;
+  await creation.getByLabel(localized["Name"], { exact: true }).fill(secondName);
+  await creation
+    .getByRole("button", { name: localized["Create and add"], exact: true })
+    .click();
+  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue("");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await creation.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(
+    (await (await page.request.get("/api/v1/items")).json()).find(
+      (i: any) => i.name === secondName,
+    ).categoryIds,
+  ).toEqual([parent.id]);
   await expect(
     page.getByRole("heading", { name: newName, exact: true }),
   ).toBeVisible();
   const created = (await (await page.request.get("/api/v1/items")).json()).find(
     (i: any) => i.name === newName,
   );
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(3);
   expect(requests[1]).toEqual(requests[0]);
   expect(
     (await (await page.request.get("/api/v1/items")).json()).filter(

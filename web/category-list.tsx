@@ -1,4 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t, message, type LocalizedText } from "./i18n.js";
+import { errorText } from "./labels.js";
 import { ItemSummary } from "./item-summary.js";
 import { Icon } from "./layout.js";
 import { Button } from "./button.js";
@@ -36,8 +38,13 @@ export function CategoryList({
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<any>(null);
-  const [createError, setCreateError] = useState("");
+  const [createError, setCreateError] = useState<LocalizedText>("");
   const createPending = useRef<any>(null);
+  const createForm = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!busy && draft?.name === "")
+      createForm.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [busy]);
   useEffect(() => {
     if (!adding) {
       setDraft(null);
@@ -57,11 +64,15 @@ export function CategoryList({
       await api("/items", "POST", createPending.current);
       await onSorted();
       createPending.current = null;
-      setDraft(null);
-      onCloseAdd();
+      setDraft({
+        name: "",
+        note: "",
+        itemGroup: null,
+        categoryIds: [category.id],
+      });
     } catch (e) {
       if (e instanceof ApiError && e.status < 500) createPending.current = null;
-      setCreateError(String(e));
+      setCreateError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -70,12 +81,12 @@ export function CategoryList({
     itemIds: string[];
     version: number;
   } | null>(null);
-  const [sortError, setSortError] = useState("");
+  const [sortError, setSortError] = useState<LocalizedText>("");
   const pendingOrder = useRef<any>(null);
   const loadOrder = async () =>
     setOrder(await api(`/categories/${category.id}/order`));
   useEffect(() => {
-    void loadOrder().catch((e) => setSortError(String(e)));
+    void loadOrder().catch((e) => setSortError(errorText(e)));
   }, [category.id, items, categories]);
   async function saveOrder(ids: string[]) {
     if (!order || busy) return;
@@ -98,7 +109,7 @@ export function CategoryList({
       pendingOrder.current = null;
       await onSorted();
     } catch (e) {
-      setSortError(String(e));
+      setSortError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -128,14 +139,16 @@ export function CategoryList({
   return (
     <>
       <p className="error" role="status">
-        {sortError}
+        {t(sortError)}
       </p>
       {sortError && pendingOrder.current && (
         <div className="toolbar">
           <Button
             disabled={busy}
             onClick={() => void saveOrder(pendingOrder.current.itemIds)}
-          >{localized["\n            Retry sorting\n          "]}</Button>
+          >
+            {t(localized["Retry sorting"])}
+          </Button>
           <Button
             disabled={busy}
             onClick={() => {
@@ -143,21 +156,25 @@ export function CategoryList({
               setSortError("");
               void loadOrder();
             }}
-          >{localized["\n            Reload order\n          "]}</Button>
+          >
+            {t(localized["Reload order"])}
+          </Button>
         </div>
       )}
       {adding && (
         <Modal
-          aria-label={localized["Add members"]}
+          aria-label={t(localized["Add members"])}
           onClose={() => {
             if (!busy && !createPending.current) onCloseAdd();
           }}
         >
-          <h3>{localized["Add members"]}</h3>
+          <h3>{t(localized["Add members"])}</h3>
           <div className="member-picker">
-            <label>{localized["fixture.80bb5fdf0aea"]}<Select
-                aria-label={localized["fixture.96e7231a24a2"]}
-                placeholder={localized["fixture.215b81a888f2"]}
+            <label>
+              {t(localized["Add existing item"])}
+              <Select
+                aria-label={t(localized["Add existing item"])}
+                placeholder={t(localized["Filter items by name or pinyin"])}
                 value={selected}
                 disabled={busy || !!createPending.current}
                 onChange={setSelected}
@@ -179,7 +196,9 @@ export function CategoryList({
                 const item = items.find((i) => i.id === selected);
                 if (item) void update(item, [...item.categoryIds, category.id]);
               }}
-            >{localized["\n              Add members\n            "]}</Button>
+            >
+              {t(localized["Add members"])}
+            </Button>
           </div>
           <div className="member-create">
             <Button
@@ -198,11 +217,13 @@ export function CategoryList({
                       },
                 )
               }
-            >{localized["fixture.8395b2b50601"]}</Button>
+            >
+              {t(localized["New item"])}
+            </Button>
             {draft && (
-              <div id="new-category-item">
+              <div id="new-category-item" ref={createForm}>
                 <ResourceForm
-                  title={localized["fixture.aa7084084271"]}
+                  title={t(localized["New item"])}
                   name={draft.name}
                   onNameChange={(name) => setDraft({ ...draft, name })}
                   error={createError}
@@ -210,7 +231,7 @@ export function CategoryList({
                   submitDisabled={busy}
                   cancelDisabled={busy || !!createPending.current}
                   submitLabel={
-                    createPending.current ? localized["Retry save"] : localized["Create and add"]
+                    createPending.current ? t(localized["Retry save"]) : t(localized["Create and add"])
                   }
                   onSubmit={() => void createMember()}
                   onClose={() => {
@@ -231,7 +252,7 @@ export function CategoryList({
         </Modal>
       )}
       {order && members.length === 0 && (
-        <p className="empty">{localized["fixture.377668869c82"]}</p>
+        <p className="empty">{t(localized["This category has no items yet."])}</p>
       )}
       <div className="category-members">
         <Collection>
@@ -260,8 +281,8 @@ export function CategoryList({
                           key={id}
                           variant="icon"
                           disabled={busy}
-                          aria-label={localized["From "] + name + localized[" Remove"]}
-                          title={localized["From "] + name + localized[" Remove"]}
+                          aria-label={t(localized["From "]) + name + t(localized[" Remove"])}
+                          title={t(localized["From "]) + name + t(localized[" Remove"])}
                           onClick={() =>
                             void update(
                               item,

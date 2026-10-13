@@ -8,7 +8,7 @@ Loom manages reusable Items, centrally maintained Categories, Templates with rev
 
 v1 uses full-stack TypeScript: React/Vite frontend, Fastify backend, SQLite database. One service provides static Web and REST/JSON `/api/v1`, maintaining an OpenAPI contract. Start with personal single-user use; do not implement collaboration, offline synchronization, recurring generation, or a CLI client.
 
-SQLite stores relationships and mutable data; JSON with `schemaVersion` stores immutable historical snapshots. Global configuration uses loom.config.json, with LOOM_CONFIG specifying a file path; deployment settings such as database path and listening address continue using existing environment variables. JSON configuration and import/export are not the primary database. SQLite foreign keys must be enabled and writes use transactions. The database file resides on a persistent volume.
+SQLite stores relationships and mutable data; JSON with `schemaVersion` stores immutable historical snapshots. Global configuration uses data/loom.config.json, with LOOM_CONFIG specifying a file path; deployment settings such as database path and listening address continue using existing environment variables. JSON configuration and import/export are not the primary database. SQLite foreign keys must be enabled and writes use transactions. The database file resides on a persistent volume.
 
 All resource IDs (Item, Category, Template, Checklist, entry, category group) are UUIDs and never reused. Snapshot IDs have no foreign-key constraints; reusing IDs would incorrectly link history to new resources.
 
@@ -243,7 +243,7 @@ From 2026-10-13, the schema resets to version 1 (`server/db.ts`); all developmen
 
 ### Global configuration and optional authentication
 
-At startup, read auth.enabled from loom.config.json, defaulting to true. Explicit false permits anonymous Web and API use, including LAN devices, without account initialization. /session returns csrf and authEnabled; the frontend waits for it before deciding what to render. The anonymous root opens /checklists, authenticated mode still defaults to /items, and direct paths remain. Anonymous mode hides logout; login endpoints return 409 without fabricating sessions or creating accounts.
+At startup, read auth.enabled from data/loom.config.json, defaulting to true. Explicit false permits anonymous Web and API use, including LAN devices, without account initialization. /session returns csrf and authEnabled; the frontend waits for it before deciding what to render. The anonymous root opens /checklists, authenticated mode still defaults to /items, and direct paths remain. Anonymous mode hides logout; login endpoints return 409 without fabricating sessions or creating accounts.
 
 Anonymous non-Bearer writes must use process-level csrf returned by /session and validate Origin when supplied. Valid tokens still work; invalid tokens cannot bypass validation. Default mode retains secure sessions and revocable tokens. Re-enabling authentication changes neither accounts, database content, nor history; if no account exists in anonymous mode, initialize one before enabling authentication. Configuration changes require restart; a missing default file retains authentication, while a missing explicit path or invalid configuration fails startup. Disabling authentication means anyone who can reach the service over the network can read and modify data.
 
@@ -277,3 +277,5 @@ The latest target is at most two section levels, consistently for Template and C
 
 
 Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level.
+
+- A Checklist can be created directly from the Category detail header, defaulting its name to the category name and offering an optional execution date. Within a transaction, the server validates the Category version and member set, then creates an independent member snapshot and category source. Deduplicate with requestId so retrying the original request does not create duplicates; subsequent category changes do not synchronize automatically.

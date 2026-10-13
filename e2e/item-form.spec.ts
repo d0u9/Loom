@@ -7,7 +7,7 @@ test("Item form aligns labels and accessible category choices", async ({
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const name = localized["fixture.0f7696319105"] + info.project.name;
   await page.request.post("/api/v1/categories", {
@@ -15,7 +15,7 @@ test("Item form aligns labels and accessible category choices", async ({
     data: { name },
   });
   await page.reload();
-  await page.getByRole("button", { name: localized["fixture.aa7084084271"] }).click();
+  await page.getByRole("button", { name: localized["New item"] }).click();
   const dialog = page.getByRole("dialog");
   const input = dialog.getByLabel(localized["Name"], { exact: true });
   await expect(input).toBeFocused();

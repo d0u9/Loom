@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import React, { useRef, useState, useEffect, useLayoutEffect } from "react";
 import { Icon } from "./layout.js";
 
@@ -71,7 +72,7 @@ export function ActionTools({
         }
       }}
     >
-      <summary aria-label={localized["Actions "] + name} title={localized["Actions"]}>
+      <summary aria-label={t(localized["Actions "]) + name} title={t(localized["Actions"])}>
         <Icon name="more" />
       </summary>
       <div className="action-tools-content">{children}</div>

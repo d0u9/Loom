@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t, type LocalizedText } from "./i18n.js";
 import { Button } from "./button.js";
 import React from "react";
 import { Modal } from "./modal.js";
@@ -21,7 +22,7 @@ export function ResourceForm({
   onNameChange: (name: string) => void;
   onSubmit: () => void;
   onClose: () => void;
-  error?: string;
+  error?: LocalizedText;
   fieldsDisabled?: boolean;
   submitDisabled?: boolean;
   cancelDisabled?: boolean;
@@ -39,11 +40,13 @@ export function ResourceForm({
       <h3>{title}</h3>
       {error && (
         <p className="error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       <fieldset className="form-fields" disabled={fieldsDisabled}>
-        <label>{localized["\n          Name\n          "]}<input
+        <label>
+          {t(localized["Name"])}
+          <input
             autoFocus
             required
             maxLength={200}
@@ -59,7 +62,9 @@ export function ResourceForm({
         <Button type="submit" variant="primary" disabled={submitDisabled}>
           {submitLabel}
         </Button>
-        <Button type="button" disabled={cancelDisabled} onClick={onClose}>{localized["\n          Cancel\n        "]}</Button>
+        <Button type="button" disabled={cancelDisabled} onClick={onClose}>
+          {t(localized["Cancel"])}
+        </Button>
       </div>
     </form>
   );

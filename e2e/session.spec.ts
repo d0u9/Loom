@@ -7,7 +7,7 @@ test("refresh waits for session before showing login or authenticated content", 
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -21,7 +21,7 @@ test("refresh waits for session before showing login or authenticated content", 
   await expect(page.locator("main.login")).toHaveCount(0);
   await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
   release();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
 });
 
@@ -36,7 +36,7 @@ test("session failure offers retry and only 401 shows login", async ({
     }),
   );
   await page.goto("/");
-  await expect(page.getByRole("alert")).toContainText("Session unavailable");
+  await expect(page.getByRole("alert")).toContainText(localized["The service could not complete this action. Retry the original request."]);
   await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
   await page.unroute("**/api/v1/session");
   await page.getByRole("button", { name: localized["Retry"], exact: true }).click();

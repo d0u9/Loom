@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readConfig } from "../server/config.js";
@@ -32,6 +32,33 @@ test("global config accepts explicit booleans and rejects malformed or missing c
       /Invalid Loom config/,
     );
   } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("default config follows the copied data directory and explicit paths still win", () => {
+  const folder = mkdtempSync(join(tmpdir(), "loom-config-default-"));
+  const previousCwd = process.cwd();
+  const previousConfig = process.env.LOOM_CONFIG;
+  try {
+    process.chdir(folder);
+    delete process.env.LOOM_CONFIG;
+    assert.equal(readConfig().auth.enabled, true);
+    writeFileSync("loom.config.json", '{"auth":{"enabled":false}}');
+    assert.equal(readConfig().auth.enabled, true);
+    mkdirSync("data");
+    writeFileSync("data/loom.config.json", '{"auth":{"enabled":false}}');
+    assert.equal(readConfig().auth.enabled, false);
+    writeFileSync("data/loom.config.json", "{");
+    assert.throws(() => readConfig(), /Invalid Loom config/);
+    process.env.LOOM_CONFIG = "loom.config.json";
+    assert.equal(readConfig().auth.enabled, false);
+    process.env.LOOM_CONFIG = "missing.json";
+    assert.throws(() => readConfig(), /Invalid Loom config/);
+  } finally {
+    process.chdir(previousCwd);
+    if (previousConfig === undefined) delete process.env.LOOM_CONFIG;
+    else process.env.LOOM_CONFIG = previousConfig;
     rmSync(folder, { recursive: true, force: true });
   }
 });

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store, password, id } from "../server/db.js";
@@ -9,6 +9,8 @@ test("production server restart preserves data and request replay", async ({
 }) => {
   const folder = mkdtempSync(join(tmpdir(), "loom-restart-")),
     path = join(folder, "loom.sqlite");
+  const config = join(folder, "config.json");
+  writeFileSync(config, JSON.stringify({ auth: { enabled: true } }));
   let child: ReturnType<typeof spawn> | undefined;
   const db = new Store(path);
   db.run(
@@ -20,7 +22,7 @@ test("production server restart preserves data and request replay", async ({
   async function start() {
     const before = Date.now();
     child = spawn(process.execPath, ["dist/server/server/main.js"], {
-      env: { ...process.env, LOOM_DB: path, PORT: "3211" },
+      env: { ...process.env, LOOM_DB: path, LOOM_CONFIG: config, PORT: "3211" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     await new Promise<void>((resolve, reject) => {

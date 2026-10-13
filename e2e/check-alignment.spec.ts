@@ -5,7 +5,7 @@ test("check circles align across section depths", async ({ page }, info) => {
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
   await expect(
-    page.getByRole("button", { name: localized["fixture.b075aa0598f1"], exact: true }),
+    page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"], exact: true }),
   ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const sections = [0, 1, 2].map((i) => ({

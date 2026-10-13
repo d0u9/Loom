@@ -1,4 +1,6 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t, type LocalizedText, useLanguage, setLanguage } from "./i18n.js";
+import { resourceLabels } from "./labels.js";
 import {
   Check,
   ListFilter,
@@ -52,8 +54,8 @@ function NavigationLink({
   return (
     <a
       className="nav-link"
-      aria-label={name}
-      title={name}
+      aria-label={resourceLabels[name]}
+      title={resourceLabels[name]}
       href={resourcePath(name)}
       aria-current={active ? "page" : undefined}
       onClick={(event) => {
@@ -70,7 +72,7 @@ function NavigationLink({
       }}
     >
       <Icon name={icons[name as keyof typeof icons]} />
-      <span>{name}</span>
+      <span>{resourceLabels[name]}</span>
     </a>
   );
 }
@@ -94,13 +96,14 @@ export function AppLayout({
   onLogout?: () => void;
   children: React.ReactNode;
 }) {
+  const language = useLanguage();
   const accountRef = useRef<HTMLDetailsElement>(null);
   useOutsideClose(accountRef, true, () => {
     if (accountRef.current) accountRef.current.open = false;
   });
   return (
     <div className="layout">
-      <nav aria-label={localized["Main navigation"]}>
+      <nav aria-label={t(localized["Main navigation"])}>
         <h1>
           <img className="brand-mark" src="/apple-touch-icon.png" alt="" />
           Loom
@@ -116,7 +119,15 @@ export function AppLayout({
         ))}
         <footer className={"sidebar-account" + (onLogout ? "" : " anonymous")}>
           <Icon name={onLogout ? "user" : "unlock"} />
-          <span className="account-name">{onLogout ? username : localized["No sign-in required"]}</span>
+          <span className="account-name">
+            {onLogout ? username : t(localized["No sign-in required"])}
+          </span>
+          <Button
+            aria-label={language === "zh" ? localized["fixture.3e8e498593dc"] : "Switch to Chinese"}
+            onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+          >
+            {language === "zh" ? "English" : localized["fixture.72726d8818f6"]}
+          </Button>
           {onLogout && (
             <details
               ref={accountRef}
@@ -128,11 +139,11 @@ export function AppLayout({
                 }
               }}
             >
-              <summary aria-label={localized["Account menu"]} title={localized["Account menu"]}>
+              <summary aria-label={t(localized["Account menu"])} title={t(localized["Account menu"])}>
                 <Icon name="moreVertical" />
               </summary>
               <div className="account-menu">
-                <Button onClick={onLogout}>{localized["Sign out"]}</Button>
+                <Button onClick={onLogout}>{t(localized["Sign out"])}</Button>
               </div>
             </details>
           )}
@@ -143,7 +154,7 @@ export function AppLayout({
           <details className="mobile-calendar">
             <summary>
               <Icon name="forward" />
-              <span>{date || localized["Browse by date"]}</span>
+              <span>{date || t(localized["Browse by date"])}</span>
             </summary>
             <Calendar date={date} documents={schedule} onSelect={onDate} />
           </details>
@@ -197,7 +208,7 @@ export function Page({
   showView?: boolean;
   search?: { value: string; onChange: (value: string) => void };
   /** Short save state beside the title; the header keeps its height. */
-  status?: string;
+  status?: LocalizedText;
   children: React.ReactNode;
 }) {
   const [view, setViewState] = useState(readView);
@@ -215,8 +226,8 @@ export function Page({
             {onBack && (
               <Button
                 variant="icon"
-                aria-label={localized["Back"]}
-                title={localized["Back"]}
+                aria-label={t(localized["Back"])}
+                title={t(localized["Back"])}
                 onClick={onBack}
               >
                 <Icon name="back" />
@@ -224,18 +235,18 @@ export function Page({
             )}
             <h2>{title}</h2>
             {status !== undefined && (
-              <span role="status" className="page-status" title={status}>
-                {status}
+              <span role="status" className="page-status" title={t(status)}>
+                {t(status)}
               </span>
             )}
           </div>
           <div className="page-actions">
             {showView && (
-              <div className="view-switch" aria-label={localized["View"]}>
+              <div className="view-switch" aria-label={t(localized["View"])}>
                 <Button
                   variant="ghost"
-                  aria-label={localized["Cards"]}
-                  title={localized["Card view"]}
+                  aria-label={t(localized["Cards"])}
+                  title={t(localized["Card view"])}
                   aria-pressed={view === "cards"}
                   onClick={() => setView("cards")}
                 >
@@ -243,8 +254,8 @@ export function Page({
                 </Button>
                 <Button
                   variant="ghost"
-                  aria-label={localized["List"]}
-                  title={localized["List view"]}
+                  aria-label={t(localized["List"])}
+                  title={t(localized["List view"])}
                   aria-pressed={view === "list"}
                   onClick={() => setView("list")}
                 >
@@ -255,8 +266,8 @@ export function Page({
             {onMore && (
               <Button
                 variant="icon"
-                aria-label={localized["More actions"]}
-                title={localized["More actions"]}
+                aria-label={t(localized["More actions"])}
+                title={t(localized["More actions"])}
                 onClick={onMore}
               >
                 <Icon name="more" />
@@ -303,8 +314,8 @@ export function Page({
             <Icon name="search" />
             <input
               type="search"
-              aria-label={localized["Search"]}
-              placeholder={localized["Search…"]}
+              aria-label={t(localized["Search"])}
+              placeholder={t(localized["Search…"])}
               data-1p-ignore="true"
               autoComplete="off"
               value={search.value}
@@ -316,7 +327,7 @@ export function Page({
             {search.value && (
               <Button
                 variant="icon"
-                aria-label={localized["Clear search"]}
+                aria-label={t(localized["Clear search"])}
                 onClick={() => search.onChange("")}
               >
                 <Icon name="close" />

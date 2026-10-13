@@ -6,7 +6,7 @@ test("calendar schedules, marks and filters checklists", async ({
   await page.goto("/");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await page.getByRole("link", { name: "Checklist", exact: true }).click();
+  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
   if (info.project.name === "mobile")
     await page.locator(".mobile-calendar summary").click();
   const calendar =
@@ -33,7 +33,7 @@ test("calendar schedules, marks and filters checklists", async ({
     ).toBeLessThan(1);
   }
   await calendar.getByRole("button", { name: localized["Today"], exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.b075aa0598f1"] }).click();
+  await page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"] }).click();
   await page
     .getByRole("dialog")
     .getByLabel(localized["Name"], { exact: true })
@@ -60,7 +60,7 @@ test("calendar schedules, marks and filters checklists", async ({
       exact: true,
     }),
   ).toHaveCount(0);
-  await page.getByRole("link", { name: "Checklist", exact: true }).click();
+  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: "Calendar " + info.project.name,
@@ -115,7 +115,7 @@ test("checklist list aligns dates and progress when a date is absent", async ({
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
   await expect(
-    page.getByRole("button", { name: localized["fixture.b075aa0598f1"], exact: true }),
+    page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"], exact: true }),
   ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   for (const [name, useDate] of [

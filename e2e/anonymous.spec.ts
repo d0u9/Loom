@@ -63,7 +63,7 @@ test("global config opens checklists without login and auth can be re-enabled on
     await expect(
       page
         .locator(".page-header")
-        .getByRole("heading", { name: "Checklist", exact: true }),
+        .getByRole("heading", { name: localized["Checklist"], exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
     await expect(page.locator(".sidebar-account .account-name")).toHaveText(
@@ -73,9 +73,18 @@ test("global config opens checklists without login and auth can be re-enabled on
     await expect(
       page.getByRole("button", { name: localized["Sign out"], exact: true }),
     ).toHaveCount(0);
+    await page.getByRole("button", { name: localized["fixture.3e8e498593dc"], exact: true }).click();
+    await expect(
+      page.getByRole("link", { name: "Checklist", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "New Checklist", exact: true }),
+    ).toBeVisible();
     await page
-      .getByRole("button", { name: localized["fixture.b075aa0598f1"], exact: true })
+      .getByRole("button", { name: "Switch to Chinese", exact: true })
       .click();
+    await page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"], exact: true }).click();
     await page
       .getByRole("dialog")
       .getByLabel(localized["Name"], { exact: true })
@@ -110,7 +119,7 @@ test("global config opens checklists without login and auth can be re-enabled on
     await page.goto(base + "/items");
     await expect(page).toHaveURL(base + "/items");
     await expect(
-      page.getByRole("button", { name: localized["fixture.aa7084084271"], exact: true }),
+      page.getByRole("button", { name: localized["New item"], exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
     await stop();

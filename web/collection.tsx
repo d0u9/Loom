@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import { ActionTools } from "./action-tools.js";
 import { Button } from "./button.js";
 import { SortableRow } from "./sortable.js";
@@ -49,7 +50,7 @@ export function RecordCard({
       <Button
         variant="ghost"
         className="card-open"
-        aria-label={localized["Open "] + name}
+        aria-label={t(localized["Open "]) + name}
         onClick={onOpen}
       />
       <div className="record-content">

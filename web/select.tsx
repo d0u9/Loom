@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import { ChevronDown } from "lucide-react";
 import React, { useId, useState, useRef, useEffect } from "react";
 import { Button } from "./button.js";
@@ -69,7 +70,7 @@ export function Select({
   );
   const typed = value.trim();
   if (allowCustom && typed && !options.some((o) => o.value === typed))
-    choices.push({ value: typed, label: `${localized["Use “"]}${typed}”` });
+    choices.push({ value: typed, label: t(localized["Use “"]) + typed + "”" });
   const name = label ?? ariaLabel ?? "";
   const choose = (option: Option) => {
     onChange(option.value);
@@ -172,7 +173,7 @@ export function Select({
           className="combobox-options"
           style={place}
         >
-          {choices.length === 0 && <p className="empty">{localized["No matching options"]}</p>}
+          {choices.length === 0 && <p className="empty">{t(localized["No matching options"])}</p>}
           {choices.map((option, index) => (
             <Button
               key={option.value}

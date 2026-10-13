@@ -462,3 +462,60 @@ This section records design-stage plans; implementation/verification appears in 
 
 - UI icons consistently use lucide-react; shared Icon retains business-name mappings. Replace hand-written SVG in headers, view switches, search, editing, dropdown arrows, and checked backgrounds. Branding uses existing PNG resources; remove hand-drawn SVG assets. AGENTS/UI rules prohibit drawing or copying SVG icon paths.
 - pnpm 12.4.1 frozen-lockfile installation, type checking, and production build passed; 8 desktop/simulated-mobile regressions passed, covering shared headers, navigation, modal focus/keyboard, document actions, and check alignment. Catalog screenshots at both sizes checked. Full Web suite not run; real phones not tested.
+
+## Global configuration moves with data (2026-10-13)
+
+- Default configuration moves to data/loom.config.json, with existing root configuration moved unchanged. LOOM_CONFIG custom paths remain; missing default enables authentication, invalid configuration/missing custom path rejects startup. Docker /app/data links to /data persistent volume; local configuration no longer enters images. README/API/design/AGENTS synchronized.
+- Type checking and 3 configuration/authentication regressions passed, covering new default path, no implicit old-path reading, custom overrides, invalid configuration, and missing files. Docker build/cross-machine migration not rehearsed; configuration changes require restart.
+
+## Item catalog sorting (2026-10-13)
+
+- Add two shared button groups for name/Group grouping and ascending/descending order, defaulting to name ascending; selected states synchronize with aria-pressed. Chinese-name comparison supports natural numeric order; Group sorts same-group items by name, with ungrouped first ascending/last descending. Reuse filtered catalog collection for consistent cards/lists; database and category-member order unchanged.
+- Type checking and 2 desktop/simulated-mobile sorting regressions passed, covering four orders, Ungrouped, same-group ordering, search intersection, Group filtering, list switching, and Enter operation. Full Web suite/real devices not tested. Sort selection persists only for this page session; refresh restores defaults.
+
+## Single-line mobile Group scrolling (2026-10-13)
+
+- Only the narrow-screen Group bar becomes a single horizontal scrolling row, showing left/right fades according to scrolling and size changes; desktop retains wrapping and sticky positioning. Keyboard switching scrolls into view, Home/End reaches complete boundaries, and shared drag/drop remains.
+- Type checking and desktop/simulated-mobile long-list/25-group regressions passed, covering left/right edge states, first/last keyboard selection, no desktop masks, dropdown visibility, and drag/drop. Full Web suite/real devices not tested.
+
+## Stable horizontal page position during filtering (2026-10-13)
+
+- Root scroll container uses scrollbar-gutter: stable to reserve space for non-overlay scrollbars and prevent available-width changes switching All/Ungrouped. Desktop/simulated-mobile regressions passed, verifying unchanged header coordinates/width before/after filtering and retained group scrolling/keyboard/drops. Not tested with the user's system scrollbar settings.
+
+## Shared dropdown scrollbars (2026-10-13)
+
+- combobox-options now uses a thin scrollbar, themed pale-gray rounded thumb, and transparent track; standard CSS and WebKit fallback share theme variables. 2 desktop/simulated-mobile regressions for long-dropdown keyboard scrolling and drag/drop passed; appearance was not checked on Safari or real phones.
+
+## Continuous Category member creation (2026-10-13)
+
+- Successful New Item keeps Add member Modal and expanded form open, resetting blank fields, defaulting current category, and focusing name. Original-request failure retries and explicit cancellation remain.
+- Type checking and 2 desktop/simulated-mobile Category regressions passed, covering existing-item addition, identical-request retries without duplication after failure, consecutive creation of two items, clearing/focus, Cancel/Escape, and refresh persistence. Full Web suite/real devices not tested.
+
+## Interaction regression protection for this iteration (2026-10-13)
+
+- Strengthen real-browser assertions: mobile tags on one line, both-side fades in scroll middle/single-side fades at first/last, shared dropdown thin scrollbar, and reading/editing icon switching. Retain tests for consecutive creation, identical-request retries after failure, stable filtered width, four orders/filtering, checklist metadata alignment, and checked layout.
+- Type checking and all 14 tests across 6 focused files on desktop/simulated-mobile passed. Independent test database; user data unchanged and still ignored by Git. Full suite, Safari, and real devices not tested.
+
+## Create Checklist directly from Category (2026-10-13)
+
+- Category detail header creates a Checklist through shared Page/ResourceDialog, defaulting to the category name with an optional use date and opening the new Checklist on success. Uncertain failures freeze the original request for retry. The new categories/:id/checklists API checks the resource version and membership set in a once transaction and reuses compose/createDocument for unchecked member snapshots and category sources. Empty categories work; database schema is unchanged.
+- Type checking, 4 server creation/deduplication/conflict/independent-snapshot/empty-category and original document/category regressions passed; desktop/simulated-mobile creation/existing-member flows passed, and 2 creation tests passed again after new concurrency protection. Includes cancellation/focus restoration, dates, retries without duplication after server success/failed response, navigation, and no horizontal overflow. Full suite/real devices not tested.
+
+## Standardize the framework interface in Chinese (2026-10-13)
+
+- Navigation, resource titles and creation/editing, category members, source selection, group fields/tags, historical revisions, and updates consistently use Chinese. Presentation only; API identifiers and user data remain. API errors display Chinese while retaining referring objects; internal safe-retry detection uses original messages. Browser tests synchronize Chinese labels.
+- Type checking, 16 critical desktop/simulated-mobile regressions, and 6 client-error/CSRF/terminology regressions passed; full Web suite/real devices not tested. Loom branding and HTTP/JSON/pnpm technical diagnostics retained.
+
+## Chinese/English interface switching (2026-10-13)
+
+- Centralized translations/reactive language state cover fixed framework text, navigation/modals/accessible labels, calendar, and errors. Login/shared account areas switch languages; login-free mobile retains language entry. Browser saves language, document lang synchronizes, default remains Chinese. User data/API/database unchanged.
+- Build, type checking, 7 translation-coverage/error/CSRF tests, and 10 desktop/simulated-mobile language/framework/quick-input tests passed, including switching, refresh memory, four-page forms, and retained Chinese user names/notes. Login-free focused verification recorded separately; full suite/real devices not tested.
+
+- Additional verification: 2 login-free desktop/simulated-mobile tests passed, including language entry/refresh memory and retention after re-enabling authentication. After fixing status display switching, rerun focused language tests; results in this delivery. User data unchanged and still ignored by Git.
+
+## Uncommitted change review fixes (2026-10-13)
+
+- Fix calendar-refresh failures preventing opening a checklist created from a category; create entries in the category's saved member order, with regressions for failed refreshes, request retries, and member order.
+- Source-addition search/empty results use resource names in the current language; retain local validation messages. Status/combined errors store translation keys and separate user text, rerendering on language switches.
+- Update old test assertions; restart tests explicitly use temporary authentication configuration, and section-layout assertions wait for detail navigation to finish, avoiding reads of unmounted pages.
+- Verification: 35 `pnpm test` tests passed; 59 desktop/simulated-mobile `pnpm exec playwright test` tests passed, with 1 existing mouse section-drag test skipped on mobile. `pnpm run build` and `git diff --check` passed. Real phones/Docker not tested. Database structure/user data unchanged; data configuration/database still ignored by Git. Not committed.

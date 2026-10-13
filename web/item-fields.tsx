@@ -1,4 +1,5 @@
 import localized from "../locales/zh.json" with { type: "json" };
+import { t } from "./i18n.js";
 import React from "react";
 import { Select } from "./select.js";
 export function ItemFields({
@@ -15,17 +16,19 @@ export function ItemFields({
   return (
     <>
       <Select
-        label="Group"
+        label={t(localized["Group [399ee6934772]"])}
         allowCustom
-        placeholder={localized["Ungrouped"]}
+        placeholder={t(localized["Ungrouped"])}
         value={value.itemGroup ?? ""}
         options={[
-          { value: "", label: localized["Ungrouped"] },
+          { value: "", label: t(localized["Ungrouped"]) },
           ...itemGroups.map((g) => ({ value: g, label: g })),
         ]}
         onChange={(itemGroup) => onChange({ ...value, itemGroup })}
       />
-      <label>{localized["\n        Note\n        "]}<textarea
+      <label>
+        {t(localized["Note"])}
+        <textarea
           data-1p-ignore="true"
           autoComplete="off"
           value={value.note}
@@ -33,10 +36,10 @@ export function ItemFields({
         />
       </label>
       <fieldset className="category-choice-field">
-        <legend>{localized["Categories"]}</legend>
+        <legend>{t(localized["Categories"])}</legend>
         <div className="category-choices">
           {categories.length === 0 && (
-            <p className="empty">{localized["No categories yet. You can add them later."]}</p>
+            <p className="empty">{t(localized["No categories yet. You can add them later."])}</p>
           )}
           {categories.map((c) => (
             <label key={c.id}>

@@ -5,11 +5,11 @@ export type Config = { auth: { enabled: boolean; loginRateLimit?: number } };
 export const defaultConfig: Config = { auth: { enabled: true } };
 
 export function readConfig(
-  path = process.env.LOOM_CONFIG ?? "loom.config.json",
+  path = process.env.LOOM_CONFIG ?? "data/loom.config.json",
 ): Config {
   if (
     !existsSync(path) &&
-    path === "loom.config.json" &&
+    path === "data/loom.config.json" &&
     !process.env.LOOM_CONFIG
   )
     return { auth: { enabled: true } };

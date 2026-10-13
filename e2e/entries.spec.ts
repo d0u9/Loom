@@ -7,7 +7,7 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const entry = (name: string) => ({
     id: crypto.randomUUID(),

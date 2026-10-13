@@ -1,5 +1,6 @@
 /* Design tokens. Use these instead of literal values; see AGENTS.md. */
 :root {
+  scrollbar-gutter: stable;
   --font-xs: 12px;
   --font-sm: 13px;
   --font-md: 14px;
@@ -1338,7 +1339,7 @@ fieldset.form-fields {
     display: none;
   }
   .sidebar-account.anonymous {
-    display: none;
+    display: flex;
   }
   .account-actions summary {
     width: var(--touch-h);
@@ -1568,6 +1569,18 @@ fieldset.form-fields {
   }
 }
 
+.item-sort-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.item-sort-controls .view-switch > .button {
+  width: auto;
+  min-height: var(--control-h);
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+}
 .item-group-tabs {
   position: sticky;
   top: 0;
@@ -1580,6 +1593,29 @@ fieldset.form-fields {
   gap: 6px;
   margin-bottom: var(--space-4);
   padding: var(--space-2) 3px;
+}
+@media (max-width: 650px) {
+  .item-group-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    --fade-left: 0px;
+    --fade-right: 0px;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--fade-left),
+      black calc(100% - var(--fade-right)),
+      transparent
+    );
+  }
+  .item-group-tabs[data-fade-left="true"] {
+    --fade-left: var(--space-5);
+  }
+  .item-group-tabs[data-fade-right="true"] {
+    --fade-right: var(--space-5);
+  }
 }
 .item-group-tabs .button {
   flex-shrink: 0;
@@ -1728,10 +1764,22 @@ body.sorting {
   padding: 4px;
   max-height: 180px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--faint) transparent;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: 0 6px 20px #1e291c18;
+}
+.combobox-options::-webkit-scrollbar {
+  width: var(--space-2);
+}
+.combobox-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+.combobox-options::-webkit-scrollbar-thumb {
+  background: var(--faint);
+  border-radius: var(--radius-sm);
 }
 .combobox-options .button {
   width: 100%;

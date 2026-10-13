@@ -7,7 +7,7 @@ test("Item content is shared by catalog, category, template and checklist", asyn
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
+  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const post = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -21,8 +21,8 @@ test("Item content is shared by catalog, category, template and checklist", asyn
     name: "Shared category " + info.project.name,
   });
   const item = await post("/items", {
-    name: "Shared Item " + info.project.name,
-    note: "Item note " + info.project.name,
+    name: localized["fixture.51831da53ee3"] + info.project.name,
+    note: localized["fixture.39fc170c2594"] + info.project.name,
     itemGroup: "Shared group",
     categoryIds: [category.id],
     requestId: crypto.randomUUID(),
@@ -58,14 +58,14 @@ test("Item content is shared by catalog, category, template and checklist", asyn
   ]) {
     await page.goto(path);
     const summary = page.locator(".item-summary").filter({
-      has: page.getByText("Item note " + info.project.name, { exact: true }),
+      has: page.getByText(localized["fixture.39fc170c2594"] + info.project.name, { exact: true }),
     });
     await expect(summary).toHaveCount(1);
     await expect(summary.locator(".item-group-tag")).toHaveText("Shared group");
     await expect(summary.locator(".item-group-tag svg")).toHaveCount(1);
     await expect(summary.locator(".item-group-tag")).toHaveAttribute(
       "aria-label",
-      localized["Shared group label"],
+      localized["fixture.374433a4bad7"],
     );
     expect(
       await summary

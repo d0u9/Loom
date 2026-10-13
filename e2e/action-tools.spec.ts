@@ -6,7 +6,7 @@ test("row tools collapse on mobile and remain visible on desktop", async ({
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.aa7084084271"], exact: true }).click();
+  await page.getByRole("button", { name: localized["New item"], exact: true }).click();
   const name = "Tools " + info.project.name;
   await page.getByLabel(localized["Name"], { exact: true }).fill(name);
   await page.getByRole("button", { name: localized["Save"], exact: true }).click();
@@ -45,5 +45,5 @@ test("row tools collapse on mobile and remain visible on desktop", async ({
     await toggle.click();
   }
   await edit.click();
-  await expect(page.getByRole("dialog", { name: localized["fixture.bba3a4dd9b5b"] })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: localized["fixture.5bff2f523d3d"] })).toBeVisible();
 });
