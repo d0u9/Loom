@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { id } from "../server/db.js";
 import { setup, entry } from "./helpers.js";
-test("immutable revisions, latest names, independent checks and safe retries", async () => {
+test("current template saves, latest names, independent checks and safe retries", async () => {
   const h = await setup();
   try {
     const item = (
@@ -17,7 +17,6 @@ test("immutable revisions, latest names, independent checks and safe retries", a
         kind: "template",
         name: "Meal",
         entries: [entry(item), entry()],
-        groups: [],
         requestId: id(),
       })
     ).json();
@@ -25,7 +24,6 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       name: "Meal 2",
       version: template.version,
       entries: template.entries,
-      groups: [],
       requestId: id(),
     };
     assert.equal(
@@ -33,21 +31,11 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       200,
     );
     await h.call("PUT", "/documents/" + template.id, save);
-    assert.equal(
-      (await h.call("GET", "/templates/" + template.id + "/revisions")).json()
-        .length,
-      2,
-    );
     await h.call("PUT", "/items/" + item.id, {
       name: "eggs",
       categoryIds: [],
       version: 1,
     });
-    assert.equal(
-      (await h.call("GET", "/templates/" + template.id + "/revisions/1")).json()
-        .entries[0].name,
-      "egg",
-    );
     assert.equal(
       (await h.call("GET", "/documents/" + template.id)).json().entries[0].name,
       "eggs",
@@ -55,7 +43,6 @@ test("immutable revisions, latest names, independent checks and safe retries", a
     const create = {
       action: "instantiate",
       version: 2,
-      revision: 1,
       name: "Today",
       requestId: id(),
       resolutions: {},
@@ -78,6 +65,9 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       ).json().id,
       a.id,
     );
+    assert.equal(a.name, "Today");
+    assert.equal(a.source.revision, undefined);
+    assert.equal(a.source.templateName, "Meal 2");
     // Instantiation can schedule the new checklist on the calendar.
     assert.equal(a.useDate, "2026-10-20");
     const b = (
@@ -116,7 +106,6 @@ test("immutable revisions, latest names, independent checks and safe retries", a
       name: a.name,
       version: a.version,
       entries: a.entries,
-      groups: [],
       requestId: id(),
     });
     assert.equal(
@@ -130,13 +119,6 @@ test("immutable revisions, latest names, independent checks and safe retries", a
     assert.equal(
       (await h.call("DELETE", "/items/" + item.id, { version: 2 })).statusCode,
       409,
-    );
-    assert.throws(() =>
-      h.store.run(
-        "UPDATE template_revisions SET snapshot=? WHERE documentId=?",
-        "{}",
-        template.id,
-      ),
     );
   } finally {
     await h.close();
@@ -154,7 +136,6 @@ test("document creation supports existing request tables with an extra timestamp
       name: "gogo",
       useDate: null,
       entries: [],
-      groups: [],
       requestId: id(),
     };
     const response = await h.call("POST", "/documents", body);

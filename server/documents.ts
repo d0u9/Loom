@@ -1,7 +1,6 @@
 import { Store, id, requireThat } from "./db.js";
-import { writeGroups } from "./groups.js";
 import {
-  compose,
+  addItems,
   validateSections,
   mergeContent,
   duplicateItems,
@@ -22,7 +21,6 @@ export function document(store: Store, key: string, live = true): any {
       entries: snapshot.entries.map((e: Entry) => ({
         ...e,
         sectionId: e.sectionId ?? null,
-        sourceCount: e.groupIds.length + Number(e.direct),
       })),
       status: d.status,
       version: d.version,
@@ -35,16 +33,6 @@ export function document(store: Store, key: string, live = true): any {
       ...e,
       name: live && e.itemId ? store.resource("items", e.itemId).name : e.name,
       checked: !!e.checked,
-      direct: !!e.direct,
-      sourceCount:
-        Number(e.direct) +
-        store.get(
-          "SELECT count(*) AS n FROM entry_sources WHERE entryId=?",
-          e.id,
-        ).n,
-      groupIds: store
-        .all("SELECT groupId FROM entry_sources WHERE entryId=?", e.id)
-        .map((x) => x.groupId),
     }));
   return {
     ...d,
@@ -60,13 +48,6 @@ export function document(store: Store, key: string, live = true): any {
           ? s
           : { ...s, afterEntryId: afterEntryId || null },
       ),
-    groups: store
-      .all("SELECT * FROM groups WHERE documentId=?", key)
-      .map((g) => ({
-        ...g,
-        members: JSON.parse(g.members),
-        excluded: JSON.parse(g.excluded),
-      })),
   };
 }
 export function active(store: Store, key: string) {
@@ -113,7 +94,7 @@ export function writeEntries(
   store.run("DELETE FROM entries WHERE documentId=?", key);
   entries.forEach((e, p) =>
     store.run(
-      "INSERT INTO entries(id,documentId,itemId,name,quantity,unit,note,position,checked,direct,sectionId) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO entries(id,documentId,itemId,name,quantity,unit,note,position,checked,sectionId) VALUES(?,?,?,?,?,?,?,?,?,?)",
       e.id,
       key,
       e.itemId,
@@ -123,7 +104,6 @@ export function writeEntries(
       e.note,
       p,
       preserveChecks ? old.get(e.id) || 0 : e.checked ? 1 : 0,
-      e.direct ? 1 : 0,
       e.sectionId ?? null,
     ),
   );
@@ -159,12 +139,9 @@ export function createDocument(
   writeSections(store, key, copied);
   if (!preserve) copied.entries.forEach((e) => (e.checked = false));
   writeEntries(store, key, copied.entries, false);
-  writeGroups(store, key, copied);
-  if (kind === "template") saveRevision(store, key);
   return document(store, key);
 }
 export function reid(content: Content): Content {
-  const mapping = new Map(content.groups.map((g) => [g.id, id()]));
   const sections = new Map((content.sections ?? []).map((s) => [s.id, id()]));
   const entries = new Map(content.entries.map((e) => [e.id, id()]));
   return {
@@ -172,9 +149,7 @@ export function reid(content: Content): Content {
       ...e,
       id: entries.get(e.id)!,
       sectionId: e.sectionId ? sections.get(e.sectionId)! : null,
-      groupIds: e.groupIds.map((k) => mapping.get(k)!),
     })),
-    groups: content.groups.map((g) => ({ ...g, id: mapping.get(g.id)! })),
     sections: (content.sections ?? []).map((s) => ({
       ...s,
       id: sections.get(s.id)!,
@@ -186,21 +161,6 @@ export function reid(content: Content): Content {
         s.afterEntryId === null ? null : entries.get(s.afterEntryId ?? ""),
     })),
   };
-}
-export function saveRevision(store: Store, key: string) {
-  const snapshot = document(store, key);
-  const rev =
-    (store.get(
-      "SELECT MAX(revision) AS n FROM template_revisions WHERE documentId=?",
-      key,
-    ).n || 0) + 1;
-  store.run(
-    "INSERT INTO template_revisions VALUES(?,?,?)",
-    key,
-    rev,
-    JSON.stringify({ schemaVersion: 2, ...snapshot, revision: rev }),
-  );
-  return rev;
 }
 export const useDateSchema = {
   anyOf: [
@@ -230,23 +190,8 @@ const entry = obj(
     unit: { type: "string", maxLength: 100 },
     note: str,
     checked: { type: "boolean" },
-    direct: { type: "boolean" },
-    groupIds: { type: "array", items: uuid, uniqueItems: true },
   },
-  ["id", "itemId", "name", "quantity", "unit", "note", "direct", "groupIds"],
-);
-const group = obj(
-  {
-    id: uuid,
-    categoryId: { anyOf: [uuid, { type: "null" }] },
-    originalCategoryId: uuid,
-    name: short,
-    members: { type: "array", items: uuid, uniqueItems: true },
-    excluded: { type: "array", items: uuid, uniqueItems: true },
-    expected: { type: "array", items: uuid, uniqueItems: true },
-    documentId: uuid,
-  },
-  ["id", "categoryId", "originalCategoryId", "name", "members", "excluded"],
+  ["id", "itemId", "name", "quantity", "unit", "note"],
 );
 export function writeSections(store: Store, key: string, content: Content) {
   validateSections(content);
@@ -290,7 +235,6 @@ export const contentSchema = {
     ),
   },
   entries: { type: "array", maxItems: 10000, items: entry },
-  groups: { type: "array", maxItems: 1000, items: group },
 };
 export function registerDocuments(route: Route, store: Store) {
   route(
@@ -318,22 +262,10 @@ export function registerDocuments(route: Route, store: Store) {
           409,
         );
         const members = store.all(
-          "SELECT i.* FROM item_categories c JOIN items i ON i.id=c.itemId WHERE c.categoryId=? ORDER BY c.position, c.itemId",
+          "SELECT i.* FROM item_categories c JOIN items i ON i.id=c.itemId WHERE c.categoryId=? ORDER BY c.position",
           category.id,
         );
-        const content = compose(
-          { entries: [], groups: [], sections: [] },
-          {
-            id: id(),
-            categoryId: category.id,
-            originalCategoryId: category.id,
-            name: category.name,
-            members: [],
-            excluded: [],
-          },
-          members,
-          id,
-        );
+        const content = addItems({ entries: [], sections: [] }, members, id);
         return createDocument(
           store,
           "checklist",
@@ -375,11 +307,11 @@ export function registerDocuments(route: Route, store: Store) {
         requestId: uuid,
         ...contentSchema,
       },
-      ["kind", "name", "requestId", "entries", "groups"],
+      ["kind", "name", "requestId", "entries"],
     ),
     (req: any) =>
-      store.once("create-document", req.body, () => {
-        return createDocument(
+      store.once("create-document", req.body, () =>
+        createDocument(
           store,
           req.body.kind,
           req.body.name,
@@ -387,8 +319,8 @@ export function registerDocuments(route: Route, store: Store) {
           null,
           false,
           req.body.useDate ?? null,
-        );
-      }),
+        ),
+      ),
   );
   route(
     "PUT",
@@ -401,24 +333,12 @@ export function registerDocuments(route: Route, store: Store) {
         requestId: uuid,
         ...contentSchema,
       },
-      ["name", "version", "requestId", "entries", "groups"],
+      ["name", "version", "requestId", "entries"],
     ),
     (req: any) =>
       store.once("save-document:" + req.params.id, req.body, () => {
         const d = active(store, req.params.id);
         store.version(d, req.body.version);
-        const knownGroups = new Set([
-          ...req.body.groups.map((g: Content["groups"][number]) => g.id),
-          ...store
-            .all("SELECT id FROM groups WHERE documentId=?", d.id)
-            .map((g) => g.id),
-        ]);
-        requireThat(
-          req.body.entries.every((e: Entry) =>
-            e.groupIds.every((k) => knownGroups.has(k)),
-          ),
-          "Unknown source group",
-        );
         const useDate =
           req.body.useDate === undefined ? d.useDate : req.body.useDate;
         validateUseDate(d.kind, useDate);
@@ -428,37 +348,12 @@ export function registerDocuments(route: Route, store: Store) {
           useDate,
           d.id,
         );
-        const targets: Record<string, string> = {};
-        for (const duplicate of duplicateItems(req.body)) {
-          const prior = store.all(
-            "SELECT id FROM entries WHERE documentId=? AND itemId=?",
-            d.id,
-            duplicate.itemId,
-          );
-          if (
-            prior.length === 1 &&
-            duplicate.entries.some((e) => e.id === prior[0].id)
-          )
-            targets[duplicate.itemId] = prior[0].id;
-        }
-        const content = mergeContent(
-          {
-            ...req.body,
-            sections: req.body.sections ?? document(store, d.id).sections,
-          },
-          targets,
-        );
-        const groupIds = new Set(content.groups.map((g) => g.id));
-        content.entries = content.entries
-          .map((e) => ({
-            ...e,
-            groupIds: e.groupIds.filter((k) => groupIds.has(k)),
-          }))
-          .filter((e) => e.direct || e.groupIds.length);
+        const content = mergeContent({
+          ...req.body,
+          sections: req.body.sections ?? document(store, d.id).sections,
+        });
         writeSections(store, d.id, content);
         writeEntries(store, d.id, content.entries);
-        writeGroups(store, d.id, content);
-        if (d.kind === "template") saveRevision(store, d.id);
         return document(store, d.id);
       }),
   );
@@ -491,23 +386,4 @@ export function registerDocuments(route: Route, store: Store) {
         },
       ),
   );
-  route("GET", "/templates/:id/revisions", null, (req: any) => {
-    requireThat(
-      store.resource("documents", req.params.id).kind === "template",
-      "Not a template",
-    );
-    return store.all(
-      "SELECT revision FROM template_revisions WHERE documentId=? ORDER BY revision DESC",
-      req.params.id,
-    );
-  });
-  route("GET", "/templates/:id/revisions/:revision", null, (req: any) => {
-    const row = store.get(
-      "SELECT snapshot FROM template_revisions WHERE documentId=? AND revision=?",
-      req.params.id,
-      req.params.revision,
-    );
-    requireThat(row, "Revision not found", 404);
-    return JSON.parse(row.snapshot);
-  });
 }

@@ -67,7 +67,7 @@ test("long group menus scroll with keyboard and long Item lists keep drop target
     await expect(tabs).toHaveCSS("mask-image", "none");
   }
   await page.getByRole("button", { name: localized["New item"], exact: true }).click();
-  const input = page.getByRole("combobox", { name: localized["Group [399ee6934772]"], exact: true });
+  const input = page.getByRole("combobox", { name: localized["Catalog group"], exact: true });
   await input.click();
   await input.press("ArrowUp");
   const options = page.locator(".combobox-options");

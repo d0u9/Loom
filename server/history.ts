@@ -15,24 +15,15 @@ import {
   version,
   type Route,
 } from "./schema.js";
-import { writeGroups } from "./groups.js";
 import {
   mergeContent,
   duplicateItems,
   type Content,
 } from "../shared/groups.js";
-function source(store: Store, key: string, action: string, revision?: number) {
+function source(store: Store, key: string, action: string) {
   const d = store.resource("documents", key);
-  if (action === "instantiate") {
+  if (action === "instantiate")
     requireThat(d.kind === "template", "Not a template");
-    const row = store.get(
-      "SELECT snapshot FROM template_revisions WHERE documentId=? AND revision=?",
-      key,
-      revision,
-    );
-    requireThat(row, "Revision not found", 404);
-    return JSON.parse(row.snapshot);
-  }
   if (action === "copy" || action === "template")
     requireThat(d.kind === "checklist", "Operation needs a checklist");
   if (action === "restore")
@@ -40,21 +31,12 @@ function source(store: Store, key: string, action: string, revision?: number) {
   return document(store, key);
 }
 export function missing(store: Store, snapshot: Content) {
-  return {
-    items: [...new Set(snapshot.entries.map((e) => e.itemId).filter(Boolean))]
-      .filter((k) => !store.get("SELECT id FROM items WHERE id=?", k))
-      .map((k) => ({
-        id: k,
-        name: snapshot.entries.find((e) => e.itemId === k)!.name,
-      })),
-    categories: snapshot.groups
-      .filter(
-        (g) =>
-          g.categoryId &&
-          !store.get("SELECT id FROM categories WHERE id=?", g.categoryId),
-      )
-      .map((g) => ({ id: g.categoryId, name: g.name })),
-  };
+  return [...new Set(snapshot.entries.map((e) => e.itemId).filter(Boolean))]
+    .filter((k) => !store.get("SELECT id FROM items WHERE id=?", k))
+    .map((k) => ({
+      id: k,
+      name: snapshot.entries.find((e) => e.itemId === k)!.name,
+    }));
 }
 export function resolveContent(
   store: Store,
@@ -64,9 +46,8 @@ export function resolveContent(
 ): Content {
   const content = structuredClone(snapshot),
     mapping = new Map<string, string | null>();
-  for (const old of missing(store, content).items) {
-    const choice = resolutions[old.id!];
-    requireThat(choice, "Choose how to resolve " + old.name);
+  for (const old of missing(store, content)) {
+    const choice = resolutions[old.id!] ?? { mode: "temporary" };
     if (choice.mode === "temporary") mapping.set(old.id!, null);
     else if (choice.mode === "existing") {
       store.resource("items", choice.itemId);
@@ -84,27 +65,8 @@ export function resolveContent(
     } else throw new Problem(400, "Invalid resolution");
   }
   for (const e of content.entries) {
-    if (e.itemId && mapping.has(e.itemId)) {
-      e.itemId = mapping.get(e.itemId)!;
-      if (!e.itemId) {
-        e.direct = true;
-        e.groupIds = [];
-      }
-    }
+    if (e.itemId && mapping.has(e.itemId)) e.itemId = mapping.get(e.itemId)!;
     if (e.itemId) e.name = store.resource("items", e.itemId).name;
-  }
-  const remap = (keys: string[]) => [
-    ...new Set(keys.map((k) => mapping.get(k) || k)),
-  ];
-  for (const g of content.groups) {
-    if (
-      g.categoryId &&
-      !store.get("SELECT id FROM categories WHERE id=?", g.categoryId)
-    )
-      g.categoryId = null;
-    g.members = remap(g.members);
-    g.excluded = remap(g.excluded);
-    delete g.expected;
   }
   const targets: Record<string, string> = {};
   for (const entryId of Object.values(mergeTargets)) {
@@ -129,7 +91,6 @@ export function registerHistory(route: Route, store: Store) {
           archivedAt: new Date().toISOString(),
         };
         store.run("DELETE FROM entries WHERE documentId=?", d.id);
-        store.run("DELETE FROM groups WHERE documentId=?", d.id);
         store.run("DELETE FROM sections WHERE documentId=?", d.id);
         store.run(
           "UPDATE documents SET archive=?,status='archived',version=version+1 WHERE id=?",
@@ -144,7 +105,6 @@ export function registerHistory(route: Route, store: Store) {
       type: "string",
       enum: ["restore", "copy", "template", "instantiate"],
     },
-    revision: version,
     version,
     name: str,
     requestId: uuid,
@@ -171,14 +131,9 @@ export function registerHistory(route: Route, store: Store) {
         store.resource("documents", req.params.id),
         req.body.version,
       );
-      const s = source(
-        store,
-        req.params.id,
-        req.body.action,
-        req.body.revision,
-      );
+      const s = source(store, req.params.id, req.body.action);
       return {
-        ...missing(store, s),
+        items: missing(store, s),
         duplicates: duplicateItems(s),
         name: s.name,
         version: req.body.version,
@@ -188,17 +143,17 @@ export function registerHistory(route: Route, store: Store) {
   route(
     "POST",
     "/documents/:id/history-apply",
-    obj(props, ["action", "version", "name", "requestId", "resolutions"]),
+    obj(props, ["action", "version", "name", "requestId"]),
     (req: any) =>
       store.once("history:" + req.params.id, req.body, () => {
-        const { action, revision, name, resolutions } = req.body;
+        const { action, name, resolutions } = req.body;
         const d = store.resource("documents", req.params.id);
         store.version(d, req.body.version);
-        const s = source(store, d.id, action, revision);
+        const s = source(store, d.id, action);
         const content = resolveContent(
           store,
           s,
-          resolutions,
+          resolutions ?? {},
           req.body.mergeTargets,
         );
         if (action === "restore") {
@@ -210,13 +165,12 @@ export function registerHistory(route: Route, store: Store) {
           );
           writeSections(store, d.id, restored);
           writeEntries(store, d.id, restored.entries, false);
-          writeGroups(store, d.id, restored);
           return document(store, d.id);
         }
         const kind = action === "template" ? "template" : "checklist";
         const provenance =
           action === "instantiate"
-            ? { templateId: d.id, revision, templateName: s.name }
+            ? { templateId: d.id, templateName: s.name }
             : s.source;
         return createDocument(
           store,
@@ -259,7 +213,7 @@ export function registerHistory(route: Route, store: Store) {
         return { ok: true };
       }),
   );
-  // Active or archived; entries, groups and archive snapshot go with it.
+  // Active or archived; entries, sections and archive snapshot go with it.
   route(
     "DELETE",
     "/checklists/:id",

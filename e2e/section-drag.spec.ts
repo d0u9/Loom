@@ -24,7 +24,6 @@ test("dragging changes section levels and moves entries into any section", async
       data: {
         kind: "checklist",
         name: "Section drag",
-        groups: [],
         sections: [
           { id: a, name: "L1", parentSectionId: null },
           { id: b, name: "L2", parentSectionId: a },
@@ -39,8 +38,6 @@ test("dragging changes section levels and moves entries into any section", async
             unit: "",
             note: "",
             checked: false,
-            direct: true,
-            groupIds: [],
             sectionId: null,
           },
         ],
@@ -55,7 +52,13 @@ test("dragging changes section levels and moves entries into any section", async
   const drag = async (from: any, to: any, part: number) => {
     const f = (await from.boundingBox())!;
     const t = (await to.boundingBox())!;
-    await page.mouse.move(f.x + Math.min(200, f.width / 2), f.y + f.height / 2);
+    await page.mouse.move(
+      f.x +
+        ((await from.getAttribute("class"))?.includes("section-heading")
+          ? Math.min(200, f.width / 2)
+          : f.width - 4),
+      f.y + f.height / 2,
+    );
     await page.mouse.down();
     await page.mouse.move(t.x + 200, t.y + t.height * part, { steps: 10 });
     await page.mouse.up();
@@ -82,10 +85,7 @@ test("dragging changes section levels and moves entries into any section", async
   expect(await parentOf("Root")).toBe(null);
   // Entries nest into any heading via its lower half.
   await drag(
-    page
-      .locator(".entry[data-sort-id]:not(.section-heading)")
-      .first()
-      .locator(".entry-source-count"),
+    page.locator(".entry[data-sort-id]:not(.section-heading)").first(),
     head("L2"),
     0.8,
   );

@@ -33,7 +33,6 @@ test("Item content is shared by catalog, category, template and checklist", asyn
       await post("/documents", {
         kind,
         name: "Shared " + kind,
-        groups: [],
         entries: [
           {
             id: crypto.randomUUID(),
@@ -43,8 +42,6 @@ test("Item content is shared by catalog, category, template and checklist", asyn
             unit: localized["fixture.0066134b36c4"],
             note: "Entry note",
             checked: false,
-            direct: true,
-            groupIds: [],
           },
         ],
         requestId: crypto.randomUUID(),

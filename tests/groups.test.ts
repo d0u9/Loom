@@ -2,28 +2,34 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { id } from "../server/db.js";
 import { setup, entry } from "./helpers.js";
-import { removeEntry } from "../shared/groups.js";
-test("direct member previews reject stale members; merge preserves state and all sources", async () => {
+import { addItems } from "../shared/groups.js";
+
+test("category addition is an ordered one-time selection and preserves existing entry state", async () => {
   const h = await setup();
   try {
-    const cat = async (name: string) =>
-      (await h.call("POST", "/categories", { name })).json();
-    const food = await cat("Food"),
-      sub = food,
-      lab = await cat("Lab");
-    const egg = (
-      await h.call("POST", "/items", {
-        name: "egg",
-        categoryIds: [sub.id, lab.id],
-        requestId: id(),
-      })
-    ).json();
+    const cat = (await h.call("POST", "/categories", { name: "Food" })).json();
+    const items = [];
+    for (const name of ["egg", "water", "milk"])
+      items.push(
+        (
+          await h.call("POST", "/items", {
+            name,
+            categoryIds: [cat.id],
+            requestId: id(),
+          })
+        ).json(),
+      );
+    const order = [items[2].id, items[0].id, items[1].id];
+    await h.call("PUT", `/categories/${cat.id}/order`, {
+      version: cat.version,
+      itemIds: order,
+      requestId: id(),
+    });
     let d = (
       await h.call("POST", "/documents", {
         kind: "checklist",
-        name: "Mix",
-        entries: [entry(egg)],
-        groups: [],
+        name: "Food",
+        entries: [entry(items[0])],
         requestId: id(),
       })
     ).json();
@@ -32,117 +38,65 @@ test("direct member previews reject stale members; merge preserves state and all
       `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
       { checked: true, requestId: id() },
     );
-    const preview = async (categoryId: string, groupId?: string) =>
-      (
-        await h.call("POST", "/documents/" + d.id + "/category-preview", {
-          entries: d.entries,
-          groups: d.groups,
-          version: d.version,
-          categoryId,
-          ...(groupId ? { groupId } : {}),
-        })
+    d = (await h.call("GET", `/documents/${d.id}`)).json();
+    const original = d.entries[0];
+    const add = async () => {
+      const { itemIds } = (
+        await h.call("GET", `/categories/${cat.id}/order`)
       ).json();
-    const apply = async (categoryId: string, p: any, mode = "merge") => {
-      const response = await h.call(
-        "POST",
-        "/documents/" + d.id + "/category-compose",
-        {
-          entries: d.entries,
-          groups: d.groups,
-          version: d.version,
-          categoryId,
-          expected: p.expected,
-          choices: { [egg.id]: { mode, targetId: d.entries[0].id } },
-          removeIds: [],
-        },
+      const all = (await h.call("GET", "/items")).json();
+      const members = itemIds.map((k: string) =>
+        all.find((i: any) => i.id === k),
       );
-      assert.equal(response.statusCode, 200, response.body);
-      const c = response.json();
-      const saved = await h.call("PUT", "/documents/" + d.id, {
+      const saved = await h.call("PUT", `/documents/${d.id}`, {
         name: d.name,
         version: d.version,
-        ...c,
+        entries: addItems(d, members, id).entries,
+        sections: d.sections,
         requestId: id(),
       });
       assert.equal(saved.statusCode, 200, saved.body);
       d = saved.json();
     };
-    const first = await preview(food.id);
-    await apply(food.id, first);
-    await apply(lab.id, await preview(lab.id));
-    assert.equal(d.entries.length, 1);
-    assert.equal(d.entries[0].groupIds.length, 2);
-    assert.equal(d.entries[0].quantity, "2");
-    assert.equal(d.entries[0].checked, true);
-    assert.equal(
-      (await h.call("DELETE", "/categories/" + food.id, { version: 1 }))
-        .statusCode,
-      409,
-    );
-    const stale = await preview(food.id, d.groups[0].id);
-    await h.call("POST", "/items", {
-      name: "water",
-      categoryIds: [sub.id],
-      requestId: id(),
-    });
-    assert.equal(
-      (
-        await h.call("POST", "/documents/" + d.id + "/category-compose", {
-          entries: d.entries,
-          groups: d.groups,
-          version: d.version,
-          categoryId: food.id,
-          groupId: d.groups[0].id,
-          expected: stale.expected,
-        })
-      ).statusCode,
-      409,
-    );
-    const added = await preview(lab.id);
-    await apply(lab.id, added);
-    assert.equal(d.groups.length, 2);
-    assert.equal(d.entries.length, 1);
-    let content = removeEntry(d, d.entries[0].id);
+    await add();
     assert.deepEqual(
-      content.groups.map((g) => g.excluded),
-      [[egg.id], [egg.id]],
+      d.entries.map((e: any) => e.itemId),
+      [items[0].id, items[2].id, items[1].id],
     );
+    assert.deepEqual(d.entries[0], original);
+    await add();
+    assert.equal(d.entries.length, 3);
+    await h.call("PUT", `/items/${items[0].id}`, {
+      name: "egg",
+      categoryIds: [],
+      version: items[0].version,
+    });
+    await add();
+    assert.deepEqual(
+      d.entries[0],
+      original,
+      "removing a category membership never removes a document entry",
+    );
+    const content = {
+      ...d,
+      entries: d.entries.filter((e: any) => e.id !== d.entries[1].id),
+    };
     d = (
-      await h.call("PUT", "/documents/" + d.id, {
+      await h.call("PUT", `/documents/${d.id}`, {
         name: d.name,
         version: d.version,
         ...content,
         requestId: id(),
       })
     ).json();
-    // Update preview lists excluded members; apply keeps them out unless restored.
-    const compose = async (restore?: string[]) =>
-      h.call("POST", "/documents/" + d.id + "/category-compose", {
-        entries: d.entries,
-        groups: d.groups,
-        version: d.version,
-        categoryId: food.id,
-        groupId: d.groups[0].id,
-        expected: (await preview(food.id, d.groups[0].id)).expected,
-        ...(restore ? { restore } : {}),
-      });
-    const excludedPreview = await preview(food.id, d.groups[0].id);
-    assert.deepEqual(
-      excludedPreview.excluded.map((i: any) => i.id),
-      [egg.id],
-    );
-    assert.ok(!excludedPreview.added.some((i: any) => i.id === egg.id));
-    const kept = (await compose()).json();
-    assert.ok(!kept.entries.some((e: any) => e.itemId === egg.id));
-    assert.deepEqual(kept.groups[0].excluded, [egg.id]);
-    const restored = (await compose([egg.id])).json();
-    assert.ok(restored.entries.some((e: any) => e.itemId === egg.id));
-    assert.deepEqual(restored.groups[0].excluded, []);
+    assert.equal(d.entries.length, 2);
+    await add();
     assert.equal(
-      (await compose([lab.id])).statusCode,
-      400,
-      "only excluded current members can be restored",
+      d.entries.length,
+      3,
+      "explicit repeat addition re-adds deleted entries without exclusions",
     );
+    assert.equal(d.entries[2].itemId, items[2].id);
   } finally {
     await h.close();
   }

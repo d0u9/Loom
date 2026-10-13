@@ -29,8 +29,6 @@ export function entry(item: any = null): import("../shared/groups.js").Entry {
     quantity: "2",
     unit: "pcs",
     note: "keep",
-    direct: true,
-    groupIds: [],
     checked: false,
   };
 }

@@ -93,11 +93,10 @@ test("catalog to template, checklist, archive and restore", async ({
   await page
     .getByRole("button", { name: localized["fixture.1db821558226"] + suffix, exact: true })
     .click();
-  await page.getByRole("button", { name: localized["Apply selection"], exact: true }).click();
   await expect(page.getByLabel(localized["Entry name"])).toHaveValue("egg " + suffix);
   // Quantity and unit are hidden for now.
   await expect(page.getByLabel("quantity", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: localized["Save revision"] }).click();
+  await page.getByRole("button", { name: localized["Save"] }).click();
   await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
   // Instantiating is a top-level action, not hidden in the more menu.
   await page

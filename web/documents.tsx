@@ -3,6 +3,7 @@ import { t, message, type LocalizedText } from "./i18n.js";
 import { errorText, resourceLabels } from "./labels.js";
 import { ActionTools } from "./action-tools.js";
 import { ItemSummary } from "./item-summary.js";
+import { ItemGroupFilter, matchesItemGroup } from "./item-group-filter.js";
 import { Button } from "./button.js";
 import { matchesSearch } from "./router.js";
 import { ResourceDialog } from "./resource-dialog.js";
@@ -13,14 +14,11 @@ import { Select } from "./select.js";
 import { SortableRow } from "./sortable.js";
 import React, { useEffect, useState, useRef } from "react";
 import {
-  removeEntry,
-  removeGroup,
+  addItems,
   removeSection,
   moveNode,
   nodeId,
   children,
-  duplicateItems,
-  mergeContent,
   validateSections,
 } from "../shared/groups.js";
 import { ApiError, api, leave as leaveGuard } from "./client.js";
@@ -56,14 +54,13 @@ export function Documents({
     [reading, setReading] = useState(false),
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState<LocalizedText>(""),
-    [revisions, setRevisions] = useState<any[]>([]),
-    [history, setHistory] = useState<any>(null),
     [editingName, setEditingName] = useState<string | null>(null),
     [quickNames, setQuickNames] = useState<Record<string, string>>({}),
     [itemQuery, setItemQuery] = useState(""),
+    [itemGroup, setItemGroup] = useState<string | null>(null),
+    [pickerQuery, setPickerQuery] = useState(""),
     [newDate, setNewDate] = useState(""),
     [addMode, setAddMode] = useState<"Item" | "Category">("Item"),
-    [preview, setPreview] = useState<any>(null),
     [mergeTargets, setMergeTargets] = useState<Record<string, string>>({}),
     [entryMove, setEntryMove] = useState<any>(null),
     [noteEditor, setNoteEditor] = useState<any>(null),
@@ -72,8 +69,6 @@ export function Documents({
     [sectionParent, setSectionParent] = useState(""),
     [targetSection, setTargetSection] = useState(""),
     [historyAction, setHistoryAction] = useState<any>(null),
-    [resolutions, setResolutions] = useState<any>({}),
-    [linking, setLinking] = useState<any>(null),
     [picker, setPicker] = useState<any[]>([]),
     [addOpen, setAddOpen] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
@@ -99,10 +94,10 @@ export function Documents({
     let active = true;
     setDoc(null);
     setDirty(false);
-    setHistory(null);
     setMenuOpen(false);
     setAddOpen(false);
     setTargetSection("");
+    setItemGroup(null);
     setSectionEditor(null);
     setEntryMove(null);
     setMergeTargets({});
@@ -121,12 +116,6 @@ export function Documents({
         savedIds.current = new Set(d.entries.map((e: any) => e.id));
         setDoc(d);
         setStatus("");
-        if (d.kind === "template") {
-          const revisions = await api(
-            "/templates/" + documentId + "/revisions",
-          );
-          if (active) setRevisions(revisions);
-        }
       })().catch((e) => {
         if (active) setStatus(errorText(e));
       });
@@ -193,11 +182,8 @@ export function Documents({
     latest.current = d;
     setDoc(d);
     setDirty(false);
-    setHistory(null);
     setQuickNames({});
     setStatus("");
-    if (d.kind === "template")
-      setRevisions(await api("/templates/" + key + "/revisions"));
   };
   // Typing waits for a pause; one-shot edits such as drags save at once.
   const change = (next: any, typing = false) => {
@@ -219,13 +205,11 @@ export function Documents({
     try {
       if (!pending.current) {
         const d = latest.current;
-        if (duplicateItems(d).length) throw new Error(localized["Merge duplicate entries first"]);
         pending.current = {
           name: d.name,
           ...(kind === "checklist" ? { useDate: d.useDate ?? null } : {}),
           version: d.version,
           entries: d.entries,
-          groups: d.groups,
           sections: d.sections ?? [],
           requestId: crypto.randomUUID(),
         };
@@ -239,7 +223,6 @@ export function Documents({
         current.entries === sent.entries &&
         current.name === sent.name &&
         (kind !== "checklist" || (current.useDate ?? null) === sent.useDate) &&
-        current.groups === sent.groups &&
         (current.sections ?? []).length === sent.sections.length &&
         JSON.stringify(current.sections ?? []) === JSON.stringify(sent.sections)
       ) {
@@ -259,8 +242,6 @@ export function Documents({
       }
       setStatus(localized["Saved"]);
       await refresh();
-      if (kind === "template")
-        setRevisions(await api("/templates/" + result.id + "/revisions"));
     } catch (e) {
       setStatus(message(errorText(e), localized["; retry is available. Reload if there is a conflict."]));
     } finally {
@@ -281,8 +262,6 @@ export function Documents({
     unit: "",
     note: "",
     checked: false,
-    direct: true,
-    groupIds: [],
     sectionId: targetSection || null,
   });
   function add(item: any) {
@@ -291,7 +270,6 @@ export function Documents({
       (e: any) => item && e.itemId === item.id,
     );
     if (same.length) {
-      updateEntry(same[0].id, { direct: true });
       return;
     }
     change({ ...current, entries: [...current.entries, newEntry(item)] });
@@ -343,17 +321,16 @@ export function Documents({
       requestId: crypto.randomUUID(),
     });
   }
-  async function categoryPreview(categoryId: string, groupId?: string) {
+  async function addCategory(categoryId: string) {
     const d = latest.current;
-    const p = await api("/documents/" + d.id + "/category-preview", "POST", {
-      entries: d.entries,
-      groups: d.groups,
-      sections: d.sections ?? [],
-      version: d.version,
-      categoryId,
-      ...(groupId ? { groupId } : {}),
-    });
-    setPreview({ ...p, categoryId, groupId, content: d, restore: [] });
+    const { itemIds } = await api("/categories/" + categoryId + "/order");
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const members = itemIds.map((k: string) => byId.get(k)).filter(Boolean);
+    // Do not overwrite edits made while the category request was in flight.
+    if (latest.current !== d) throw new Error(localized["Content changed. Add the category again."]);
+    change(
+      addItems(d, members, () => crypto.randomUUID(), targetSection || null),
+    );
   }
   async function startHistory(action: string) {
     setMenuOpen(false);
@@ -367,29 +344,18 @@ export function Documents({
       return;
     }
     const d = latest.current;
-    const revision =
-      action === "instantiate"
-        ? history?.revision || revisions[0]?.revision
-        : undefined;
     const p = await api("/documents/" + d.id + "/history-preview", "POST", {
       action,
       version: d.version,
-      ...(revision ? { revision } : {}),
     });
     setHistoryAction({
       ...p,
       action,
-      revision,
       id: d.id,
       useDate: date ?? "",
       requestId: crypto.randomUUID(),
     });
     setMergeTargets({});
-    setResolutions(
-      Object.fromEntries(
-        p.items.map((i: any) => [i.id, { mode: "temporary" }]),
-      ),
-    );
   }
   const create = () => {
     setStatus("");
@@ -412,7 +378,6 @@ export function Documents({
           ...(kind === "checklist" ? { useDate: newDate || null } : {}),
           name,
           entries: [],
-          groups: [],
           requestId: crypto.randomUUID(),
         };
       const d = await api("/documents", "POST", creation.current);
@@ -438,7 +403,16 @@ export function Documents({
         <p role="status">{t(status) || t(localized["Loading…"])}</p>
       </Page>
     );
-  const display = history || doc;
+  const display = doc;
+  const itemGroups = [
+    ...new Set<string>(items.map((i) => i.itemGroup).filter(Boolean)),
+  ].sort(new Intl.Collator("zh-CN", { numeric: true }).compare);
+  const matchingItems = items.filter(
+    (i) => matchesItemGroup(i, itemGroup) && matchesSearch(itemQuery, i.name),
+  );
+  const matchingPickerItems = picker.filter(
+    (i) => matchesItemGroup(i, itemGroup) && matchesSearch(pickerQuery, i.name),
+  );
   // Progress and success fit beside the title; problems stay in the page.
   const quiet =
     [t(localized["Saving…"]), t(localized["Saved"]), t(localized["Check saved"])].includes(t(status)) ||
@@ -606,7 +580,7 @@ export function Documents({
       }
       onMore={doc ? () => setMenuOpen(true) : undefined}
       secondaryActions={
-        doc && !history && doc.status === "active"
+        doc && doc.status === "active"
           ? [
               ...(kind === "checklist"
                 ? [
@@ -647,12 +621,15 @@ export function Documents({
                       iconOnly: true,
                       onClick: () => setAddOpen(true),
                     },
-                    // Common action: instantiate the latest revision directly.
+                    // Instantiate saved current content; unsaved drafts stay local.
                     {
                       label: t(localized["Create checklist"]),
+                      title: dirty
+                        ? t(localized["Save changes before creating a checklist."])
+                        : t(localized["Create checklist"]),
                       icon: "checklist" as const,
                       iconOnly: true,
-                      disabled: !revisions.length,
+                      disabled: dirty || saving.current || !!pending.current,
                       onClick: () =>
                         void attempt(() => startHistory("instantiate")),
                     },
@@ -669,12 +646,12 @@ export function Documents({
             }
           : kind === "template"
             ? {
-                label: t(localized["Save revision"]),
+                label: t(localized["Save"]),
                 icon: "save",
                 onClick: () => void save(),
-                disabled: saving.current || !!history,
+                disabled: saving.current,
               }
-            : !history && doc.status === "active"
+            : doc.status === "active"
               ? {
                   label: t(localized["Add entries"]),
                   hidden: reading,
@@ -745,98 +722,43 @@ export function Documents({
           onClose={() => setPickerOpen(false)}
         >
           <h3>{t(localized["Choose item"])}</h3>
-          {picker.length ? (
-            picker.map((i) => (
-              <Button
-                key={i.id}
-                onClick={() => {
-                  add(i);
-                  setPickerOpen(false);
-                }}
-              >
-                {i.name}
-              </Button>
-            ))
-          ) : (
-            <p>{t(localized["This category has no items"])}</p>
-          )}
+          <ItemGroupFilter
+            groups={itemGroups}
+            value={itemGroup}
+            onChange={setItemGroup}
+          />
+          <input
+            aria-label={t(localized["Search "]) + resourceLabels.Item}
+            placeholder={t(localized["Search by name or pinyin "]) + resourceLabels.Item}
+            data-1p-ignore="true"
+            autoComplete="off"
+            value={pickerQuery}
+            onChange={(event) => setPickerQuery(event.target.value)}
+          />
+          <div className="add-list">
+            {matchingPickerItems.length ? (
+              matchingPickerItems.map((i) => (
+                <Button
+                  key={i.id}
+                  variant="ghost"
+                  onClick={() => {
+                    add(i);
+                    setPickerOpen(false);
+                  }}
+                >
+                  {i.name}
+                </Button>
+              ))
+            ) : (
+              <p>
+                {t(localized["No matching"])}
+                {" " + resourceLabels.Item}
+              </p>
+            )}
+          </div>
           <Button onClick={() => setPickerOpen(false)}>{t(localized["Cancel"])}</Button>
         </Modal>
       )}
-      {linking && (
-        <Modal aria-label={t(localized["Link category"])} onClose={() => setLinking(null)}>
-          <label>
-            {t(localized["Target category"])}
-            <Select
-              aria-label={t(localized["Target category"])}
-              value={linking.categoryId}
-              onChange={(categoryId) => setLinking({ ...linking, categoryId })}
-              options={categories.map((c) => ({ value: c.id, label: c.name }))}
-            />
-          </label>
-          <Button
-            disabled={!linking.categoryId}
-            onClick={() => {
-              change({
-                ...doc,
-                ...mergeContent({
-                  ...doc,
-                  groups: doc.groups.map((g: any) =>
-                    g.id === linking.groupId
-                      ? { ...g, categoryId: linking.categoryId }
-                      : g,
-                  ),
-                }),
-              });
-              setLinking(null);
-            }}
-          >
-            {t(localized["Link"])}
-          </Button>
-          <Button onClick={() => setLinking(null)}>{t(localized["Cancel"])}</Button>
-        </Modal>
-      )}
-      {doc &&
-        !history &&
-        doc.status === "active" &&
-        duplicateItems(doc).length > 0 && (
-          <Modal
-            aria-label={t(localized["Merge duplicate entries"])}
-            onClose={() => onNavigate(null)}
-          >
-            <h3>{t(localized["Duplicate entries: choose data to keep"])}</h3>
-            {duplicateItems(doc).map((d) => (
-              <label key={d.itemId}>
-                {d.entries[0].name}
-                <Select
-                  aria-label={t(localized["Keep "]) + d.entries[0].name}
-                  placeholder={t(localized["Choose values to keep"])}
-                  value={mergeTargets[d.itemId] || ""}
-                  onChange={(id) =>
-                    setMergeTargets({ ...mergeTargets, [d.itemId]: id })
-                  }
-                  options={d.entries.map((e) => ({
-                    value: e.id,
-                    label: [e.note, e.checked ? t(localized["Checked"]) : t(localized["Unchecked"])]
-                      .filter(Boolean)
-                      .join(" · "),
-                  }))}
-                />
-              </label>
-            ))}
-            <Button
-              disabled={duplicateItems(doc).some(
-                (d) => !mergeTargets[d.itemId],
-              )}
-              onClick={() => {
-                change({ ...doc, ...mergeContent(doc, mergeTargets) });
-                setMergeTargets({});
-              }}
-            >
-              {t(localized["Merge and keep all sources"])}
-            </Button>
-          </Modal>
-        )}
       {noteEditor && (
         <Modal aria-label={t(localized["Edit note"])} onClose={() => setNoteEditor(null)}>
           <h3>
@@ -1008,7 +930,7 @@ export function Documents({
                   data-1p-ignore="true"
                   autoComplete="off"
                   value={display.name}
-                  disabled={!!history || doc.status === "archived"}
+                  disabled={doc.status === "archived"}
                   onChange={(e) =>
                     change({ ...doc, name: e.target.value }, true)
                   }
@@ -1022,7 +944,7 @@ export function Documents({
                     aria-label={t(localized["Use date"])}
                     data-1p-ignore="true"
                     value={display.useDate ?? ""}
-                    disabled={!!history || doc.status === "archived"}
+                    disabled={doc.status === "archived"}
                     onChange={(e) =>
                       change({
                         ...latest.current,
@@ -1031,47 +953,6 @@ export function Documents({
                     }
                   />
                 </label>
-              )}
-              {kind === "template" && (
-                <div className="field-row">
-                  <label>
-                    Revision
-                    <Select
-                      aria-label="Revision"
-                      value={String(history?.revision || "")}
-                      onChange={(revision) =>
-                        void attempt(async () =>
-                          setHistory(
-                            revision
-                              ? await api(
-                                  "/templates/" +
-                                    doc.id +
-                                    "/revisions/" +
-                                    revision,
-                                )
-                              : null,
-                          ),
-                        )
-                      }
-                      options={[
-                        { value: "", label: t(localized["Current content"]) },
-                        ...revisions.map((r) => ({
-                          value: String(r.revision),
-                          label: t(localized["Revision "]) + r.revision,
-                        })),
-                      ]}
-                    />
-                  </label>
-                  <Button
-                    onClick={() =>
-                      void attempt(async () => {
-                        await startHistory("instantiate");
-                      })
-                    }
-                  >
-                    {t(localized["Create checklist from this revision"])}
-                  </Button>
-                </div>
               )}
               <div
                 className="document-menu"
@@ -1104,7 +985,7 @@ export function Documents({
                 <div className="toolbar">
                   {kind === "checklist" && doc.status === "active" && (
                     <Button
-                      disabled={saving.current || !!history}
+                      disabled={saving.current}
                       onClick={() => void save()}
                     >
                       {t(localized["Save / Retry"])}
@@ -1178,7 +1059,7 @@ export function Documents({
                       onClick={async () => {
                         if (
                           await ask(
-                            t(localized["Delete the template and all revisions? Existing checklists will remain."]),
+                            t(localized["Delete this template? Existing checklists will be kept."]),
                             t(localized["Delete template"]),
                           )
                         )
@@ -1239,7 +1120,16 @@ export function Documents({
             >
               <h3>
                 {t(localized["Confirm"])}
-                {historyAction.action}
+                {t(
+                  (
+                    {
+                      instantiate: localized["Create checklist"],
+                      copy: localized["Copy checklist"],
+                      restore: localized["Restore checklist"],
+                      template: localized["Convert to template"],
+                    } as Record<string, string>
+                  )[historyAction.action],
+                )}
               </h3>
               <p className="error">{t(status)}</p>
               <label>
@@ -1274,82 +1164,9 @@ export function Documents({
                   />
                 </label>
               )}
-              {historyAction.items.map((i: any) => (
-                <fieldset key={i.id}>
-                  <legend>
-                    {t(localized["Deleted item:"])}
-                    {i.name}
-                  </legend>
-                  <Select
-                    aria-label={t(localized["Resolution "]) + i.name}
-                    value={resolutions[i.id]?.mode ?? "temporary"}
-                    options={[
-                      { value: "temporary", label: t(localized["Keep as temporary entry"]) },
-                      { value: "existing", label: t(localized["Link existing item"]) },
-                      { value: "new", label: t(localized["Create new item"]) },
-                    ]}
-                    onChange={(mode) => {
-                      setHistoryAction({
-                        ...historyAction,
-                        requestId: crypto.randomUUID(),
-                      });
-                      setResolutions({
-                        ...resolutions,
-                        [i.id]: {
-                          mode,
-                          name: i.name,
-                          itemId: items[0]?.id,
-                        },
-                      });
-                    }}
-                  />
-                  {resolutions[i.id]?.mode === "existing" && (
-                    <Select
-                      aria-label={t(localized["Target item"])}
-                      placeholder={t(localized["Choose item [744e14fef1f3]"])}
-                      value={resolutions[i.id]?.itemId || ""}
-                      options={items.map((x) => ({
-                        value: x.id,
-                        label: x.name,
-                      }))}
-                      onChange={(itemId) => {
-                        setHistoryAction({
-                          ...historyAction,
-                          requestId: crypto.randomUUID(),
-                        });
-                        setResolutions({
-                          ...resolutions,
-                          [i.id]: {
-                            ...resolutions[i.id],
-                            itemId,
-                          },
-                        });
-                      }}
-                    />
-                  )}
-                  {resolutions[i.id]?.mode === "new" && (
-                    <input
-                      data-1p-ignore="true"
-                      autoComplete="off"
-                      aria-label={t(localized["New item name"])}
-                      value={resolutions[i.id]?.name || ""}
-                      onChange={(e) => {
-                        setHistoryAction({
-                          ...historyAction,
-                          requestId: crypto.randomUUID(),
-                        });
-                        setResolutions({
-                          ...resolutions,
-                          [i.id]: {
-                            ...resolutions[i.id],
-                            name: e.target.value,
-                          },
-                        });
-                      }}
-                    />
-                  )}
-                </fieldset>
-              ))}
+              {historyAction.items.length > 0 && (
+                <p>{t(localized["Deleted items will be kept as temporary entries. Their content is preserved."])}</p>
+              )}
               {(historyAction.duplicates ?? []).map((d: any) => (
                 <label key={d.itemId}>
                   {d.entries[0].name}
@@ -1377,12 +1194,6 @@ export function Documents({
                   />
                 </label>
               ))}
-              {historyAction.categories.map((g: any) => (
-                <p key={g.id}>
-                  {g.name}
-                  {t(localized["Deleted; kept as a static group."])}
-                </p>
-              ))}
               <Button
                 onClick={() =>
                   void attempt(async () => {
@@ -1391,13 +1202,9 @@ export function Documents({
                       name: historyAction.name,
                       version: historyAction.version,
                       requestId: historyAction.requestId,
-                      resolutions,
                       mergeTargets,
                       ...(historyAction.useDate
                         ? { useDate: historyAction.useDate }
-                        : {}),
-                      ...(historyAction.revision
-                        ? { revision: historyAction.revision }
                         : {}),
                     };
                     const result = await api(
@@ -1427,7 +1234,7 @@ export function Documents({
               {t(localized["Completed"])}
             </p>
           )}
-          {addOpen && !history && doc.status === "active" && (
+          {addOpen && doc.status === "active" && (
             <Modal aria-label={t(localized["Add entries"])} onClose={() => setAddOpen(false)}>
               <h3>{t(localized["Add entries"])}</h3>
               <label>
@@ -1466,6 +1273,12 @@ export function Documents({
                   ))}
                 </div>
               </div>
+              <ItemGroupFilter
+                groups={itemGroups}
+                value={itemGroup}
+                onChange={setItemGroup}
+                disabled={addMode === "Category"}
+              />
               <input
                 aria-label={t(localized["Search "]) + resourceLabels[addMode]}
                 placeholder={t(localized["Search by name or pinyin "]) + resourceLabels[addMode]}
@@ -1476,21 +1289,19 @@ export function Documents({
               />
               <div className="add-list" role="tabpanel">
                 {addMode === "Item" &&
-                  items
-                    .filter((i) => matchesSearch(itemQuery, i.name))
-                    .map((i) => (
-                      <Button
-                        variant="ghost"
-                        key={i.id}
-                        onClick={() => {
-                          add(i);
-                          setAddOpen(false);
-                        }}
-                      >
-                        <span>{i.name}</span>
-                        <Icon name="add" />
-                      </Button>
-                    ))}
+                  matchingItems.map((i) => (
+                    <Button
+                      variant="ghost"
+                      key={i.id}
+                      onClick={() => {
+                        add(i);
+                        setAddOpen(false);
+                      }}
+                    >
+                      <span>{i.name}</span>
+                      <Icon name="add" />
+                    </Button>
+                  ))}
                 {addMode === "Category" &&
                   categories
                     .filter((c) => matchesSearch(itemQuery, c.name))
@@ -1511,6 +1322,7 @@ export function Documents({
                                 ),
                               );
                               setAddOpen(false);
+                              setPickerQuery("");
                               setPickerOpen(true);
                             })
                           }
@@ -1522,7 +1334,7 @@ export function Documents({
                           aria-label={t(localized["Add category "]) + c.name}
                           onClick={() =>
                             void attempt(async () => {
-                              await categoryPreview(c.id);
+                              await addCategory(c.id);
                               setAddOpen(false);
                             })
                           }
@@ -1531,9 +1343,11 @@ export function Documents({
                         </Button>
                       </div>
                     ))}
-                {!(addMode === "Item" ? items : categories).some((x) =>
-                  matchesSearch(itemQuery, x.name),
-                ) && (
+                {(addMode === "Item"
+                  ? matchingItems.length === 0
+                  : !categories.some((x) =>
+                      matchesSearch(itemQuery, x.name),
+                    )) && (
                   <p>
                     {t(localized["No matching"])}
                     {" " + resourceLabels[addMode]}
@@ -1545,192 +1359,11 @@ export function Documents({
               </div>
             </Modal>
           )}
-          {kind === "template" && display.groups.length > 0 && (
-            <div className="entries entry-groups">
-              {display.groups.map((g: any) => (
-                <div key={g.id} className="entry entry-group">
-                  <span className="category-tag">
-                    {/* Live docs show the linked Category's current name; history keeps the snapshot. */}
-                    {(!history &&
-                      doc.status === "active" &&
-                      categories.find((c: any) => c.id === g.categoryId)
-                        ?.name) ||
-                      g.name}
-                  </span>
-                  <span className="entry-group-kind">
-                    {g.categoryId ? t(localized["Category snapshot"]) : t(localized["Static group"])}
-                  </span>
-                  {!history && doc.status === "active" && (
-                    <>
-                      <Button
-                        variant="icon"
-                        aria-label={t(localized["Link category"])}
-                        title={t(localized["Link category"])}
-                        onClick={() => {
-                          setLinking({
-                            groupId: g.id,
-                            categoryId: g.categoryId || categories[0]?.id || "",
-                          });
-                        }}
-                      >
-                        <Icon name="link" />
-                      </Button>
-                      <Button
-                        variant="icon"
-                        aria-label={t(localized["Update to latest"])}
-                        title={t(localized["Update to latest"])}
-                        disabled={!g.categoryId}
-                        onClick={() =>
-                          void attempt(() =>
-                            categoryPreview(g.categoryId, g.id),
-                          )
-                        }
-                      >
-                        <Icon name="refresh" />
-                      </Button>
-                      <Button
-                        variant="icon"
-                        aria-label={t(localized["Remove category source"])}
-                        title={t(localized["Remove category source"])}
-                        onClick={() =>
-                          change({ ...doc, ...removeGroup(doc, g.id) })
-                        }
-                      >
-                        <Icon name="trash" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {preview && (
-            <Modal
-              onClose={() => setPreview(null)}
-              aria-label={t(localized["Category update preview"])}
-            >
-              <h3>
-                {preview.group.name}
-                {t(localized["· Update preview"])}
-              </h3>
-              <p className="error">{t(status)}</p>
-              <p>
-                {t(localized["Added"])}
-                {preview.added.length}
-                {t(localized[", removed sources"])}
-                {preview.removed.length}
-              </p>
-              {preview.added.map((i: any) => (
-                <p key={i.id}>+ {i.name}</p>
-              ))}
-              {preview.duplicates.map((i: any) => (
-                <p key={i.id}>
-                  {i.name}
-                  {t(localized[": merge automatically, keeping existing data and position"])}
-                </p>
-              ))}
-              {preview.excluded.length > 0 && (
-                <section className="excluded-picker">
-                  <div className="excluded-head">
-                    <h4>
-                      {t(localized["Excluded"])}
-                      {preview.excluded.length}
-                      {t(localized["entries · ignored by default"])}
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        setPreview({
-                          ...preview,
-                          restore: preview.excluded.map((i: any) => i.id),
-                        })
-                      }
-                    >
-                      {t(localized["Restore all"])}
-                    </Button>
-                  </div>
-                  <div className="entries">
-                    {preview.excluded.map((i: any) => (
-                      <label key={i.id} className="excluded-row">
-                        <input
-                          type="checkbox"
-                          checked={preview.restore.includes(i.id)}
-                          onChange={(event) =>
-                            setPreview({
-                              ...preview,
-                              restore: event.target.checked
-                                ? [...preview.restore, i.id]
-                                : preview.restore.filter(
-                                    (k: string) => k !== i.id,
-                                  ),
-                            })
-                          }
-                        />
-                        <span>{i.name}</span>
-                        <span className="excluded-hint">
-                          {preview.restore.includes(i.id)
-                            ? t(localized["Restore"])
-                            : t(localized["Ignore"])}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </section>
-              )}
-              {preview.removed.map((e: any) => (
-                <p key={e.id}>
-                  {e.name}
-                  {t(localized[": sources"])}
-                  {e.groupIds.length + Number(e.direct)} →{" "}
-                  {e.groupIds.length - 1 + Number(e.direct)}
-                  {e.direct || e.groupIds.length > 1
-                    ? t(localized["(keep entry)"])
-                    : t(localized["(remove entry)"])}
-                </p>
-              ))}
-              <Button
-                onClick={() =>
-                  void attempt(async () => {
-                    const d = preview.content;
-                    const content = await api(
-                      "/documents/" + d.id + "/category-compose",
-                      "POST",
-                      {
-                        entries: d.entries,
-                        groups: d.groups,
-                        sections: d.sections ?? [],
-                        version: d.version,
-                        categoryId: preview.categoryId,
-                        ...(preview.groupId
-                          ? { groupId: preview.groupId }
-                          : {}),
-                        expected: preview.expected,
-                        restore: preview.restore,
-                      },
-                    );
-                    change({
-                      ...d,
-                      ...content,
-                      entries: content.entries.map((e: any) =>
-                        d.entries.some((x: any) => x.id === e.id)
-                          ? e
-                          : { ...e, sectionId: targetSection || null },
-                      ),
-                    });
-                    setPreview(null);
-                  })
-                }
-              >
-                {t(localized["Apply selection"])}
-              </Button>
-              <Button onClick={() => setPreview(null)}>{t(localized["Cancel"])}</Button>
-            </Modal>
-          )}
           <div className="entries">
             {contentRows(
               display,
               true,
-              !history && doc.status === "active" && !reading,
+              doc.status === "active" && !reading,
             ).map((row: any, index: number, rows: any[]) =>
               row.quick ? (
                 quickEntry(row.parent, row.depth)
@@ -1748,12 +1381,8 @@ export function Documents({
                   className={"entry section-heading level-" + (row.depth + 1)}
                   key={row.section.id}
                   dragLabel={row.section.name}
-                  disabled={!!history || doc.status !== "active" || reading}
-                  tabIndex={
-                    !history && doc.status === "active" && !reading
-                      ? 0
-                      : undefined
-                  }
+                  disabled={doc.status !== "active" || reading}
+                  tabIndex={doc.status === "active" && !reading ? 0 : undefined}
                   aria-label={t(localized["Section "]) + row.section.name}
                   // The whole heading toggles; its edit/delete buttons do not.
                   onClick={(event) => {
@@ -1794,7 +1423,7 @@ export function Documents({
                     <Icon name="forward" />
                   </Button>
                   <strong>{row.section.name}</strong>
-                  {!history && doc.status === "active" && !reading && (
+                  {doc.status === "active" && !reading && (
                     <ActionTools name={row.section.name}>
                       <Button
                         variant="icon"
@@ -1828,11 +1457,10 @@ export function Documents({
                 (() => {
                   const e = row.entry;
                   const linkedItem =
-                    !history && doc.status === "active"
+                    doc.status === "active"
                       ? items.find((i) => i.id === e.itemId)
                       : null;
-                  const editable =
-                    !history && doc.status === "active" && !reading;
+                  const editable = doc.status === "active" && !reading;
                   const nameInput =
                     editable && !e.itemId && editingName !== e.id ? (
                       <button
@@ -1866,9 +1494,7 @@ export function Documents({
                         aria-label={t(localized["Entry name"])}
                         className={"name " + (e.checked ? "checked" : "")}
                         value={linkedItem?.name || e.name}
-                        disabled={
-                          !!e.itemId || !!history || doc.status === "archived"
-                        }
+                        disabled={!!e.itemId || doc.status === "archived"}
                         onChange={(ev) =>
                           updateEntry(e.id, { name: ev.target.value }, true)
                         }
@@ -1946,20 +1572,6 @@ export function Documents({
                       ) : (
                         nameControl
                       )}
-                      <span
-                        className="entry-source-count"
-                        title={
-                          e.groupIds.length +
-                          Number(e.direct) +
-                          t(localized[" sources (category and direct)"])
-                        }
-                        aria-label={
-                          e.groupIds.length + Number(e.direct) + t(localized[" sources"])
-                        }
-                      >
-                        <Icon name="source" />
-                        {e.groupIds.length + Number(e.direct)}
-                      </span>
                       {editable && (
                         <ActionTools name={e.name}>
                           {editable && (
@@ -1978,7 +1590,7 @@ export function Documents({
                               <Icon name="edit" />
                             </Button>
                           )}
-                          {!history && doc.status === "active" && (
+                          {doc.status === "active" && (
                             <>
                               {(doc.sections ?? []).length > 0 && (
                                 <Button
@@ -1997,7 +1609,9 @@ export function Documents({
                                 onClick={() =>
                                   change({
                                     ...doc,
-                                    ...removeEntry(doc, e.id),
+                                    entries: doc.entries.filter(
+                                      (x: any) => x.id !== e.id,
+                                    ),
                                   })
                                 }
                               >
@@ -2013,10 +1627,7 @@ export function Documents({
               ),
             )}
           </div>
-          {!history &&
-            doc.status === "active" &&
-            !reading &&
-            quickEntry(null, 0)}
+          {doc.status === "active" && !reading && quickEntry(null, 0)}
         </>
       )}
     </Page>

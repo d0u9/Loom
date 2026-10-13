@@ -17,8 +17,6 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
     unit: "",
     note: "",
     checked: false,
-    direct: true,
-    groupIds: [],
   });
   const doc = await (
     await page.request.post("/api/v1/documents", {
@@ -26,7 +24,6 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
       data: {
         kind: "checklist",
         name: "Entries " + info.project.name,
-        groups: [],
         entries: [entry("A"), entry("B"), entry("C")],
         requestId: crypto.randomUUID(),
       },
@@ -62,17 +59,11 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
 
   if (info.project.name === "desktop") {
     const rows = page.locator(".entry[data-sort-id]");
-    const from = (await rows
-      .nth(2)
-      .locator(".entry-source-count")
-      .boundingBox())!;
-    const to = (await rows
-      .nth(0)
-      .locator(".entry-source-count")
-      .boundingBox())!;
-    await page.mouse.move(from.x + 4, from.y + 4);
+    const from = (await rows.nth(2).boundingBox())!;
+    const to = (await rows.nth(0).boundingBox())!;
+    await page.mouse.move(from.x + from.width - 4, from.y + 4);
     await page.mouse.down();
-    await page.mouse.move(to.x + 4, to.y + 4, { steps: 8 });
+    await page.mouse.move(to.x + to.width - 4, to.y + 4, { steps: 8 });
     // The row copy follows the pointer and a line marks the landing spot.
     await expect(page.locator(".drag-preview .name")).toHaveText(/^C/);
     await expect(rows.nth(0)).toHaveClass(/drop-before/);
@@ -113,7 +104,6 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
       data: {
         kind: "checklist",
         name: "Sections " + info.project.name,
-        groups: [],
         sections: [
           { id: s1, name: "S1", parentSectionId: null },
           { id: s2, name: "S2", parentSectionId: null },
@@ -153,13 +143,13 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   await expect.poll(rowOrder).toEqual(["X", "S2", "S1"]);
   if (info.project.name === "desktop") {
     const x = (await page
-      .locator(".entry[data-sort-id] .entry-source-count")
+      .locator(".entry[data-sort-id]:not(.section-heading)")
       .first()
       .boundingBox())!;
     const target = (await page
       .getByLabel(localized["fixture.755bc33fa9ae"], { exact: true })
       .boundingBox())!;
-    await page.mouse.move(x.x + 4, x.y + 4);
+    await page.mouse.move(x.x + x.width - 4, x.y + 4);
     await page.mouse.down();
     // Lower half of a heading nests the entry into that section.
     await page.mouse.move(target.x + 40, target.y + target.height - 6, {
@@ -195,7 +185,6 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
         data: {
           kind: "checklist",
           name: "Linked " + info.project.name,
-          groups: [],
           entries: [
             entry("P"),
             { ...entry("L"), itemId: item.id, name: item.name },
@@ -211,12 +200,12 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
       .nth(1)
       .boundingBox())!;
     const to = (await page
-      .locator(".entry[data-sort-id] .entry-source-count")
+      .locator(".entry[data-sort-id]:not(.section-heading)")
       .first()
       .boundingBox())!;
     await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
     await page.mouse.down();
-    await page.mouse.move(to.x + 4, to.y + 4, { steps: 8 });
+    await page.mouse.move(to.x + to.width - 4, to.y + 4, { steps: 8 });
     await page.mouse.up();
     await expect.poll(names).toEqual(["L", "P"]);
   }

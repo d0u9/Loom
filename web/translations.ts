@@ -1,5 +1,14 @@
 import localized from "../locales/zh.json" with { type: "json" };
 export const english: Record<string, string> = {
+  [localized["Filter by catalog group"]]: "Filter by catalog group",
+  [localized["Delete this template? Existing checklists will be kept."]]:
+    "Delete this template? Existing checklists will be kept.",
+  [localized["Save changes before creating a checklist."]]: "Save changes before creating a checklist.",
+  [localized["Catalog group"]]: "Catalog group",
+  [localized["Content changed. Add the category again."]]: "Content changed. Add the category again.",
+  [localized["Deleted items will be kept as temporary entries. Their content is preserved."]]:
+    "Deleted items will be kept as temporary entries. Their content is preserved.",
+  [localized["Restore checklist"]]: "Restore checklist",
   [localized["Add from items"]]: "Add from items",
   [localized["Add from categories"]]: "Add from categories",
   [localized["Actions"]]: "Actions",
@@ -35,7 +44,6 @@ export const english: Record<string, string> = {
     "Discard changes and open another checklist?",
   [localized["Discard changes"]]: "Discard changes",
   [localized["Saving…"]]: "Saving…",
-  [localized["Merge duplicate entries first"]]: "Merge duplicate entries first",
   [localized["Saved"]]: "Saved",
   [localized["; retry is available. Reload if there is a conflict."]]:
     "; retry is available. Reload if there is a conflict.",
@@ -63,7 +71,6 @@ export const english: Record<string, string> = {
   [localized["Add entries"]]: "Add entries",
   [localized["Create checklist"]]: "Create checklist",
   [localized["New"]]: "New",
-  [localized["Save revision"]]: "Save revision",
   [localized["Creating…"]]: "Creating…",
   [localized["Retry creation"]]: "Retry creation",
   [localized["Create"]]: "Create",
@@ -76,13 +83,10 @@ export const english: Record<string, string> = {
   [localized["Link category"]]: "Link category",
   [localized["Target category"]]: "Target category",
   [localized["Link"]]: "Link",
-  [localized["Merge duplicate entries"]]: "Merge duplicate entries",
-  [localized["Duplicate entries: choose data to keep"]]: "Duplicate entries: choose data to keep",
   [localized["Keep"]]: "Keep",
   [localized["Choose values to keep"]]: "Choose values to keep",
   [localized["Checked"]]: "Checked",
   [localized["Unchecked"]]: "Unchecked",
-  [localized["Merge and keep all sources"]]: "Merge and keep all sources",
   [localized["Edit note"]]: "Edit note",
   [localized["'s note"]]: "'s note",
   [localized["Note"]]: "Note",
@@ -100,7 +104,6 @@ export const english: Record<string, string> = {
   [localized["Use date"]]: "Use date",
   [localized["Current content"]]: "Current content",
   [localized["Revision"]]: "Revision",
-  [localized["Create checklist from this revision"]]: "Create checklist from this revision",
   [localized["Discard local changes and reload?"]]: "Discard local changes and reload?",
   [localized["Reload"]]: "Reload",
   [localized["Save / Retry"]]: "Save / Retry",
@@ -108,8 +111,6 @@ export const english: Record<string, string> = {
   [localized["Restore archive"]]: "Restore archive",
   [localized["Copy checklist"]]: "Copy checklist",
   [localized["Convert to template"]]: "Convert to template",
-  [localized["Delete the template and all revisions? Existing checklists will remain."]]:
-    "Delete the template and all revisions? Existing checklists will remain.",
   [localized["Delete template"]]: "Delete template",
   [localized["Permanently delete this checklist? This cannot be undone."]]:
     "Permanently delete this checklist? This cannot be undone.",
@@ -162,7 +163,6 @@ export const english: Record<string, string> = {
   [localized["Delete section and move content up"]]: "Delete section and move content up",
   [localized["Entry name"]]: "Entry name",
   [localized["Check"]]: "Check",
-  [localized["sources (category and direct)"]]: "sources (category and direct)",
   [localized["sources"]]: "sources",
   [localized["Move to section"]]: "Move to section",
   [localized["Group [399ee6934772]"]]: "Group",

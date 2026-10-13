@@ -15,7 +15,6 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Store, Problem, requireThat, id, hash, verify } from "./db.js";
 import { registerHistory } from "./history.js";
-import { registerGroups } from "./groups.js";
 import { registerDocuments } from "./documents.js";
 import { randomBytes } from "node:crypto";
 import { defaultConfig, type Config } from "./config.js";
@@ -268,8 +267,9 @@ export async function app(store: Store, config: Config = defaultConfig) {
     );
     b.categoryIds.forEach((c: string) =>
       store.run(
-        "INSERT OR IGNORE INTO item_categories(itemId,categoryId) VALUES(?,?)",
+        "INSERT OR IGNORE INTO item_categories(itemId,categoryId,position) VALUES(?,?,(SELECT COALESCE(MAX(position)+1,0) FROM item_categories WHERE categoryId=?))",
         key,
+        c,
         c,
       ),
     );
@@ -303,7 +303,7 @@ export async function app(store: Store, config: Config = defaultConfig) {
     store.resource("categories", key);
     return store
       .all(
-        "SELECT itemId FROM item_categories WHERE categoryId=? ORDER BY position IS NULL,position,itemId",
+        "SELECT itemId FROM item_categories WHERE categoryId=? ORDER BY position",
         key,
       )
       .map((x) => x.itemId);
@@ -379,23 +379,16 @@ export async function app(store: Store, config: Config = defaultConfig) {
       store.tx(() => {
         const key = req.params.id;
         store.version(store.resource("categories", key), req.body.version);
-        const refs = [
-          ...store.all(
-            "SELECT i.id,i.name,'Item' AS kind FROM items i JOIN item_categories r ON i.id=r.itemId WHERE r.categoryId=?",
-            key,
-          ),
-          ...store.all(
-            "SELECT d.id,d.name,d.kind FROM documents d JOIN groups g ON g.documentId=d.id WHERE g.categoryId=?",
-            key,
-          ),
-        ];
+        const refs = store.all(
+          "SELECT i.id,i.name,'Item' AS kind FROM items i JOIN item_categories r ON i.id=r.itemId WHERE r.categoryId=?",
+          key,
+        );
         if (refs.length) throw new Problem(409, "Category is referenced", refs);
         store.run("DELETE FROM categories WHERE id=?", key);
         return { ok: true };
       }),
   );
   registerDocuments(route, store);
-  registerGroups(route, store);
   registerHistory(route, store);
   const web = resolve("dist/web");
   if (existsSync(web)) {

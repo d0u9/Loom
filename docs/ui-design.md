@@ -12,15 +12,15 @@ Use Memos' compact proportions, regular weights, thin-line icons, and light bord
 
 On 2026-10-12, actual styles were read through developer tools from the user's already-open [Memos](https://memo.d0u9.cc). Reference values and Loom's final specifications are recorded separately:
 
-| Element | Memos measured | Loom adopted |
-| --- | --- | --- |
-| Desktop sidebar navigation | 13px / 18px, 400, row height 28px, horizontal padding 8px | Same; real links with icons |
-| Light button text | 13px / 18px, 400 | Shared button default 13px / 18px, 400 |
-| Save button | 14px / 20px, 500, height 28px, radius 6px | Primary button 13px / 18px, 500, height 28px, radius 6px |
-| Icons | Mostly 16px, stroke roughly 1.8px | 16px, stroke 1.8px |
-| Body text | 16px / 24px, 400 | Retain Loom 14px, roughly 1.45 line height |
-| Markdown level-one heading | 30px / 36px, 700 | Not applied to app titles; Loom page titles 18px, 500 |
-| Accent color | Blue-gray | Retain Loom green |
+| Element              | Memos measured                                | Loom adopted                                  |
+| ----------------- | ----------------------------------------- | ------------------------------------------ |
+| Desktop sidebar navigation      | 13px / 18px, 400, row height 28px, horizontal padding 8px | Same; real links with icons                     |
+| Light button text      | 13px / 18px, 400                          | Shared button default 13px / 18px, 400              |
+| Save button         | 14px / 20px, 500, height 28px, radius 6px       | Primary button 13px / 18px, 500, height 28px, radius 6px |
+| Icons              | Mostly 16px, stroke roughly 1.8px                   | 16px, stroke 1.8px                           |
+| Body text              | 16px / 24px, 400                          | Retain Loom 14px, roughly 1.45 line height             |
+| Markdown level-one heading | 30px / 36px, 700                          | Not applied to app titles; Loom page titles 18px, 500  |
+| Accent color            | Blue-gray                                      | Retain Loom green                             |
 
 Button text must not inherit body/input font sizes. The user explicitly requested shrinking shared buttons to **13px / 18px**; the reference page's 14px Save button does not justify reverting this.
 
@@ -28,14 +28,14 @@ Button text must not inherit body/input font sizes. The user explicitly requeste
 
 Use system sans-serif fonts: `ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif`. Load no extra fonts.
 
-| Purpose | Font size / line height | Font weight |
-| --- | --- | --- |
-| Body text, ordinary fields | 14px / roughly 20px | 400 |
-| Page/dialog titles | 18px; page title line height 28px, dialog roughly 1.3 line height | 500 |
-| Card names | 14px / 20px | 500 |
-| Shared action buttons | 13px / 18px | Ordinary 400, primary 500 |
-| Desktop navigation links | 13px / 18px | 400, including selected state |
-| Tags, notes | 12px / 18px | 400 |
+| Purpose               | Font size / line height                                | Font weight                 |
+| ------------------ | ------------------------------------------ | -------------------- |
+| Body text, ordinary fields     | 14px / roughly 20px                             | 400                  |
+| Page/dialog titles | 18px; page title line height 28px, dialog roughly 1.3 line height | 500                  |
+| Card names           | 14px / 20px                                | 500                  |
+| Shared action buttons       | 13px / 18px                                | Ordinary 400, primary 500 |
+| Desktop navigation links       | 13px / 18px                                | 400, including selected state      |
+| Tags, notes         | 12px / 18px                                | 400                  |
 
 Standard desktop controls are 28px high; touch interaction targets are at least 44px. Buttons, single-line inputs, and view switches align on one row. Calendars retain compact grids; compact inline inputs may use 26px heights while preserving adequate touch targets.
 
@@ -45,24 +45,24 @@ Font sizes use only 12 / 13 / 14 / 18. Spacing uses 4 / 8 / 12 / 16 / 24px; navi
 
 All colors come from `:root` in `web/style.css`; business pages must not introduce their own themes.
 
-| Purpose | Token | Value |
-| --- | --- | --- |
-| Page background | `--bg` | `#f7f7f5` |
-| Sidebar background | `--nav-bg` | `#f0f1ec` |
-| Card, dialog, control background | `--surface` | `#ffffff` |
-| Body text | `--text` | `#292b2e` |
-| Ordinary actions, secondary text | `--text-2` | `#54594f` |
-| Supporting text | `--muted` | `#858780` |
-| Faint text | `--faint` | `#c5c8be` |
-| Separators, card borders | `--line` | `#e8e9e4` |
-| Input border | `--line-strong` | `#dedfd9` |
-| Hover background | `--hover` | `#f1f3ee` |
-| Primary action | `--accent` | `#38634a` |
-| Primary action hover | `--accent-hover` | `#2c513b` |
-| Selected background | `--accent-soft` | `#e2e8db` |
-| Category tag background / text | `--tag-bg` / `--tag-text` | `#edf1e8` / `#64725b` |
-| Focus | `--focus` | `#739980` |
-| Dangerous actions | `--danger` | `#aa4740` |
+| Purpose                 | Token                     | Value                    |
+| -------------------- | ------------------------- | --------------------- |
+| Page background             | `--bg`                    | `#f7f7f5`             |
+| Sidebar background             | `--nav-bg`                | `#f0f1ec`             |
+| Card, dialog, control background | `--surface`               | `#ffffff`             |
+| Body text                 | `--text`                  | `#292b2e`             |
+| Ordinary actions, secondary text   | `--text-2`                | `#54594f`             |
+| Supporting text             | `--muted`                 | `#858780`             |
+| Faint text             | `--faint`                 | `#c5c8be`             |
+| Separators, card borders     | `--line`                  | `#e8e9e4`             |
+| Input border           | `--line-strong`           | `#dedfd9`             |
+| Hover background             | `--hover`                 | `#f1f3ee`             |
+| Primary action               | `--accent`                | `#38634a`             |
+| Primary action hover           | `--accent-hover`          | `#2c513b`             |
+| Selected background             | `--accent-soft`           | `#e2e8db`             |
+| Category tag background / text  | `--tag-bg` / `--tag-text` | `#edf1e8` / `#64725b` |
+| Focus                 | `--focus`                 | `#739980`             |
+| Dangerous actions             | `--danger`                | `#aa4740`             |
 
 Dangerous operations use red to communicate meaning; ordinary actions do not borrow danger colors. Retain clear keyboard focus and never communicate selection, disabled, or error state through color alone.
 
@@ -70,13 +70,13 @@ Dangerous operations use red to communicate meaning; ordinary actions do not bor
 
 All action buttons use [Button](../web/button.tsx), with base styles centralized in [style.css](../web/style.css). Business pages pass events, disabled conditions, and layout information without independently overriding the base skin.
 
-| variant | Purpose | Appearance |
-| --- | --- | --- |
-| `primary` | Main new/create/save actions | Green background, white text |
-| `secondary` (default) | Cancel, reload, ordinary actions | White background, visible thin border |
-| `danger` | Dangerous actions such as deleting templates | Red text/border, pale-red hover feedback |
-| `ghost` | Lightweight calendar/selection interaction | Transparent background, hover feedback |
-| `icon` | Compact edit/delete/back/more actions | 16px icon, consistent target size |
+| variant             | Purpose                             | Appearance                         |
+| ------------------- | -------------------------------- | ---------------------------- |
+| `primary`           | Main new/create/save actions       | Green background, white text           |
+| `secondary` (default) | Cancel, reload, ordinary actions         | White background, visible thin border         |
+| `danger`            | Dangerous actions such as deleting templates               | Red text/border, pale-red hover feedback |
+| `ghost`             | Lightweight calendar/selection interaction           | Transparent background, hover feedback           |
+| `icon`              | Compact edit/delete/back/more actions | 16px icon, consistent target size      |
 
 Ordinary actions must not become borderless text merely because they appear in settings dialogs or entry rows. Reload must look like an ordinary button and Delete template like a danger button. Dangerous icon actions remain icons with danger coloring. Disabled buttons reduce opacity, execute no action, and show no actionable hover feedback.
 
@@ -123,7 +123,7 @@ Dialogs focus the first control on opening; Escape closes and restores trigger f
 
 ## 7. Phones and acceptance
 
-Use only the `max-width: 650px` narrow-screen breakpoint with 16px horizontal margins. Phones share navigation links and Calendar: bottom navigation stacks icons/text and the calendar collapses. Titles truncate on one line; with secondary actions, primary buttons may show icons only while retaining accessible names. Entry names, sources, and actions share one line, with notes beneath; quantities/units are currently hidden but retained in data.
+Use only the `max-width: 650px` narrow-screen breakpoint with 16px horizontal margins. Phones share navigation links and Calendar: bottom navigation stacks icons/text and the calendar collapses. Titles truncate on one line; with secondary actions, primary buttons may show icons only while retaining accessible names. Entry names/actions share one line, with notes beneath; quantities/units are currently hidden but retained in data.
 
 Mobile dimensions take effect directly on narrow screens or coarse pointers without waiting separately for touch detection, avoiding size jumps on refresh. Retain previously confirmed card-corner/Page-view-switch exceptions.
 
@@ -189,7 +189,6 @@ Checklist check circles stay at the same far-left baseline on desktop and phone 
 
 Section layout Demo becomes two-level: independent level-one blocks, pale backgrounds and content indentation for level-two titles/content, and left-aligned check circles. The production interface/two-level limit are now implemented; old structures adjust through previews.
 
-
 Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level.
 
 ### Confirmed desktop section styling (2026-10-13)
@@ -198,7 +197,7 @@ Use confirmed section hierarchy styling: independent level-one blocks with 18px/
 
 ### Temporary-entry quick input (2026-10-13)
 
-Shared Documents provides a pale empty-input row at the end of active documents; header Add temporary entry focuses it directly, and source-add dialogs no longer offer that action. Blank input or input not confirmed with Enter creates no entry. Enter confirms a root temporary entry, clears input, and retains focus for continuous entry. Enter for Chinese IME composition does not submit; Escape clears unconfirmed input. Checklist immediately uses autosave/requestId retries; Enter on an existing temporary name saves immediately and ends editing. Template Enter confirms only the client draft, still requiring explicit revision saving. Remove the inline Save as Item button.
+Shared Documents provides a pale empty-input row at the end of active documents; header Add temporary entry focuses it directly, and source-add dialogs no longer offer that action. Blank input or input not confirmed with Enter creates no entry. Enter confirms a root temporary entry, clears input, and retains focus for continuous entry. Enter for Chinese IME composition does not submit; Escape clears unconfirmed input. Checklist immediately uses autosave/requestId retries; Enter on an existing temporary name saves immediately and ends editing. Template Enter confirms only the client draft, still requiring explicit saving of current content. Remove the inline Save as Item button.
 
 Section quick input: expanded level-one/level-two sections each end with a pale temporary-entry input labeled by target section. Enter adds there and retains focus for continuous entry. Root input remains independent; collapsed sections hide their inputs. Checklist autosaves; Template retains explicit revision saving.
 
@@ -222,8 +221,18 @@ Mobile Item Group bar occupies one horizontally scrollable line; show each edge'
 
 - Category member addition supports continuous operations: successful addition of existing or newly created Items keeps the Modal open. Clear name, notes, and Group in the creation form, restore the current category default, and focus name. Failure retains input and original requestId for retry; exit only when the user explicitly cancels or closes.
 
-- A Checklist can be created directly from the Category detail header, defaulting its name to the category name and offering an optional execution date. Within a transaction, the server validates the Category version and member set, then creates an independent member snapshot and category source. Deduplicate with requestId so retrying the original request does not create duplicates; subsequent category changes do not synchronize automatically.
+- A Checklist can be created directly from the Category detail header, defaulting its name to the category name and offering an optional execution date. Within a transaction, the server validates the Category version and member set, then creates independent entries without category sources. Deduplicate with requestId so retrying the original request does not create duplicates; subsequent category changes do not synchronize automatically.
 
 - The framework interface is consistently Chinese, with Chinese equivalents of Item, Category, Template, Checklist, Group, revision, and Update to latest. Navigation, buttons, dialogs, accessible names, states, and user errors use consistent terminology; internal API/routes/code identifiers and user-data names stay unchanged, retaining Loom branding and necessary technical diagnostic names.
 
 - The interface switches between Chinese/English using centralized translations in web/i18n.ts and web/translations.ts. Chinese is currently the default; browsers persist loom.language across refresh. Login and shared account areas offer switching; anonymous phone mode retains four resource links and language access. Synchronize all fixed text, accessible labels, calendar, and errors; user names/notes/Group data are not translated. New copy requires English translations too, without API/database changes. This replaces the earlier Chinese-only rule.
+
+## v0.0.2 simplified interface (2026-10-13)
+
+Template's primary action becomes Save; checklist creation copies saved current content and is disabled on unsaved changes with a save-first hint. Remove revision selection, creation from this revision, persistent source counts, category-source rows, and update/link/exclusion previews. Whole-category addition fills missing Items directly without opening update confirmation first.
+
+History restoration dialogs retain name, date, and confirmation; missing Items only explain default temporary retention rather than expanding three-way identity choices. Old duplicate-data conflicts still offer retained-value selection. Catalog editing explicitly labels Group as Catalog group; new copy is Chinese/English. Other confirmed layout, dimensions, actions, and safety semantics remain.
+
+Language switching consistently uses shared LanguageSwitch and Lucide Languages, with shared icon Button on login/account bars. Chinese/English dimensions match, retaining 28px desktop/32px phone heights; title/aria-label name the target language, preserving focus, persistence, and anonymous access.
+
+Item-add candidates consistently offer a Filter catalog group dropdown (All, Ungrouped, existing groups) reusing shared Select with Chinese/English copy and pinyin/keyboard selection. Template/checklist Item search, picking within Category, and adding existing category members intersect group/search. Switching category filters clears old candidates; successful addition retains filters. The category-source tab disables this Item filter but retains its space; whole-category addition still uses all members. Source switching preserves dialog size/position.

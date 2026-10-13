@@ -41,10 +41,6 @@ test("Category creates an independent checklist atomically with version and retr
     assert.equal(doc.entries.length, 1);
     assert.equal(doc.entries[0].itemId, item.id);
     assert.equal(doc.entries[0].checked, false);
-    assert.equal(doc.entries[0].direct, false);
-    assert.deepEqual(doc.entries[0].groupIds, [doc.groups[0].id]);
-    assert.equal(doc.groups[0].categoryId, category.id);
-    assert.deepEqual(doc.groups[0].members, [item.id]);
     assert.deepEqual(
       (
         await h.call("POST", `/categories/${category.id}/checklists`, body)
@@ -91,7 +87,6 @@ test("Category creates an independent checklist atomically with version and retr
       })
     ).json();
     assert.equal(emptyDoc.entries.length, 0);
-    assert.equal(emptyDoc.groups[0].categoryId, empty.id);
   } finally {
     await h.close();
   }

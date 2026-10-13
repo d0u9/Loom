@@ -91,4 +91,10 @@ Move to another machine: Stop the service and wait for exit, copy the entire `da
 
 ## Interface Language
 
-Chinese and English are supported. Switch using English / Chinese on the login page and at the bottom of navigation, also available on mobile and with authentication disabled. Chinese is the default. The current browser stores the language choice and retains it on refresh; user data such as item names, notes, and group names remains unchanged.
+Chinese and English are supported. Switch using a fixed-size language icon button on the login page and at the bottom of navigation. Its hover hint and accessible name identify the target language; it is also available on mobile and with authentication disabled. Chinese is the default. The current browser stores the language choice and retains it on refresh; user data such as item names, notes, and group names remains unchanged.
+
+### v0.0.2 Simplified Version
+
+Template saving updates only current content without version history; creating a checklist copies the saved template. Categories support only one-time bulk addition, without ongoing synchronization. Historically deleted Items remain temporary entries by default.
+
+The database removes category-source tables (groups, entry_sources), entries.direct, and template_revisions, while schema remains version 1. v0.0.1 databases are incompatible; development data is rebuilt directly.

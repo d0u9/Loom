@@ -9,6 +9,7 @@ import { Modal } from "./modal.js";
 import { Select } from "./select.js";
 import { ResourceForm } from "./resource-dialog.js";
 import { ItemFields } from "./item-fields.js";
+import { ItemGroupFilter, matchesItemGroup } from "./item-group-filter.js";
 import { api, ApiError } from "./client.js";
 import React, { useState, useEffect, useRef } from "react";
 
@@ -36,6 +37,7 @@ export function CategoryList({
   onSorted: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState("");
+  const [itemGroup, setItemGroup] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<any>(null);
   const [createError, setCreateError] = useState<LocalizedText>("");
@@ -127,6 +129,10 @@ export function CategoryList({
   const members = (order?.itemIds ?? [])
     .map((id) => items.find((i) => i.id === id))
     .filter(Boolean);
+  const availableItems = items.filter(
+    (i) =>
+      !i.categoryIds.includes(category.id) && matchesItemGroup(i, itemGroup),
+  );
   async function update(item: any, ids: string[]) {
     setBusy(true);
     try {
@@ -169,6 +175,15 @@ export function CategoryList({
           }}
         >
           <h3>{t(localized["Add members"])}</h3>
+          <ItemGroupFilter
+            groups={itemGroups}
+            value={itemGroup}
+            disabled={busy || !!createPending.current}
+            onChange={(group) => {
+              setItemGroup(group);
+              setSelected("");
+            }}
+          />
           <div className="member-picker">
             <label>
               {t(localized["Add existing item"])}
@@ -178,19 +193,17 @@ export function CategoryList({
                 value={selected}
                 disabled={busy || !!createPending.current}
                 onChange={setSelected}
-                options={items
-                  .filter((i) => !i.categoryIds.includes(category.id))
-                  .map((i) => ({ value: i.id, label: i.name }))}
+                options={availableItems.map((i) => ({
+                  value: i.id,
+                  label: i.name,
+                }))}
               />
             </label>
             <Button
               disabled={
                 busy ||
                 !!createPending.current ||
-                !items.some(
-                  (i) =>
-                    i.id === selected && !i.categoryIds.includes(category.id),
-                )
+                !availableItems.some((i) => i.id === selected)
               }
               onClick={() => {
                 const item = items.find((i) => i.id === selected);

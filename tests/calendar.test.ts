@@ -11,7 +11,6 @@ test("checklist dates validate, preserve on old writes/archive/restore, and rese
         kind,
         name: "Dated",
         entries: [],
-        groups: [],
         useDate,
         requestId: id(),
       });
@@ -29,7 +28,6 @@ test("checklist dates validate, preserve on old writes/archive/restore, and rese
       await h.call("PUT", `/documents/${d.id}`, {
         name: d.name,
         entries: [],
-        groups: [],
         version: d.version,
         requestId: id(),
       })
@@ -57,7 +55,6 @@ test("checklist dates validate, preserve on old writes/archive/restore, and rese
       await h.call("PUT", `/documents/${d.id}`, {
         name: d.name,
         entries: [],
-        groups: [],
         version: d.version,
         useDate: null,
         requestId: id(),

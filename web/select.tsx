@@ -115,8 +115,11 @@ export function Select({
         }
         // Closed it shows the choice; open it holds the filter text.
         value={allowCustom ? value : open ? query : (selected?.label ?? "")}
-        // Typing over the selected label starts a new filter.
-        onFocus={(event) => event.target.select()}
+        // Typing over the selected label starts a new filter. Touch skips
+        // the selection: it pops the system copy/paste menu.
+        onFocus={(event) =>
+          !matchMedia("(pointer: coarse)").matches && event.target.select()
+        }
         onClick={() => !open && show()}
         onChange={(event) => {
           if (allowCustom) onChange(event.target.value);

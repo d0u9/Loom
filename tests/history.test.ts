@@ -5,9 +5,6 @@ import { setup, entry } from "./helpers.js";
 test("archive releases references, missing resources restore safely, copies reset checks", async () => {
   const h = await setup();
   try {
-    const category = (
-      await h.call("POST", "/categories", { name: "Food" })
-    ).json();
     const egg = (
       await h.call("POST", "/items", {
         name: "egg",
@@ -15,21 +12,11 @@ test("archive releases references, missing resources restore safely, copies rese
         requestId: id(),
       })
     ).json();
-    const group = {
-      id: id(),
-      categoryId: category.id,
-      originalCategoryId: category.id,
-      name: "Food",
-      members: [],
-      excluded: [],
-    };
-    const e = { ...entry(egg), direct: false, groupIds: [group.id] };
     let d = (
       await h.call("POST", "/documents", {
         kind: "checklist",
         name: "Today",
-        entries: [e],
-        groups: [group],
+        entries: [entry(egg)],
         requestId: id(),
       })
     ).json();
@@ -59,7 +46,6 @@ test("archive releases references, missing resources restore safely, copies rese
         await h.call("PUT", "/documents/" + d.id, {
           name: "bad",
           entries: [],
-          groups: [],
           version: d.version,
           requestId: id(),
         })
@@ -70,11 +56,6 @@ test("archive releases references, missing resources restore safely, copies rese
       (await h.call("DELETE", "/items/" + egg.id, { version: 1 })).statusCode,
       200,
     );
-    assert.equal(
-      (await h.call("DELETE", "/categories/" + category.id, { version: 1 }))
-        .statusCode,
-      200,
-    );
     const preview = (
       await h.call("POST", "/documents/" + d.id + "/history-preview", {
         action: "restore",
@@ -82,13 +63,11 @@ test("archive releases references, missing resources restore safely, copies rese
       })
     ).json();
     assert.equal(preview.items.length, 1);
-    assert.equal(preview.categories.length, 1);
     const body = {
       action: "restore",
       version: d.version,
       name: d.name,
       requestId: id(),
-      resolutions: { [egg.id]: { mode: "temporary" } },
     };
     const restored = (
       await h.call("POST", "/documents/" + d.id + "/history-apply", body)
@@ -96,7 +75,6 @@ test("archive releases references, missing resources restore safely, copies rese
     assert.equal(restored.status, "active");
     assert.equal(restored.entries[0].checked, true);
     assert.equal(restored.entries[0].itemId, null);
-    assert.equal(restored.groups[0].categoryId, null);
     assert.equal(
       (
         await h.call("POST", "/documents/" + d.id + "/history-apply", body)
@@ -129,12 +107,10 @@ test("archive releases references, missing resources restore safely, copies rese
         action: "instantiate",
         version: template.version,
         resolutions: {},
-        revision: 1,
         name: "From history",
         requestId: id(),
       })
     ).json();
-    assert.equal(instance.groups[0].categoryId, null);
     assert.equal(
       (
         await h.call("DELETE", "/templates/" + template.id, {
@@ -167,7 +143,6 @@ test("missing Item creation is atomic and retry-safe", async () => {
         kind: "checklist",
         name: "Old",
         entries: [entry(egg)],
-        groups: [],
         requestId: id(),
       })
     ).json();
@@ -234,7 +209,6 @@ test("checklist delete removes the document and releases Item references", async
         kind: "checklist",
         name: "Once",
         entries: [entry(egg)],
-        groups: [],
         requestId: id(),
       })
     ).json();
@@ -243,7 +217,6 @@ test("checklist delete removes the document and releases Item references", async
         kind: "template",
         name: "T",
         entries: [],
-        groups: [],
         requestId: id(),
       })
     ).json();

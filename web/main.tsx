@@ -1,18 +1,12 @@
 import localized from "../locales/zh.json" with { type: "json" };
-import {
-  t,
-  message,
-  type LocalizedText,
-  useLanguage,
-  setLanguage,
-} from "./i18n.js";
+import { t, message, type LocalizedText, useLanguage } from "./i18n.js";
 import { resourceLabels, errorText } from "./labels.js";
 import { ItemSummary } from "./item-summary.js";
 import { ItemFields } from "./item-fields.js";
 import { Button } from "./button.js";
 import { useRoute, resourcePath, matchesSearch } from "./router.js";
 import { CategoryList } from "./category-list.js";
-import { AppLayout, Page, Icon } from "./layout.js";
+import { AppLayout, Page, Icon, LanguageSwitch } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { ResourceDialog } from "./resource-dialog.js";
 import React, { useState, useEffect, useRef } from "react";
@@ -22,7 +16,7 @@ import { api, setCsrf, leave, ApiError } from "./client.js";
 import { Documents } from "./documents.js";
 import { ask } from "./modal.js";
 function App() {
-  const language = useLanguage();
+  useLanguage();
   const route = useRoute();
   const { section, date } = route;
   const categoryId = section === "Category" ? route.id : null;
@@ -211,9 +205,7 @@ function App() {
     return (
       <main className="login">
         <h1>Loom</h1>
-        <Button onClick={() => setLanguage(language === "zh" ? "en" : "zh")}>
-          {language === "zh" ? "English" : localized["fixture.72726d8818f6"]}
-        </Button>
+        <LanguageSwitch />
         <p>{t(localized["A place for everything on your checklist."])}</p>
         <form
           method="post"

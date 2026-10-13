@@ -31,7 +31,6 @@ test("resource URLs restore details, date filters and browser history", async ({
     kind: "template",
     name: "URL template " + info.project.name,
     entries: [],
-    groups: [],
     requestId: crypto.randomUUID(),
   });
   const checklist = await create("/documents", {
@@ -39,7 +38,6 @@ test("resource URLs restore details, date filters and browser history", async ({
     name: "URL checklist " + info.project.name,
     useDate: "2027-02-15",
     entries: [],
-    groups: [],
     requestId: crypto.randomUUID(),
   });
 

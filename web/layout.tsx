@@ -15,6 +15,7 @@ import {
   Folder,
   Plus,
   Save,
+  Languages,
   Pencil,
   ChevronLeft,
   ChevronRight,
@@ -96,7 +97,7 @@ export function AppLayout({
   onLogout?: () => void;
   children: React.ReactNode;
 }) {
-  const language = useLanguage();
+  useLanguage();
   const accountRef = useRef<HTMLDetailsElement>(null);
   useOutsideClose(accountRef, true, () => {
     if (accountRef.current) accountRef.current.open = false;
@@ -122,12 +123,7 @@ export function AppLayout({
           <span className="account-name">
             {onLogout ? username : t(localized["No sign-in required"])}
           </span>
-          <Button
-            aria-label={language === "zh" ? localized["fixture.3e8e498593dc"] : "Switch to Chinese"}
-            onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
-          >
-            {language === "zh" ? "English" : localized["fixture.72726d8818f6"]}
-          </Button>
+          <LanguageSwitch />
           {onLogout && (
             <details
               ref={accountRef}
@@ -165,6 +161,21 @@ export function AppLayout({
   );
 }
 
+export function LanguageSwitch() {
+  const language = useLanguage();
+  const label = language === "zh" ? localized["fixture.3e8e498593dc"] : "Switch to Chinese";
+  return (
+    <Button
+      variant="icon"
+      aria-label={label}
+      title={label}
+      onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+    >
+      <Icon name="language" />
+    </Button>
+  );
+}
+
 // View choice is shared by all pages and remembered per browser.
 function readView() {
   try {
@@ -196,6 +207,7 @@ export function Page({
   };
   secondaryActions?: {
     label: string;
+    title?: string;
     icon?: keyof typeof icons;
     iconOnly?: boolean;
     pressed?: boolean;
@@ -279,7 +291,9 @@ export function Page({
                 variant={action.iconOnly ? "icon" : "secondary"}
                 className={action.hidden ? "slot-hidden" : undefined}
                 aria-label={action.iconOnly ? action.label : undefined}
-                title={action.iconOnly ? action.label : undefined}
+                title={
+                  action.title ?? (action.iconOnly ? action.label : undefined)
+                }
                 aria-pressed={action.pressed}
                 onClick={action.onClick}
                 disabled={action.disabled}
@@ -301,7 +315,7 @@ export function Page({
                 onClick={primaryAction.onClick}
                 disabled={primaryAction.disabled}
               >
-                <Icon name={primaryAction.icon === "save" ? "check" : "add"} />
+                <Icon name={primaryAction.icon ?? "add"} />
                 <span className="page-primary-label">
                   {primaryAction.label}
                 </span>
@@ -355,6 +369,7 @@ const icons = {
   category: Folder,
   add: Plus,
   save: Save,
+  language: Languages,
   edit: Pencil,
   back: ChevronLeft,
   forward: ChevronRight,

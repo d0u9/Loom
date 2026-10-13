@@ -129,7 +129,6 @@ test("checklist list aligns dates and progress when a date is absent", async ({
         name,
         useDate,
         entries: [],
-        groups: [],
         sections: [],
         requestId: crypto.randomUUID(),
       },

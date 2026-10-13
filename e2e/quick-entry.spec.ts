@@ -19,7 +19,6 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         kind,
         name: "Quick " + kind + info.project.name,
         entries: [],
-        groups: [],
         sections: [
           { id: section, name: "Parent", parentSectionId: null },
           { id: child, name: "Child", parentSectionId: section },
@@ -73,9 +72,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       page.getByRole("button", { name: localized["fixture.d2774989deec"], exact: true }),
     ).toHaveCount(0);
     if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Save revision"], exact: true })
-        .click();
+      await page.getByRole("button", { name: localized["Save"], exact: true }).click();
     await expect(page.getByRole("status")).toContainText(localized["Saved"]);
     await page.getByRole("button", { name: localized["Entry name"], exact: true }).click();
     const input = page.getByLabel(localized["Entry name"], { exact: true });
@@ -83,9 +80,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await input.press("Enter");
     await expect(page.locator(localized["fixture.5c1684296f6f"])).toHaveCount(0);
     if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Save revision"], exact: true })
-        .click();
+      await page.getByRole("button", { name: localized["Save"], exact: true }).click();
     await expect
       .poll(
         async () =>
@@ -115,9 +110,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         "Child",
       ]);
       if (kind === "template")
-        await page
-          .getByRole("button", { name: localized["Save revision"], exact: true })
-          .click();
+        await page.getByRole("button", { name: localized["Save"], exact: true }).click();
       await expect
         .poll(
           async () =>

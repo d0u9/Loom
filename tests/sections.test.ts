@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { setup, entry } from "./helpers.js";
 import { id } from "../server/db.js";
 import {
-  removeGroup,
   removeSection,
   moveNode,
   children,
@@ -11,148 +10,7 @@ import {
   validateSections,
 } from "../shared/groups.js";
 
-test("category sources merge, repeated addition is idempotent, zero sources remove only document entries", async () => {
-  const h = await setup();
-  try {
-    const cats = [];
-    for (const name of ["food", "lab"])
-      cats.push((await h.call("POST", "/categories", { name })).json());
-    const egg = (
-      await h.call("POST", "/items", {
-        name: "egg",
-        categoryIds: cats.map((c) => c.id),
-        requestId: id(),
-      })
-    ).json();
-    let d = (
-      await h.call("POST", "/documents", {
-        kind: "checklist",
-        name: "sources",
-        entries: [],
-        groups: [],
-        requestId: id(),
-      })
-    ).json();
-    const save = async (content: any) => {
-      const body = {
-        name: d.name,
-        version: d.version,
-        entries: content.entries,
-        groups: content.groups,
-        sections: content.sections,
-        requestId: id(),
-      };
-      const r = await h.call("PUT", `/documents/${d.id}`, body);
-      assert.equal(r.statusCode, 200, r.body);
-      assert.deepEqual(
-        (await h.call("PUT", `/documents/${d.id}`, body)).json(),
-        r.json(),
-      );
-      d = r.json();
-    };
-    const add = async (category: any) => {
-      const body = {
-        entries: d.entries,
-        groups: d.groups,
-        version: d.version,
-        categoryId: category.id,
-      };
-      const p = (
-        await h.call("POST", `/documents/${d.id}/category-preview`, body)
-      ).json();
-      const r = await h.call("POST", `/documents/${d.id}/category-compose`, {
-        ...body,
-        expected: p.expected,
-      });
-      assert.equal(r.statusCode, 200, r.body);
-      await save(r.json());
-    };
-    await add(cats[0]);
-    await add(cats[1]);
-    await add(cats[1]);
-    assert.equal(d.entries.length, 1);
-    assert.equal(d.groups.length, 2);
-    assert.equal(d.entries[0].sourceCount, 2);
-    await h.call(
-      "PUT",
-      `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
-      { checked: true, requestId: id() },
-    );
-    await save(removeGroup(d, d.groups[0].id));
-    assert.equal(d.entries[0].sourceCount, 1);
-    assert.equal(d.entries[0].checked, true);
-    await save({ ...d, groups: [] });
-    assert.equal(d.entries.length, 0);
-    assert.equal((await h.call("GET", "/items")).json().length, 1);
-    await add(cats[0]);
-    await save({
-      ...d,
-      entries: d.entries.map((e: any) => ({ ...e, direct: true })),
-    });
-    await save(removeGroup(d, d.groups[0].id));
-    assert.equal(d.entries[0].sourceCount, 1);
-    const prior = d.entries[0];
-    await save({
-      ...d,
-      entries: [
-        prior,
-        {
-          ...prior,
-          id: id(),
-          quantity: "999",
-          note: "replace?",
-          checked: true,
-        },
-      ],
-    });
-    assert.equal(d.entries.length, 1);
-    assert.equal(d.entries[0].quantity, prior.quantity);
-    assert.equal(d.entries[0].note, prior.note);
-    assert.throws(
-      () =>
-        h.store.run(
-          "INSERT INTO entries(id,documentId,itemId,name,quantity,unit,note,position) SELECT ?,documentId,itemId,name,quantity,unit,note,position FROM entries WHERE id=?",
-          id(),
-          d.entries[0].id,
-        ),
-      /UNIQUE/,
-    );
-    await save({ ...d, entries: [] });
-    await add(cats[0]);
-    await add(cats[1]);
-    let item = (await h.call("GET", "/items"))
-      .json()
-      .find((i: any) => i.id === egg.id);
-    let r = await h.call("PUT", `/items/${egg.id}`, {
-      name: item.name,
-      note: item.note,
-      categoryIds: [cats[1].id],
-      version: item.version,
-      requestId: id(),
-    });
-    assert.equal(r.statusCode, 200, r.body);
-    await add(cats[0]);
-    assert.equal(d.entries[0].sourceCount, 1);
-    item = (await h.call("GET", "/items"))
-      .json()
-      .find((i: any) => i.id === egg.id);
-    r = await h.call("PUT", `/items/${egg.id}`, {
-      name: item.name,
-      note: item.note,
-      categoryIds: [],
-      version: item.version,
-      requestId: id(),
-    });
-    assert.equal(r.statusCode, 200, r.body);
-    await add(cats[1]);
-    assert.equal(d.entries.length, 0);
-    assert.equal((await h.call("GET", "/items")).json().length, 1);
-  } finally {
-    await h.close();
-  }
-});
-
-test("two-level sections validate atomically, revisions/instances/archive preserve structure", async () => {
+test("two-level sections validate atomically, current content/instances/archive preserve structure", async () => {
   const h = await setup();
   try {
     const sections = [
@@ -168,7 +26,6 @@ test("two-level sections validate atomically, revisions/instances/archive preser
       name: "Tree",
       sections,
       entries: [e],
-      groups: [],
       requestId: id(),
     });
     assert.equal(r.statusCode, 200, r.body);
@@ -179,7 +36,6 @@ test("two-level sections validate atomically, revisions/instances/archive preser
       name: d.name,
       version: d.version,
       entries: d.entries,
-      groups: [],
       sections: [...d.sections, fourth],
       requestId: id(),
     };
@@ -201,16 +57,9 @@ test("two-level sections validate atomically, revisions/instances/archive preser
       400,
     );
     assert.equal((await h.call("GET", `/documents/${d.id}`)).json().version, 1);
-    assert.equal(
-      (await h.call("GET", `/templates/${d.id}/revisions`)).json().length,
-      1,
-    );
-    const rev = (await h.call("GET", `/templates/${d.id}/revisions/1`)).json();
-    assert.deepEqual(rev.sections, d.sections);
     const instance = (
       await h.call("POST", `/documents/${d.id}/history-apply`, {
         action: "instantiate",
-        revision: 1,
         version: 1,
         name: "Use",
         resolutions: {},
@@ -256,7 +105,6 @@ test("two-level sections validate atomically, revisions/instances/archive preser
           kind: "template",
           name: "Foreign",
           entries: [{ ...entry(), sectionId: d.sections[0].id }],
-          groups: [],
           sections: [],
           requestId: id(),
         })
@@ -268,182 +116,16 @@ test("two-level sections validate atomically, revisions/instances/archive preser
   }
 });
 
-test("legacy duplicates require explicit field selection and retain every source", () => {
+test("duplicate Items require explicit field selection", () => {
   const item = { id: id(), name: "egg" },
     a = entry(item),
     b = { ...entry(item), quantity: "4", checked: true };
-  const groups = [
-    {
-      id: id(),
-      categoryId: id(),
-      originalCategoryId: id(),
-      name: "food",
-      members: [item.id],
-      excluded: [],
-    },
-  ];
-  a.groupIds = [groups[0].id];
-  assert.throws(
-    () => mergeContent({ entries: [a, b], groups }),
-    /Choose values/,
-  );
-  const merged = mergeContent({ entries: [a, b], groups }, { [item.id]: b.id });
+  assert.throws(() => mergeContent({ entries: [a, b] }), /Choose values/);
+  const merged = mergeContent({ entries: [a, b] }, { [item.id]: b.id });
   assert.equal(merged.entries.length, 1);
   assert.equal(merged.entries[0].quantity, "4");
   assert.equal(merged.entries[0].checked, true);
-  assert.deepEqual(merged.entries[0].groupIds, a.groupIds);
-  assert.equal(
-    mergeContent({ entries: [entry(), entry()], groups: [] }).entries.length,
-    2,
-  );
-});
-
-test("old revisions expose duplicates and history apply merges selected values atomically", async () => {
-  const h = await setup();
-  try {
-    const item = (
-      await h.call("POST", "/items", {
-        name: "egg",
-        categoryIds: [],
-        requestId: id(),
-      })
-    ).json();
-    const d = (
-      await h.call("POST", "/documents", {
-        kind: "template",
-        name: "old",
-        entries: [],
-        groups: [],
-        requestId: id(),
-      })
-    ).json();
-    const a = entry(item),
-      b = { ...entry(item), quantity: "7", checked: true };
-    const snapshot = JSON.stringify({
-      ...d,
-      schemaVersion: 2,
-      revision: 2,
-      entries: [a, b],
-    });
-    h.store.run(
-      "INSERT INTO template_revisions VALUES(?,?,?)",
-      d.id,
-      2,
-      snapshot,
-    );
-    const body = {
-      action: "instantiate",
-      revision: 2,
-      version: d.version,
-      name: "new",
-      resolutions: {},
-      requestId: id(),
-    };
-    const p = (
-      await h.call("POST", `/documents/${d.id}/history-preview`, {
-        action: "instantiate",
-        revision: 2,
-        version: d.version,
-      })
-    ).json();
-    assert.equal(p.duplicates.length, 1);
-    assert.equal(
-      (await h.call("POST", `/documents/${d.id}/history-apply`, body))
-        .statusCode,
-      409,
-    );
-    assert.equal(h.store.all("SELECT * FROM documents").length, 1);
-    const r = await h.call("POST", `/documents/${d.id}/history-apply`, {
-      ...body,
-      mergeTargets: { [item.id]: b.id },
-    });
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().entries.length, 1);
-    assert.equal(r.json().entries[0].quantity, "7");
-    assert.equal(r.json().entries[0].checked, false);
-    assert.equal(
-      h.store.get(
-        "SELECT snapshot FROM template_revisions WHERE documentId=? AND revision=2",
-        d.id,
-      ).snapshot,
-      snapshot,
-    );
-  } finally {
-    await h.close();
-  }
-});
-
-test("unknown and foreign sources reject the whole save, including checked state and revisions", async () => {
-  const h = await setup();
-  try {
-    const item = (
-      await h.call("POST", "/items", {
-        name: "egg",
-        categoryIds: [],
-        requestId: id(),
-      })
-    ).json();
-    const foreign = (
-      await h.call("POST", "/documents", {
-        kind: "template",
-        name: "other",
-        entries: [],
-        groups: [
-          {
-            id: id(),
-            categoryId: null,
-            originalCategoryId: id(),
-            name: "static",
-            members: [],
-            excluded: [],
-          },
-        ],
-        requestId: id(),
-      })
-    ).json();
-    for (const kind of ["template", "checklist"]) {
-      const d = (
-        await h.call("POST", "/documents", {
-          kind,
-          name: "protected",
-          entries: [entry(item)],
-          groups: [],
-          requestId: id(),
-        })
-      ).json();
-      if (kind === "checklist")
-        await h.call(
-          "PUT",
-          `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
-          { checked: true, requestId: id() },
-        );
-      const before = (await h.call("GET", `/documents/${d.id}`)).json();
-      for (const sourceId of [id(), foreign.groups[0].id]) {
-        const r = await h.call("PUT", `/documents/${d.id}`, {
-          name: "should roll back",
-          version: before.version,
-          entries: [
-            { ...before.entries[0], direct: false, groupIds: [sourceId] },
-          ],
-          groups: [],
-          requestId: id(),
-        });
-        assert.equal(r.statusCode, 400, r.body);
-        assert.equal(r.json().message, "Unknown source group");
-        assert.deepEqual(
-          (await h.call("GET", `/documents/${d.id}`)).json(),
-          before,
-        );
-      }
-      if (kind === "template")
-        assert.equal(
-          (await h.call("GET", `/templates/${d.id}/revisions`)).json().length,
-          1,
-        );
-    }
-  } finally {
-    await h.close();
-  }
+  assert.equal(mergeContent({ entries: [entry(), entry()] }).entries.length, 2);
 });
 
 test("entries and sections share one order per parent and survive save and copy", async () => {
@@ -460,7 +142,6 @@ test("entries and sections share one order per parent and survive save and copy"
     const inner = mk("inner", s2.id);
     let content: any = {
       entries: [a, b, inner],
-      groups: [],
       sections: [s1, s2],
     };
     const order = (c: any, parent: string | null) =>
@@ -492,7 +173,7 @@ test("entries and sections share one order per parent and survive save and copy"
     const egg = { id: id(), name: "egg" };
     const e1 = { ...mk("egg1"), itemId: egg.id };
     const e2 = { ...mk("egg2"), itemId: egg.id };
-    let dup: any = { entries: [e1, mk("m"), e2], groups: [], sections: [] };
+    let dup: any = { entries: [e1, mk("m"), e2], sections: [] };
     dup.sections = [{ id: id(), name: "T", parentSectionId: null }];
     dup = moveNode(dup, dup.sections[0].id, e2.id, "after");
     assert.deepEqual(order(dup, null), ["egg1", "m", "egg2", "T"]);
@@ -511,7 +192,6 @@ test("entries and sections share one order per parent and survive save and copy"
       await h.call("POST", "/documents/" + d.id + "/history-apply", {
         action: "instantiate",
         version: d.version,
-        revision: 1,
         name: "copy",
         resolutions: {},
         requestId: id(),
@@ -524,7 +204,6 @@ test("entries and sections share one order per parent and survive save and copy"
         kind: "template",
         name: "legacy",
         entries: [mk("p"), mk("q")],
-        groups: [],
         sections: [
           { id: id(), name: "Last", parentSectionId: null },
           {
@@ -541,7 +220,6 @@ test("entries and sections share one order per parent and survive save and copy"
       await h.call("POST", "/documents/" + old.id + "/history-apply", {
         action: "instantiate",
         version: old.version,
-        revision: 1,
         name: "legacy copy",
         resolutions: {},
         requestId: id(),

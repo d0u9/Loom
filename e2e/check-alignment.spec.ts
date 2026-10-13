@@ -24,8 +24,6 @@ test("check circles align across section depths", async ({ page }, info) => {
     unit: "",
     note: "",
     checked: false,
-    direct: true,
-    groupIds: [],
   }));
   const response = await page.request.post("/api/v1/documents", {
     headers: { "x-csrf-token": csrf },
@@ -34,7 +32,6 @@ test("check circles align across section depths", async ({ page }, info) => {
       name: "Aligned checklist",
       sections,
       entries,
-      groups: [],
       requestId: crypto.randomUUID(),
     },
   });

@@ -876,42 +876,6 @@ article p {
   background: transparent;
 }
 /* Category update preview: excluded members, each kept out unless ticked. */
-.excluded-picker {
-  margin: var(--space-3) 0;
-}
-.excluded-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-.excluded-head h4 {
-  margin: 0;
-  font-size: var(--font-sm);
-  color: var(--muted);
-}
-.excluded-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--line);
-  color: var(--text);
-  cursor: pointer;
-}
-.excluded-row:last-child {
-  border-bottom: 0;
-}
-.excluded-row span:first-of-type {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.excluded-hint {
-  font-size: var(--font-xs);
-  color: var(--muted);
-}
 .entry {
   display: flex;
   align-items: center;
@@ -952,19 +916,6 @@ article p {
   font-size: var(--font-xs);
   font-weight: 400;
   color: var(--text-2);
-}
-.entry-source-count .icon {
-  width: 14px;
-  height: 14px;
-}
-.entry-source-count {
-  min-width: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: var(--font-xs);
-  color: var(--muted);
-  white-space: nowrap;
 }
 .entry select {
   max-width: 120px;
@@ -1073,17 +1024,6 @@ article p {
 }
 .entry .icon-button:disabled {
   visibility: hidden;
-}
-.entry-groups {
-  margin-bottom: var(--space-3);
-}
-.entry-group {
-  min-height: calc(var(--control-h) + 20px);
-}
-.entry-group-kind {
-  flex: 1;
-  color: var(--muted);
-  font-size: var(--font-sm);
 }
 
 /* ---------- Dialogs & forms ---------- */
@@ -1212,7 +1152,7 @@ fieldset.form-fields {
 .login > p {
   color: var(--muted);
 }
-.login button {
+.login .button:not(.icon-button) {
   width: 100%;
   margin-top: var(--space-3);
 }
@@ -1517,9 +1457,6 @@ fieldset.form-fields {
 
 /* ---------- Touch targets ---------- */
 @media (max-width: 650px), (pointer: coarse) {
-  .excluded-row {
-    min-height: var(--touch-h);
-  }
   button,
   .nav-link,
   input,

@@ -44,12 +44,12 @@ test("Item group tabs combine with search and shared editing", async ({
   await page.getByRole("button", { name: localized["New item"] }).click();
   const dialog = page.getByRole("dialog");
   const groupInput = dialog.getByRole("combobox", {
-    name: localized["Group [399ee6934772]"],
+    name: localized["Catalog group"],
     exact: true,
   });
   await expect(groupInput).toHaveValue(group);
   await groupInput.click();
-  await expect(dialog.getByRole("listbox", { name: localized["Group [399ee6934772]"] })).toBeVisible();
+  await expect(dialog.getByRole("listbox", { name: localized["Catalog group"] })).toBeVisible();
   await dialog.getByRole("option", { name: other, exact: true }).click();
   await expect(groupInput).toHaveValue(other);
   await groupInput.fill(localized["fixture.0c8bca718d5c"] + info.project.name);
@@ -82,7 +82,7 @@ test("Item group tabs combine with search and shared editing", async ({
   await page
     .getByRole("button", { name: localized["fixture.a6b4211e8042"] + info.project.name, exact: true })
     .click();
-  await dialog.getByLabel(localized["Group [399ee6934772]"], { exact: true }).fill("");
+  await dialog.getByLabel(localized["Catalog group"], { exact: true }).fill("");
   await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator(".record-card")).toHaveCount(1);

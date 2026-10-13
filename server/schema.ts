@@ -50,33 +50,8 @@ const entry = object(
     unit: text,
     note: text,
     checked: { type: "boolean" },
-    direct: { type: "boolean" },
-    groupIds: list(uuid),
-    sourceCount: { type: "integer" },
   },
-  [
-    "id",
-    "itemId",
-    "name",
-    "quantity",
-    "unit",
-    "note",
-    "checked",
-    "direct",
-    "groupIds",
-  ],
-);
-const group = object(
-  {
-    id: uuid,
-    categoryId: nullable(uuid),
-    originalCategoryId: uuid,
-    name: text,
-    members: list(uuid),
-    excluded: list(uuid),
-    expected: list(uuid),
-  },
-  ["id", "categoryId", "originalCategoryId", "name", "members", "excluded"],
+  ["id", "itemId", "name", "quantity", "unit", "note", "checked"],
 );
 export const documentSchema = object(
   {
@@ -89,12 +64,10 @@ export const documentSchema = object(
     source: nullable({ type: "object", additionalProperties: true }),
     sections: list(section),
     entries: list(entry),
-    groups: list(group),
     schemaVersion: { type: "integer" },
-    revision: { type: "integer" },
     archivedAt: text,
   },
-  ["id", "kind", "name", "version", "status", "entries", "groups"],
+  ["id", "kind", "name", "version", "status", "entries"],
 );
 const summary = object(
   {
@@ -139,32 +112,14 @@ export function responseSchema(url: string, method: string) {
   if (path.endsWith("/checklists") && method === "POST") return documentSchema;
   if (path.startsWith("/categories/")) return category;
   if (path === "/documents" && method === "GET") return list(summary);
-  if (path.endsWith("/revisions"))
-    return list(object({ revision: { type: "integer" } }));
   if (path.endsWith("/checked"))
     return object({ checked: { type: "boolean" } });
   if (path.endsWith("/history-preview"))
     return object({
       items: list(object({ id: uuid, name: text })),
-      categories: list(object({ id: uuid, name: text })),
       name: text,
       version: { type: "integer" },
       duplicates: list(object({ itemId: uuid, entries: list(entry) })),
-    });
-  if (path.endsWith("/category-preview"))
-    return object({
-      group,
-      expected: list(uuid),
-      excluded: list(item),
-      added: list(item),
-      removed: list(entry),
-      duplicates: list(item),
-    });
-  if (path.endsWith("/category-compose"))
-    return object({
-      entries: list(entry),
-      groups: list(group),
-      sections: list(section),
     });
   return documentSchema;
 }

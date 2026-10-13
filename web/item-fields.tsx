@@ -16,7 +16,7 @@ export function ItemFields({
   return (
     <>
       <Select
-        label={t(localized["Group [399ee6934772]"])}
+        label={t(localized["Catalog group"])}
         allowCustom
         placeholder={t(localized["Ungrouped"])}
         value={value.itemGroup ?? ""}

@@ -33,7 +33,6 @@ test("four resource directories share live search in card and list views", async
       kind,
       name,
       entries: [],
-      groups: [],
       ...(kind === "checklist" ? { useDate: "2027-05-23" } : {}),
       requestId: crypto.randomUUID(),
     });

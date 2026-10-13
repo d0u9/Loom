@@ -4,14 +4,14 @@ Status: M1–M4 complete under original rules; 2026-10-12 design changes impleme
 
 ## Milestones
 
-| Phase | Status | Deliverables | Acceptance criteria |
-| --- | --- | --- | --- |
-| M0 Design and contracts | Complete | Product constraints, Design Doc, Roadmap, draft API contract, desktop/mobile page prototypes | Consistent four concepts and history/deletion/category-source rules; demonstrable main pages/conflict choices; finalized API request/response/error contracts |
-| M1 Foundation and catalog | Complete | TS/Fastify/React/Vite skeleton, SQLite migrations, single-account login, Item/Category API and management pages | Editable Items with multiple categories; category trees reject cycles; active references prevent deletion; restart retains data |
-| M2 Templates and checklists | Complete | Shared editor, temporary entries, quantity/unit/notes/order, Template revisions, instantiation, Checklist checking/saving | Immutable historical revisions; current names synchronize without changing history; independent instances/templates; each checklist checks independently; failed saves retain edits |
-| M3 Category sources and updates | Complete | Whole-category expansion, source recording, Merge/Keep both, Update to latest preview/application, within-group exclusions | Updates retain data/checking; multiple sources do not incorrectly delete entries; explicit duplicate choices; manual removal does not automatically re-add; version conflicts prevent stale application |
-| M4 History lifecycle | Complete | Archive, restore, copy, convert to template, missing Item handling, Template deletion | Archives read-only and release active references; deleted Item snapshots queryable; users can link/create/retain temporary entries; copying resets checking, restoration retains it; template deletion preserves existing checklists |
-| M5 Release verification | Implementation complete; container acceptance pending | Complete OpenAPI, containers, persistent volumes, initialization/backup/restore commands, end-to-end verification | Complete Web/API flows pass; desktop/mobile usable; container restart retains data; backups restore; record measured image size/resources |
+| Phase              | Status                     | Deliverables                                                                                       | Acceptance criteria                                                                                                                       |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Design and contracts     | Complete                   | Product constraints, Design Doc, Roadmap, draft API contract, desktop/mobile page prototypes                             | Consistent four concepts and history/deletion/category-source rules; demonstrable main pages/conflict choices; finalized API request/response/error contracts                                       |
+| M1 Foundation and catalog     | Complete                   | TS/Fastify/React/Vite skeleton, SQLite migrations, single-account login, Item/Category API and management pages          | Editable Items with multiple categories; category trees reject cycles; active references prevent deletion; restart retains data                                                        |
+| M2 Templates and checklists     | Complete                   | Shared editor, temporary entries, quantity/unit/notes/order, Template revisions, instantiation, Checklist checking/saving | Immutable historical revisions; current names synchronize without changing history; independent instances/templates; each checklist checks independently; failed saves retain edits                           |
+| M3 Category sources and updates | Complete                   | Whole-category expansion, source recording, Merge/Keep both, Update to latest preview/application, within-group exclusions                 | Updates retain data/checking; multiple sources do not incorrectly delete entries; explicit duplicate choices; manual removal does not automatically re-add; version conflicts prevent stale application                                 |
+| M4 History lifecycle   | Complete                   | Archive, restore, copy, convert to template, missing Item handling, Template deletion                                    | Archives read-only and release active references; deleted Item snapshots queryable; users can link/create/retain temporary entries; copying resets checking, restoration retains it; template deletion preserves existing checklists |
+| M5 Release verification       | Implementation complete; container acceptance pending | Complete OpenAPI, containers, persistent volumes, initialization/backup/restore commands, end-to-end verification                             | Complete Web/API flows pass; desktop/mobile usable; container restart retains data; backups restore; record measured image size/resources                                     |
 
 ## Verification priorities
 
@@ -26,13 +26,13 @@ Status: M1–M4 complete under original rules; 2026-10-12 design changes impleme
 
 The following five items are incorporated into design, development constraints, and implementation; automated coverage/verification results appear in implementation records below.
 
-| Phase | Agreed handling | Specific scenarios requiring verification |
-| --- | --- | --- |
-| M4 | Missing Categories restore as static groups and can be relinked | After archiving and deleting a Category, restore/copy/convert to template/instantiate from history retains content with updates disabled; after linking, previewing updates does not directly change entries |
-| M2 | Serialize checking per entry; structural edits do not write checked; last submission across devices wins | Rapid check/uncheck ends unchecked; old responses do not roll UI back; notes edited on another device do not overwrite checking; checking after archive is rejected |
-| M3 | Preview application and Template saving compare complete recursive member sets | After previewing a parent category, modifying child membership or moving subtrees returns 409 if the set changes; no partial changes applied |
-| M0–M4 | Finalize requestId contract and persistent deduplication; business writes/results share transactions | Retrying copy/convert to template/instantiate after lost responses creates once only; template saving produces no extra revision; retries after restart still deduplicate; old checking retries do not overwrite newer states; same ID with different content returns 409 |
-| M3 | Exclusions by Item within groups, created only after deleting the last entry for the same Item | Two egg entries with Keep both in one group: deleting one does not exclude the remaining entry; after deleting the last, updates do not re-add; explicit restoration clears exclusion |
+| Phase | Agreed handling                                             | Specific scenarios requiring verification                                                                                                                      |
+| -------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| M4       | Missing Categories restore as static groups and can be relinked                 | After archiving and deleting a Category, restore/copy/convert to template/instantiate from history retains content with updates disabled; after linking, previewing updates does not directly change entries                                    |
+| M2       | Serialize checking per entry; structural edits do not write checked; last submission across devices wins | Rapid check/uncheck ends unchecked; old responses do not roll UI back; notes edited on another device do not overwrite checking; checking after archive is rejected                                                   |
+| M3       | Preview application and Template saving compare complete recursive member sets             | After previewing a parent category, modifying child membership or moving subtrees returns 409 if the set changes; no partial changes applied                                                              |
+| M0–M4    | Finalize requestId contract and persistent deduplication; business writes/results share transactions    | Retrying copy/convert to template/instantiate after lost responses creates once only; template saving produces no extra revision; retries after restart still deduplicate; old checking retries do not overwrite newer states; same ID with different content returns 409 |
+| M3       | Exclusions by Item within groups, created only after deleting the last entry for the same Item        | Two egg entries with Keep both in one group: deleting one does not exclude the remaining entry; after deleting the last, updates do not re-add; explicit restoration clears exclusion                                                   |
 
 M0 must translate these rules into request/response contracts; add the above tests and evidence as corresponding features complete.
 
@@ -519,3 +519,31 @@ This section records design-stage plans; implementation/verification appears in 
 - Source-addition search/empty results use resource names in the current language; retain local validation messages. Status/combined errors store translation keys and separate user text, rerendering on language switches.
 - Update old test assertions; restart tests explicitly use temporary authentication configuration, and section-layout assertions wait for detail navigation to finish, avoiding reads of unmounted pages.
 - Verification: 35 `pnpm test` tests passed; 59 desktop/simulated-mobile `pnpm exec playwright test` tests passed, with 1 existing mouse section-drag test skipped on mobile. `pnpm run build` and `git diff --check` passed. Real phones/Docker not tested. Database structure/user data unchanged; data configuration/database still ignored by Git. Not committed.
+
+## Simplification design review (2026-10-13)
+
+- Based on current template saving/instantiation, category sources, and history restoration, create a [simplification design proposal](design-simplification.md): normal template saving, independent checklist creation from current content, one-time category batch addition, and missing items defaulting to temporary entries, retaining concurrency and data safeguards.
+- A proposal during review; the user subsequently confirmed implementation and tagged d1220fe as v0.0.1. Implementation status/evidence appear below; existing revisions/archives remain, without schema upgrade.
+
+## v0.0.2 simplification implementation (2026-10-13)
+
+- v0.0.1 is tagged at d1220fe; the next package.json version is 0.0.2. Normal template saving generates no revision; checklist creation uses saved current content. Whole-category addition fills only missing entries; source-removal/exclusion/revision UI is removed. Missing historical items default to temporary entries; old historical APIs and snapshots remain.
+- Old active sources convert transactionally to direct at startup, retaining IDs, fields, sections, dates, checked states, and incrementing affected document version; failures roll back, repeated startups do nothing. Before production startup conversion, online backup saves `.pre-v0.0.2.<UUID>.sqlite`; schema/user_version both remain 1.
+- User authorized this conversion; local development service stopped before changes, saving data/loom-v0.0.1.sqlite. After temporary-database verification, restored localhost:5173 development service, retaining login-free mode. Read-only comparison of local database/backup passed: items, categories, membership relationships, document content, sections, and old revisions fully match. No old active sources currently require conversion; schema remains 1, integrity_check is ok.
+- Final acceptance: 36 `pnpm test` tests and 61 `pnpm exec playwright test` tests passed; 1 mouse-only section-drag test skipped on mobile under its existing settings. `pnpm run build` (including type checking) and `git diff --check` passed. Desktop/simulated-mobile section screenshots checked. Regressions cover no new revisions, current-template creation, default temporary restoration, repeated category additions, field/checked preservation, conversion rollback, complete pre-startup backup, and unchanged second startup. Real devices/Docker not tested; v0.0.2 changes not committed, tag not pushed.
+
+### Language and save icon adjustments
+
+- Save uses the existing Lucide Save floppy-disk icon. Language switching reuses LanguageSwitch/Languages and shared icon Button on login, account, and login-free views, with identical Chinese/English dimensions and title/aria-label describing the target language.
+- Build, type checking, and 4 desktop/simulated-mobile focused language/login-free tests passed; new geometry assertions verify equal button width/height in both languages and login/account positions, language memory, and retained user data. Not committed; real devices not tested.
+
+### Catalog group filtering when adding Items
+
+- Template/Checklist Item candidates, single-item selection within Categories, and adding existing Category members reuse ItemGroupFilter/Select, offering All, Ungrouped, and existing catalog groups intersected with name/pinyin search. Switching categories or filters clears candidate selection; consecutive additions retain filters. Whole-category addition still takes the complete category, unrestricted by catalog groups.
+- Build/type checking passed; 12 new desktop/simulated-mobile filtering and adjacent category/document/section regressions passed, covering keyboard, search intersection, empty results, Ungrouped, a real group named all, excluding existing members, consecutive additions, actual saved content, and stable modal dimensions. Translation coverage passed. UI candidate filtering only; API/database/user data unchanged. Not committed; real devices not tested.
+
+### Database simplification (2026-10-13)
+
+- User agreed to directly change schema version 1 without increasing user_version: delete groups, entry_sources, template_revisions (including immutable triggers), and entries.direct; make item_categories.position NOT NULL, appending new members last. Old databases incompatible; development data rebuilt.
+- API removes groups/direct/groupIds/sourceCount, revision queries, the history revision parameter and missing categories, and the category-add endpoint. Whole-category addition now uses client addItems followed by document PUT. Removed startup source conversion and backup logic.
+- Verification: `pnpm run check`, 32 `pnpm test` tests, and 67 `pnpm exec playwright test` tests passed (1 mobile skipped). Development tables changed in place, integrity_check ok.
