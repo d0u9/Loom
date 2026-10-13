@@ -17,7 +17,6 @@ test("category single rows sort with keyboard and pointer and survive reload", a
     ).json();
   const c = await post("/categories", {
     name: "Sorting " + info.project.name,
-    parentId: null,
   });
   const a = await post("/items", {
     name: "First " + info.project.name,

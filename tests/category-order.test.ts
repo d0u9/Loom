@@ -5,12 +5,8 @@ import { id } from "../server/db.js";
 test("category order persists independently, validates membership and retries safely", async () => {
   const h = await setup();
   try {
-    const parent = (
-      await h.call("POST", "/categories", { name: "P", parentId: null })
-    ).json();
-    const child = (
-      await h.call("POST", "/categories", { name: "C", parentId: null })
-    ).json();
+    const parent = (await h.call("POST", "/categories", { name: "P" })).json();
+    const child = (await h.call("POST", "/categories", { name: "C" })).json();
     const ids = [];
     for (const c of [parent, child])
       ids.push(

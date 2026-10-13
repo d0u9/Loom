@@ -18,6 +18,7 @@
   --control-h: 28px;
   --touch-h: 44px;
   --icon: 16px;
+  --icon-lg: 18px;
   --nav-w: 248px;
   --gutter: 16px;
 
@@ -414,11 +415,24 @@ main {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 .page-actions > button {
   white-space: nowrap;
   flex-shrink: 0;
+}
+.page-actions svg.icon {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  stroke-width: 2.2;
+}
+.page-actions .slot-hidden {
+  visibility: hidden;
+}
+.page-actions .icon-button {
+  color: var(--text);
+  background: var(--hover);
+  border-radius: var(--radius-sm);
 }
 .view-switch {
   display: flex;
@@ -436,6 +450,8 @@ main {
   border-radius: 0;
   background: transparent;
 }
+.button.icon-button[aria-pressed="true"],
+.button.icon-button[aria-pressed="true"]:hover:not(:disabled),
 .view-switch button[aria-pressed="true"],
 .view-switch button[aria-selected="true"] {
   background: var(--accent-soft);
@@ -585,6 +601,15 @@ main {
   gap: var(--space-1);
   vertical-align: middle;
   white-space: nowrap;
+}
+.records-list .record-main > .checklist-meta {
+  display: grid;
+  grid-template-columns: 10ch 8ch minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+}
+.records-list .checklist-meta .document-meta-separator {
+  display: none;
 }
 .cards .checklist-meta {
   display: flex;
@@ -846,10 +871,8 @@ article p {
   font-size: var(--font-sm);
 }
 .entries {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* Each chapter is its own card; entries and headings draw the edges. */
+  background: transparent;
 }
 /* Category update preview: excluded members, each kept out unless ticked. */
 .excluded-picker {
@@ -989,6 +1012,24 @@ article p {
     background-color 160ms ease,
     border-color 160ms ease;
 }
+.entry-check {
+  display: inline-grid;
+  flex-shrink: 0;
+}
+.entry-check > input,
+.entry-check > .icon {
+  grid-area: 1 / 1;
+  align-self: center;
+  justify-self: center;
+}
+.entry-check > .icon {
+  color: var(--surface);
+  pointer-events: none;
+  visibility: hidden;
+}
+.entry-check > input:checked + .icon {
+  visibility: visible;
+}
 /* Checks pause while structure edits autosave; the circle stays visible. */
 .entry input[type="checkbox"]:disabled {
   cursor: default;
@@ -996,10 +1037,6 @@ article p {
 .entry input[type="checkbox"]:checked {
   border-color: var(--accent);
   background: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='m4.5 9 3 3 6-6' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
 }
 .entry[data-sort-id] {
   cursor: grab;
@@ -1318,7 +1355,6 @@ fieldset.form-fields {
   }
   .page-actions {
     flex-wrap: nowrap;
-    gap: 6px;
   }
   .page-header:has(.view-switch) .page-primary {
     width: var(--control-h);
@@ -1328,6 +1364,8 @@ fieldset.form-fields {
     display: none;
   }
   .page-title h2 {
+    flex-shrink: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1804,13 +1842,32 @@ body.sorting {
 }
 
 /* Two chapter levels: headings define groups, checks keep one left edge. */
+.entries > .entry,
+.entries > .section-heading {
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.entries > .entry:first-child,
+.entries .section-heading.level-1 {
+  border-top: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
 .entries .section-heading.level-1 {
   background: #eef0e9;
-  border-top: 8px solid var(--bg);
+  margin-top: var(--space-3);
   padding-left: var(--space-4);
 }
 .entries .section-heading.level-1:first-child {
-  border-top: 0;
+  margin-top: 0;
+}
+.entries > [data-group-end] {
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.entries > .entry:first-child[data-group-end],
+.entries > .section-heading.level-1[data-group-end] {
+  border-radius: var(--radius-lg);
 }
 .entries .section-heading.level-2 {
   background: #f5f6f1;
@@ -1826,34 +1883,14 @@ body.sorting {
 
 /* Approved desktop chapter layout; mobile styling is reviewed separately. */
 @media (min-width: 651px) {
-  .entries {
-    border: 0;
-    border-radius: 0;
-    overflow: visible;
-    background: transparent;
-  }
   .entries > .entry {
-    background: var(--surface);
-    border-left: 1px solid var(--line);
-    border-right: 1px solid var(--line);
     min-height: 52px;
-  }
-  .entries > .entry:first-child {
-    border-top: 1px solid var(--line);
-    border-radius: 10px 10px 0 0;
   }
   .entries > .section-heading.level-1 {
     margin-top: 20px;
-    border-top: 1px solid var(--line);
-    border-radius: 10px 10px 0 0;
-    background: #eef0e9;
     min-height: 58px;
     padding-top: 14px;
     padding-bottom: 14px;
-  }
-  .entries > .section-heading.level-1:first-child {
-    margin-top: 0;
-    border-top: 1px solid var(--line);
   }
   .section-heading.level-1 strong {
     font-size: 18px;
@@ -1882,14 +1919,6 @@ body.sorting {
   .entry .item-summary-name .name {
     font-weight: 400;
     font-size: var(--font-md);
-  }
-  .entries > .entry[data-group-end] {
-    border-radius: 0 0 10px 10px;
-    border-bottom: 1px solid var(--line);
-  }
-  .entries > .entry:first-child[data-group-end],
-  .entries > .section-heading.level-1[data-group-end] {
-    border-radius: 10px;
   }
   .section-heading:has(.section-toggle[aria-expanded="false"]) {
     box-shadow: inset 0 -3px 6px -4px #29332255;
@@ -1953,7 +1982,7 @@ body.sorting {
   align-items: center;
   gap: var(--space-2);
   margin-top: 8px;
-  padding: 8px var(--space-4);
+  padding: var(--space-1) var(--space-4);
   color: var(--muted);
 }
 .quick-entry > .icon {
@@ -1961,6 +1990,10 @@ body.sorting {
   flex-shrink: 0;
 }
 .quick-entry input {
+  /* Add rows are secondary: one step smaller than entries, same on touch. */
+  height: var(--control-h);
+  min-height: var(--control-h);
+  font-size: var(--font-sm);
   border-color: transparent;
   background: transparent;
 }
@@ -1971,19 +2004,17 @@ body.sorting {
   border-color: var(--focus);
   background: var(--surface);
 }
-@media (max-width: 650px) {
-  .page-header {
-    flex-wrap: wrap;
-  }
-  .page-actions {
-    max-width: 100%;
-    flex-wrap: wrap;
-  }
-}
 .entries > .quick-entry {
   margin-top: 0;
   border: 1px solid var(--line);
   border-top: 0;
+  background: var(--surface);
+}
+.quick-entry[data-depth="0"] {
+  /* Root add row stands alone as its own white card, like a chapter. */
+  margin-top: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .entries > .quick-entry[data-depth="1"] {

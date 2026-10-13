@@ -6,7 +6,7 @@ test("archive releases references, missing resources restore safely, copies rese
   const h = await setup();
   try {
     const category = (
-      await h.call("POST", "/categories", { name: "Food", parentId: null })
+      await h.call("POST", "/categories", { name: "Food" })
     ).json();
     const egg = (
       await h.call("POST", "/items", {

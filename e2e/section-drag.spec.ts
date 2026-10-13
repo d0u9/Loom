@@ -4,13 +4,20 @@ import { test, expect } from "@playwright/test";
 test("dragging changes section levels and moves entries into any section", async ({
   page,
 }, info) => {
-  test.skip(info.project.name !== "desktop", "mouse drag; touch shares SortableRow");
+  test.skip(
+    info.project.name !== "desktop",
+    "mouse drag; touch shares SortableRow",
+  );
   await page.goto("/items");
   await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
   await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
   await expect(page.getByRole("button", { name: localized["fixture.aa7084084271"] })).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
-  const [a, b, c] = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+  const [a, b, c] = [
+    crypto.randomUUID(),
+    crypto.randomUUID(),
+    crypto.randomUUID(),
+  ];
   const doc = await (
     await page.request.post("/api/v1/documents", {
       headers: { "x-csrf-token": csrf },
@@ -54,9 +61,14 @@ test("dragging changes section levels and moves entries into any section", async
     await page.mouse.up();
   };
   const parentOf = async (name: string) => {
-    const d = await (await page.request.get("/api/v1/documents/" + doc.id)).json();
+    const d = await (
+      await page.request.get("/api/v1/documents/" + doc.id)
+    ).json();
     const section = d.sections.find((s: any) => s.name === name);
-    return d.sections.find((s: any) => s.id === section.parentSectionId)?.name ?? null;
+    return (
+      d.sections.find((s: any) => s.id === section.parentSectionId)?.name ??
+      null
+    );
   };
   // Upper half: sibling of the target, so level 2 becomes level 1.
   await drag(head("L2"), head("L1"), 0.2);
@@ -70,13 +82,18 @@ test("dragging changes section levels and moves entries into any section", async
   expect(await parentOf("Root")).toBe(null);
   // Entries nest into any heading via its lower half.
   await drag(
-    page.locator(".entry[data-sort-id]:not(.section-heading)").first().locator(".entry-source-count"),
+    page
+      .locator(".entry[data-sort-id]:not(.section-heading)")
+      .first()
+      .locator(".entry-source-count"),
     head("L2"),
     0.8,
   );
   await expect
     .poll(async () => {
-      const d = await (await page.request.get("/api/v1/documents/" + doc.id)).json();
+      const d = await (
+        await page.request.get("/api/v1/documents/" + doc.id)
+      ).json();
       return d.sections.find((s: any) => s.id === d.entries[0].sectionId)?.name;
     })
     .toBe("L2");

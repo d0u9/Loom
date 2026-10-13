@@ -30,7 +30,7 @@ See the [roadmap](docs/roadmap.md) for implementation progress and acceptance re
 
 All four pages share the sidebar and page framework, with right-side content centered at a maximum width of 960px. Click Checklist to see all checklists; click a calendar day to see that day. Desktop uses the sidebar calendar; mobile expands the calendar to select a date.
 
-Checklist "Use date" can be set or cleared and autosaves; creating a checklist on the selected date defaults to that day. Archive/restore preserve the date; copies and template instances default to unscheduled. Restarting the service after upgrading automatically migrates the old database, without account reinitialization.
+Checklist "Use date" can be set or cleared and autosaves; creating a checklist on the selected date defaults to that day. Archive/restore preserve the date; copies and template instances default to unscheduled.
 
 Ordinary business inputs are marked for 1Password to ignore; the login page still supports password autofill. Reminders, recurring scheduling, and external calendar synchronization are currently unavailable.
 
@@ -67,13 +67,9 @@ pnpm run test:e2e
 
 `LOOM_CHROME` can specify the browser executable. Installed Chrome is used automatically on macOS; otherwise Playwright Chromium is used. End-to-end tests use temporary databases, desktop/mobile dimensions, and production-server restart tests, without accessing personal databases. See the [API usage contract](docs/api.md) for API operation order.
 
-### Flat Categories, Merging, and Section Upgrade
+### Database Version
 
-All Categories are peers, and Template/Checklist automatically merge the same Item. A source count reaching zero removes only the document entry. The detail "Add entry" dialog can create sections (at most three levels); sections can be edited, moved up, or removed, and entries can select their section. Deleting a nonempty section promotes its content and retains entries.
-
-Startup after upgrading runs migration 6. Back up first: `pnpm run backup /absolute/path/loom-before-v6.sqlite` (build the CLI before running). Existing category IDs and direct memberships are retained, and old parent/child relationships are stored in legacy_category_parents. Parent categories no longer recursively show child-category Items. Choose retained values for old duplicate entries during editing/historical operations; old revision and archive content is not modified.
-
-Rollback requires stopping the new service, restoring a pre-upgrade backup to a new database path, and then running old code. Do not connect old code directly to a migration 6 database (entries have added columns and old writes are incompatible). Refer to the restore commands above. Writes made after the backup are absent from the old backup.
+Database schema is currently version 1 (`server/db.ts`, recorded in `PRAGMA user_version`). New databases create tables automatically at startup; other versions refuse startup, without automatic upgrades for old development databases.
 
 ### Global Configuration and Authentication-Disabled Mode
 

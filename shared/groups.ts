@@ -293,28 +293,3 @@ export function validateSections(content: Content) {
     if (e.sectionId && !ids.has(e.sectionId))
       throw invalid("Entry section must belong to this document");
 }
-
-// Lift legacy deeper sections without removing their identities or contents.
-export function twoLevelSections(content: Content): Content {
-  const map: Tree = new Map([[null, []]]);
-  for (const s of content.sections ?? []) map.set(s.id, []);
-  const walk = (parent: string | null, depth: number, root: string | null) => {
-    for (const node of children(content, parent)) {
-      if ("entry" in node) map.get(parent)!.push(node);
-      else {
-        map.get(depth >= 2 ? root : parent)!.push(node);
-        walk(node.section.id, depth + 1, root ?? node.section.id);
-      }
-    }
-  };
-  walk(null, 0, null);
-  return flatten(content, map);
-}
-export function sectionChanges(content: Content) {
-  const next = twoLevelSections(content);
-  return (next.sections ?? []).filter(
-    (s) =>
-      s.parentSectionId !==
-      content.sections?.find((old) => old.id === s.id)?.parentSectionId,
-  );
-}

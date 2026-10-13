@@ -77,7 +77,9 @@ test("check circles align across section depths", async ({ page }, info) => {
     expect(Math.max(...positions) - Math.min(...positions)).toBeLessThan(1);
   const row = page
     .getByRole("checkbox", { name: localized["fixture.e1774082acd5"], exact: true })
-    .locator("xpath=parent::*");
+    .locator(
+      "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' entry ')][1]",
+    );
   const before = await row.boundingBox();
   await page
     .getByRole("checkbox", { name: localized["fixture.e1774082acd5"], exact: true })
@@ -89,9 +91,10 @@ test("check circles align across section depths", async ({ page }, info) => {
     "text-decoration-line",
     "none",
   );
-  await expect(row.locator("input[type=checkbox]")).toHaveCSS(
-    "background-image",
-    /svg/,
+  await expect(row.locator(".entry-check > svg.lucide-check")).toBeVisible();
+  await expect(row.locator(".entry-check > svg")).toHaveCSS(
+    "pointer-events",
+    "none",
   );
   await expect(row).toHaveAttribute("data-completed", "true");
   await expect(row).toHaveCSS("background-image", /linear-gradient/);

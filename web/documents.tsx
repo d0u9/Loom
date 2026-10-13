@@ -20,8 +20,6 @@ import {
   duplicateItems,
   mergeContent,
   validateSections,
-  twoLevelSections,
-  sectionChanges,
 } from "../shared/groups.js";
 import { ApiError, api, leave as leaveGuard } from "./client.js";
 export function Documents({
@@ -52,10 +50,11 @@ export function Documents({
     [dirty, setDirty] = useState(false),
     // Collapsed sections are a view choice only; never saved.
     [hideDone, setHideDone] = useState(false),
+    // Checklist read mode: tick only, no add rows or add actions; view choice, never saved.
+    [reading, setReading] = useState(false),
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState(""),
     [revisions, setRevisions] = useState<any[]>([]),
-    [levelPreview, setLevelPreview] = useState(false),
     [history, setHistory] = useState<any>(null),
     [editingName, setEditingName] = useState<string | null>(null),
     [quickNames, setQuickNames] = useState<Record<string, string>>({}),
@@ -610,8 +609,18 @@ export function Documents({
               ...(kind === "checklist"
                 ? [
                     {
+                      label: reading ? localized["Edit mode"] : localized["Reading mode"],
+                      icon: reading
+                        ? ("edit" as const)
+                        : ("checklist" as const),
+                      pressed: reading,
+                      iconOnly: true,
+                      onClick: () => setReading((value) => !value),
+                    },
+                    {
                       label: hideDone ? localized["Show completed"] : localized["Hide completed"],
-                      icon: hideDone ? ("eye" as const) : ("eyeOff" as const),
+                      icon: "filter" as const,
+                      pressed: hideDone,
                       iconOnly: true,
                       onClick: () => setHideDone((value) => !value),
                     },
@@ -621,6 +630,7 @@ export function Documents({
                 label: localized["New section"],
                 icon: "sectionAdd",
                 iconOnly: true,
+                hidden: reading,
                 onClick: () => {
                   setSectionEditor({});
                   setSectionName("");
@@ -629,10 +639,17 @@ export function Documents({
               },
               ...(kind === "template"
                 ? [
-                    { label: localized["Add entries"], onClick: () => setAddOpen(true) },
+                    {
+                      label: localized["Add entries"],
+                      icon: "add" as const,
+                      iconOnly: true,
+                      onClick: () => setAddOpen(true),
+                    },
                     // Common action: instantiate the latest revision directly.
                     {
                       label: localized["Create checklist"],
+                      icon: "checklist" as const,
+                      iconOnly: true,
                       disabled: !revisions.length,
                       onClick: () =>
                         void attempt(() => startHistory("instantiate")),
@@ -656,7 +673,11 @@ export function Documents({
                 disabled: saving.current || !!history,
               }
             : !history && doc.status === "active"
-              ? { label: localized["Add entries"], onClick: () => setAddOpen(true) }
+              ? {
+                  label: localized["Add entries"],
+                  hidden: reading,
+                  onClick: () => setAddOpen(true),
+                }
               : undefined
       }
       showView={!doc}
@@ -906,7 +927,7 @@ export function Documents({
                     kind === "checklist" ? "checklist-meta" : undefined
                   }
                 >
-                  {d.useDate && (
+                  {(kind === "checklist" || d.useDate) && (
                     <span className="document-date">
                       {d.useDate}
                       <span className="document-meta-separator"> · </span>
@@ -1274,9 +1295,6 @@ export function Documents({
               {historyAction.categories.map((g: any) => (
                 <p key={g.id}>{g.name}{localized[" Deleted; kept as a static group."]}</p>
               ))}
-              {(historyAction.sectionChanges ?? []).map((s: any) => (
-                <p key={s.id}>{s.name}{localized["fixture.93d4f8530532"]}</p>
-              ))}
               <Button
                 onClick={() =>
                   void attempt(async () => {
@@ -1287,7 +1305,6 @@ export function Documents({
                       requestId: historyAction.requestId,
                       resolutions,
                       mergeTargets,
-                      flattenSections: !!historyAction.sectionChanges?.length,
                       ...(historyAction.useDate
                         ? { useDate: historyAction.useDate }
                         : {}),
@@ -1577,42 +1594,11 @@ export function Documents({
               <Button onClick={() => setPreview(null)}>{localized["Cancel"]}</Button>
             </Modal>
           )}
-          {!history &&
-            doc.status === "active" &&
-            sectionChanges(doc).length > 0 && (
-              <div className="toolbar">
-                <span>{localized["fixture.001a446acead"]}</span>
-                <Button onClick={() => setLevelPreview(true)}>{localized["fixture.64e6669c7c3f"]}</Button>
-              </div>
-            )}
-          {levelPreview && (
-            <Modal
-              aria-label={localized["fixture.6fd06adfadc7"]}
-              onClose={() => setLevelPreview(false)}
-            >
-              <h3>{localized["fixture.25edf55c56f9"]}</h3>
-              {sectionChanges(doc).map((s) => (
-                <p key={s.id}>
-                  {s.name}{localized["fixture.9326a92e1e93"]}{" "}
-                  {
-                    doc.sections.find((p: any) => p.id === s.parentSectionId)
-                      ?.name
-                  }{" "}{localized["fixture.2e2b8399f667"]}</p>
-              ))}
-              <Button
-                onClick={() => {
-                  change({ ...doc, ...twoLevelSections(doc) });
-                  setLevelPreview(false);
-                }}
-              >{localized["fixture.b80c3cec3a09"]}</Button>
-              <Button onClick={() => setLevelPreview(false)}>{localized["Cancel"]}</Button>
-            </Modal>
-          )}
           <div className="entries">
             {contentRows(
               display,
               true,
-              !history && doc.status === "active",
+              !history && doc.status === "active" && !reading,
             ).map((row: any, index: number, rows: any[]) =>
               row.quick ? (
                 quickEntry(row.parent, row.depth)
@@ -1630,8 +1616,12 @@ export function Documents({
                   className={"entry section-heading level-" + (row.depth + 1)}
                   key={row.section.id}
                   dragLabel={row.section.name}
-                  disabled={!!history || doc.status !== "active"}
-                  tabIndex={!history && doc.status === "active" ? 0 : undefined}
+                  disabled={!!history || doc.status !== "active" || reading}
+                  tabIndex={
+                    !history && doc.status === "active" && !reading
+                      ? 0
+                      : undefined
+                  }
                   aria-label={localized["Section "] + row.section.name}
                   // The whole heading toggles; its edit/delete buttons do not.
                   onClick={(event) => {
@@ -1671,7 +1661,7 @@ export function Documents({
                     <Icon name="forward" />
                   </Button>
                   <strong>{row.section.name}</strong>
-                  {!history && doc.status === "active" && (
+                  {!history && doc.status === "active" && !reading && (
                     <ActionTools name={row.section.name}>
                       <Button
                         variant="icon"
@@ -1708,7 +1698,8 @@ export function Documents({
                     !history && doc.status === "active"
                       ? items.find((i) => i.id === e.itemId)
                       : null;
-                  const editable = !history && doc.status === "active";
+                  const editable =
+                    !history && doc.status === "active" && !reading;
                   const nameInput =
                     editable && !e.itemId && editingName !== e.id ? (
                       <button
@@ -1790,23 +1781,27 @@ export function Documents({
                       }}
                     >
                       {kind === "checklist" && (
-                        <input
-                          data-1p-ignore="true"
-                          autoComplete="off"
-                          aria-label={localized["Check "] + e.name}
-                          type="checkbox"
-                          style={{
-                            marginRight: "0",
-                          }}
-                          disabled={
-                            doc.status === "archived" ||
-                            !savedIds.current.has(e.id) ||
-                            checks.current.has(e.id) ||
-                            failedChecks.current.has(e.id)
-                          }
-                          checked={e.checked}
-                          onChange={(ev) => checked(e, ev.target.checked)}
-                        />
+                        <span className="entry-check">
+                          <input
+                            data-1p-ignore="true"
+                            autoComplete="off"
+                            aria-label={localized["Check "] + e.name}
+                            type="checkbox"
+                            style={{
+                              marginRight: "0",
+                            }}
+                            disabled={
+                              doc.status === "archived" ||
+                              !savedIds.current.has(e.id) ||
+                              checks.current.has(e.id) ||
+                              failedChecks.current.has(e.id)
+                            }
+                            checked={e.checked}
+                            onChange={(ev) => checked(e, ev.target.checked)}
+                          />
+
+                          <Icon name="check" />
+                        </span>
                       )}
                       {linkedItem ? (
                         <ItemSummary
@@ -1885,7 +1880,10 @@ export function Documents({
               ),
             )}
           </div>
-          {!history && doc.status === "active" && quickEntry(null, 0)}
+          {!history &&
+            doc.status === "active" &&
+            !reading &&
+            quickEntry(null, 0)}
         </>
       )}
     </Page>

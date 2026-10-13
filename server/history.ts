@@ -19,8 +19,6 @@ import { writeGroups } from "./groups.js";
 import {
   mergeContent,
   duplicateItems,
-  sectionChanges,
-  twoLevelSections,
   type Content,
 } from "../shared/groups.js";
 function source(store: Store, key: string, action: string, revision?: number) {
@@ -151,7 +149,6 @@ export function registerHistory(route: Route, store: Store) {
     name: str,
     requestId: uuid,
     useDate: useDateSchema,
-    flattenSections: { type: "boolean" },
     mergeTargets: { type: "object", additionalProperties: uuid },
     resolutions: {
       type: "object",
@@ -183,7 +180,6 @@ export function registerHistory(route: Route, store: Store) {
       return {
         ...missing(store, s),
         duplicates: duplicateItems(s),
-        sectionChanges: sectionChanges(s),
         name: s.name,
         version: req.body.version,
       };
@@ -199,19 +195,12 @@ export function registerHistory(route: Route, store: Store) {
         const d = store.resource("documents", req.params.id);
         store.version(d, req.body.version);
         const s = source(store, d.id, action, revision);
-        let content = resolveContent(
+        const content = resolveContent(
           store,
           s,
           resolutions,
           req.body.mergeTargets,
         );
-        if (sectionChanges(content).length) {
-          requireThat(
-            req.body.flattenSections === true,
-            "Preview and confirm lifting sections to two levels",
-          );
-          content = twoLevelSections(content);
-        }
         if (action === "restore") {
           const restored = reid(content);
           store.run(

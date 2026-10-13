@@ -18,6 +18,26 @@ test("shared document editor creates two levels, moves items and preserves secti
     .getByLabel(localized["Name"], { exact: true })
     .fill("Sections " + info.project.name);
   await page.getByRole("button", { name: localized["Create"], exact: true }).click();
+  if (info.project.name === "mobile") {
+    // A long title truncates; header actions stay on one row inside the viewport.
+    const title = page.locator(".page-header h2");
+    await expect(page.locator(".page-header .page-primary")).toBeVisible();
+    const original = await title.textContent();
+    await title.evaluate((el) => (el.textContent = "A very long title".repeat(12)));
+    const row = await page.evaluate(() => {
+      const header = document.querySelector(".page-header")!;
+      const primary = header
+        .querySelector(".page-primary")!
+        .getBoundingClientRect();
+      const h2 = header.querySelector("h2")!.getBoundingClientRect();
+      return {
+        fits: primary.right <= innerWidth,
+        same: Math.abs(primary.top - h2.top) < 20,
+      };
+    });
+    expect(row).toEqual({ fits: true, same: true });
+    await title.evaluate((el, text) => (el.textContent = text), original);
+  }
   const tool = async (name: string) => {
     const button = page.getByRole("button", {
       name,

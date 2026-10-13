@@ -360,9 +360,7 @@ function App() {
                               }
                             }}
                           >
-                            <svg aria-hidden="true" viewBox="0 0 24 24">
-                              <path d="M14 5l5 5M4 20l4-1L20 7a2 2 0 0 0-3-3L5 16z" />
-                            </svg>
+                            <Icon name="edit" />
                           </Button>
                           <Button
                             variant="icon"

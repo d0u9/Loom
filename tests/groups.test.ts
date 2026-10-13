@@ -6,8 +6,8 @@ import { removeEntry } from "../shared/groups.js";
 test("direct member previews reject stale members; merge preserves state and all sources", async () => {
   const h = await setup();
   try {
-    const cat = async (name: string, parentId: string | null = null) =>
-      (await h.call("POST", "/categories", { name, parentId })).json();
+    const cat = async (name: string) =>
+      (await h.call("POST", "/categories", { name })).json();
     const food = await cat("Food"),
       sub = food,
       lab = await cat("Lab");

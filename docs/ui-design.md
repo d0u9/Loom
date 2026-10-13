@@ -6,6 +6,8 @@ This file defines Loom visual/interaction specifications. Business rules are in 
 
 ## 1. Style and references
 
+All UI icons use lucide-react, preferably through shared Icon. Handwritten SVG/path and CSS SVG icons are prohibited; library-generated SVG is allowed. Branding uses existing PNG, and icon dimensions/strokes follow shared styles.
+
 Use Memos' compact proportions, regular weights, thin-line icons, and light borders as reference. Loom serves computers/phones and starts with a light theme. Retain warm-gray background, white cards, and green accents; changing fonts, spacing, or layout must not also change colors.
 
 On 2026-10-12, actual styles were read through developer tools from the user's already-open [Memos](https://memo.d0u9.cc). Reference values and Loom's final specifications are recorded separately:
@@ -188,7 +190,7 @@ Checklist check circles stay at the same far-left baseline on desktop and phone 
 Section layout Demo becomes two-level: independent level-one blocks, pale backgrounds and content indentation for level-two titles/content, and left-aligned check circles. The production interface/two-level limit are now implemented; old structures adjust through previews.
 
 
-Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level. Old three-level documents offer a promotion-to-level-two preview, applied through normal saving; history previews return sectionChanges, and history-apply requires explicit flattenSections:true confirmation. Historical snapshots are not rewritten.
+Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level.
 
 ### Confirmed desktop section styling (2026-10-13)
 
@@ -209,3 +211,7 @@ Completed Checklist entries use an extremely pale green gradient across the whol
 Completion-state addition: strengthen the green gradient slightly and add a 3px green inset-shadow marker at the row's left. Notes/tags drop to 65% opacity. Inset shadow occupies no layout space; names/actions stay clear and usable.
 
 Completed Checklist entries display after incomplete entries and child sections within their own section, including root, retaining relative order. This changes only presentation, without writing order or section membership. Remove Add temporary entry from the header and toggle visibility with Hide completed / Show completed; retain quick-input rows. Template removes that redundant button and offers no completion filter.
+
+- Checklist header reading/editing mode uses checklist/pencil icons (checklist while editing, pencil while reading); hiding completed uses a fixed ListFilter icon. Both express active state with aria-pressed: pale-green background/green icon when active, pale-gray background/body-text icon when inactive; hover retains active highlighting.
+
+- Checklist list metadata uses separate date, completion progress, and archive-status columns. Retain the date column even without an execution date; align progress icons/numbers across rows and use no separator dots. Cards retain left-aligned dates and right-aligned progress.

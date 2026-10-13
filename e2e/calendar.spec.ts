@@ -107,3 +107,53 @@ test("calendar schedules, marks and filters checklists", async ({
     fullPage: true,
   });
 });
+
+test("checklist list aligns dates and progress when a date is absent", async ({
+  page,
+}, info) => {
+  await page.goto("/checklists");
+  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
+  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: localized["fixture.b075aa0598f1"], exact: true }),
+  ).toBeVisible();
+  const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
+  for (const [name, useDate] of [
+    ["Undated alignment " + info.project.name, null],
+    ["Dated alignment " + info.project.name, "2026-10-26"],
+  ]) {
+    const response = await page.request.post("/api/v1/documents", {
+      headers: { "x-csrf-token": csrf },
+      data: {
+        kind: "checklist",
+        name,
+        useDate,
+        entries: [],
+        groups: [],
+        sections: [],
+        requestId: crypto.randomUUID(),
+      },
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+  }
+  await page.reload();
+  await page.getByRole("button", { name: localized["List"], exact: true }).click();
+  const positions = [];
+  for (const name of [
+    "Undated alignment " + info.project.name,
+    "Dated alignment " + info.project.name,
+  ]) {
+    const row = page.locator(".record-card", {
+      has: page.getByRole("heading", { name, exact: true }),
+    });
+    await expect(row.locator(".document-progress")).toBeVisible();
+    positions.push((await row.locator(".document-progress").boundingBox())!.x);
+    await expect(row.locator(".document-meta-separator")).toBeHidden();
+  }
+  expect(Math.abs(positions[0] - positions[1])).toBeLessThan(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

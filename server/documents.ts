@@ -12,10 +12,7 @@ export function document(store: Store, key: string, live = true): any {
   const d = store.resource("documents", key);
   if (d.status === "archived") {
     const snapshot = JSON.parse(d.archive);
-    requireThat(
-      [1, 2].includes(snapshot.schemaVersion),
-      "Unsupported snapshot schema",
-    );
+    requireThat(snapshot.schemaVersion === 2, "Unsupported snapshot schema");
     const { archive, ...metadata } = d;
     return {
       ...metadata,

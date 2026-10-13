@@ -25,6 +25,18 @@ export function Modal({
         e.preventDefault();
         onClose();
       }}
+      // Touch screens have no Escape: a tap on the backdrop closes like Escape.
+      onClick={(e) => {
+        const r = ref.current!.getBoundingClientRect();
+        if (
+          e.target === ref.current &&
+          (e.clientX < r.left ||
+            e.clientX > r.right ||
+            e.clientY < r.top ||
+            e.clientY > r.bottom)
+        )
+          onClose();
+      }}
     >
       {children}
     </dialog>

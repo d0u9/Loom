@@ -457,3 +457,8 @@ This section records design-stage plans; implementation/verification appears in 
 
 - Remove Save as Item; temporary-entry action moves to shared Page tools and focuses a persistent blank row. Enter creates a root temporary entry, allowing consecutive input; Checklist saves immediately, Template retains explicit revisions. IME selection does not submit, blanks are not persisted, and Enter on existing names saves before refresh.
 - Build and 2 desktop/simulated-mobile quick-input tests passed, verifying blank cancellation, consecutive-input focus, renaming, save/refresh, and removal of Save as Item. Desktop section regression passed; new mobile entry widened the page, fixed tool-area wrapping and rechecked. Not committed; real devices not tested.
+
+## Standardize the icon library (2026-10-13)
+
+- UI icons consistently use lucide-react; shared Icon retains business-name mappings. Replace hand-written SVG in headers, view switches, search, editing, dropdown arrows, and checked backgrounds. Branding uses existing PNG resources; remove hand-drawn SVG assets. AGENTS/UI rules prohibit drawing or copying SVG icon paths.
+- pnpm 12.4.1 frozen-lockfile installation, type checking, and production build passed; 8 desktop/simulated-mobile regressions passed, covering shared headers, navigation, modal focus/keyboard, document actions, and check alignment. Catalog screenshots at both sizes checked. Full Web suite not run; real phones not tested.

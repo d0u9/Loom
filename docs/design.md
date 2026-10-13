@@ -29,7 +29,7 @@ Each Item may have one nullable `itemGroup` name, used only for Item catalog tab
 
 The Item page retains All, Ungrouped, and individual group tabs; search intersects with the group filter, which survives card/list switching. Creating within a group defaults to it; clearing the field returns to Ungrouped. Group changes no Category relationship, Item identity, deletion reference, template/checklist content, or historical snapshot. Items created by historical operations default to Ungrouped.
 
-Migration 7 only adds a nullable field without changing existing content; old PUT callers omitting it retain the value, and POST omission defaults to null. Prefer restoring the pre-upgrade backup for rollback; old servers may read pre-update data only and should not write design changes beyond the new field.
+PUT retains the original itemGroup when omitted; POST defaults it to null when omitted.
 
 ### Relationship storage
 
@@ -239,7 +239,7 @@ Initial HTML uses the existing warm-gray background. While waiting for session, 
 
 Flat categories, automatic merging of all duplicates, zero-source cleanup, and three-level sections are implemented by migration 6 and the shared editor. Migration must retain all Category IDs/direct memberships, historical revisions, and archive snapshots. Recursive display of old parent categories becomes direct-members-only; do not arbitrarily copy memberships. Old document duplicate Items with differing quantities, units, notes, or checkmarks require preview and value selection before merging, without silent loss. Original history remains queryable; copying, restoring, instantiating, or converting must normalize to new rules and resolve conflicts before writing. API, database, shared editor, and tests are synchronized; evidence is in roadmap.
 
-From 2026-10-12, the schema converges on a version 8 baseline (`server/db.ts`), replacing migrations 1–7: sections are stored in `sections`, entry positions in entries.sectionId (deferred foreign key), and the server validates document ownership, depth, and cycles on writes. Category has no parentId; member order is stored in item_categories.position; a partial unique index guarantees Item uniqueness within a document. A v7 development database is rebuilt and copied in one transaction at startup; reopening has no side effects, verified automatically with a v7 sample database and API output snapshots. New history uses schemaVersion 2, while version 1 remains readable.
+From 2026-10-13, the schema resets to version 1 (`server/db.ts`); all development migrations and v7 upgrade code are removed, and other versions refuse startup. Database version upgrades require advance notice to and consent from the user. Sections are stored in `sections`, entry positions in entries.sectionId (deferred foreign key), and the server validates document ownership, depth, and cycles on writes. Category has no parentId; member order is stored in item_categories.position; a partial unique index guarantees Item uniqueness within a document. Historical snapshots use schemaVersion 2; other versions are not read.
 
 ### Global configuration and optional authentication
 
@@ -273,7 +273,7 @@ Shared mobile Collection list rows use 4px vertical padding and a normal 32px co
 
 ### Section depth limit adjustment (2026-10-12)
 
-The latest target is at most two section levels, consistently for Template and Checklist, excluding the root container and Items. Current code already limits new writes to two levels. Existing three-level documents/history must retain content, ordering, sources, and checkmarks; the third level cannot simply be hidden or deleted. Preview/confirmation for promoting overdeep sections is provided, without rewriting snapshots. Historical restoration/copying/instantiation/conversion likewise previews adjustments before creating an effective two-level document.
+The latest target is at most two section levels, consistently for Template and Checklist, excluding the root container and Items. The server rejects all writes deeper than two levels; no conversion for old three-level data remains.
 
 
-Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level. Old three-level documents offer a promotion-to-level-two preview, applied through normal saving; history previews return sectionChanges, and history-apply requires explicit flattenSections:true confirmation. Historical snapshots are not rewritten.
+Latest confirmation and implementation (2026-10-12): Template/Checklist have at most two Section levels; Items have no parent/child relationships. New-section parent choices allow only root or level-one sections, and drag/server validation rejects a third level.

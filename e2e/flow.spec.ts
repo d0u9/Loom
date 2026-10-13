@@ -88,10 +88,14 @@ test("catalog to template, checklist, archive and restore", async ({
   await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
   // Item and Category are alternative sources, one tab each.
   const dialogBox = await page.getByRole("dialog").boundingBox();
-  await page.getByRole("tab", { name: localized["fixture.2cec23ad2305"], exact: true }).click();
+  await page
+    .getByRole("tab", { name: localized["fixture.2cec23ad2305"], exact: true })
+    .click();
   expect(await page.getByRole("dialog").boundingBox()).toEqual(dialogBox);
   await expect(page.getByLabel(localized["fixture.2de8d9b98b44"], { exact: true })).toHaveCount(0);
-  await page.getByLabel(localized["fixture.132c3a2fd757"], { exact: true }).fill("Food " + suffix);
+  await page
+    .getByLabel(localized["fixture.132c3a2fd757"], { exact: true })
+    .fill("Food " + suffix);
   await page
     .getByRole("button", { name: localized["fixture.1db821558226"] + suffix, exact: true })
     .click();

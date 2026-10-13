@@ -349,9 +349,7 @@ export async function app(store: Store, config: Config = defaultConfig) {
   route("GET", "/categories/:id/members", null, (req: any) => ({
     itemIds: store.members(req.params.id),
   }));
-  const categoryBody = obj({ name: str, parentId: { type: "null" }, version }, [
-    "name",
-  ]);
+  const categoryBody = obj({ name: str, version }, ["name"]);
   const saveCategory = (req: any) => {
     const b = req.body,
       key = req.params.id || id();

@@ -29,32 +29,13 @@ export class Store {
   db: DatabaseSync;
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
-    // Foreign keys turn on after a possible table rebuild below.
-    this.db = new DatabaseSync(path, { enableForeignKeyConstraints: false });
+    this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
-    // Schema version lives in PRAGMA user_version; pre-8 dev databases
-    // recorded theirs in a migrations table instead.
-    const legacy = this.get(
-      "SELECT 1 FROM sqlite_master WHERE name='migrations'",
-    );
-    if (!legacy && !this.get("PRAGMA user_version").user_version)
-      this.tx(() => this.db.exec(schema));
-    else if (legacy) {
-      const { v } = this.get("SELECT MAX(version) AS v FROM migrations");
-      // 8 = baseline already built by an interim dev build; only the marker moves.
-      if (v === 8) this.db.exec("DROP TABLE migrations; PRAGMA user_version=8");
-      else requireThat(v === 7, "Upgrade through the previous release first");
-      // Table rebuild: foreign keys stay off until every row is copied.
-      if (v === 7)
-        this.tx(() => {
-          this.db.exec(upgradeFrom7);
-          requireThat(
-            !this.all("PRAGMA foreign_key_check").length,
-            "Upgrade left dangling references",
-          );
-        });
-    }
-    this.db.exec("PRAGMA foreign_keys=ON");
+    // Schema version lives in PRAGMA user_version. Changing it needs the
+    // owner's explicit approval (see AGENTS.md).
+    const { user_version } = this.get("PRAGMA user_version");
+    if (!user_version) this.tx(() => this.db.exec(schema));
+    else requireThat(user_version === 1, "Unsupported database version");
   }
   all(sql: string, ...args: any[]): any[] {
     return this.db.prepare(sql).all(...args);
@@ -157,8 +138,8 @@ function canonical(value: any): string {
   );
 }
 
-// Version 8 baseline. sections.afterEntryId: NULL = after all entries
-// (legacy), '' = before all entries, otherwise the previous sibling entry.
+// Version 1 schema. sections.afterEntryId: NULL = after all sibling entries
+// '' = before all entries, otherwise the previous sibling entry.
 const schema = `
 CREATE TABLE account(username TEXT PRIMARY KEY,password TEXT NOT NULL) STRICT;
 CREATE TABLE sessions(hash TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires INTEGER NOT NULL) STRICT;
@@ -180,42 +161,5 @@ CREATE TABLE entry_sources(entryId TEXT NOT NULL REFERENCES entries(id) ON DELET
 CREATE INDEX entry_sources_group ON entry_sources(groupId);
 CREATE TABLE template_revisions(documentId TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,revision INTEGER NOT NULL,snapshot TEXT NOT NULL,PRIMARY KEY(documentId,revision)) STRICT;
 CREATE TRIGGER revisions_immutable BEFORE UPDATE ON template_revisions BEGIN SELECT RAISE(ABORT,'Revision is immutable'); END;
-PRAGMA user_version=8;
-`;
-// ponytail: one-shot copy from the last pre-baseline dev schema; delete once no v7 databases remain.
-const old = [
-  "account",
-  "sessions",
-  "tokens",
-  "requests",
-  "items",
-  "categories",
-  "item_categories",
-  "category_order",
-  "documents",
-  "entries",
-  "groups",
-  "entry_sources",
-  "template_revisions",
-];
-const upgradeFrom7 = `
-DROP TABLE IF EXISTS legacy_category_parents;
-DROP TRIGGER revisions_immutable;
-${old.map((t) => `ALTER TABLE ${t} RENAME TO old_${t};`).join("\n")}
-${schema}
-INSERT INTO account SELECT * FROM old_account;
-INSERT INTO sessions SELECT * FROM old_sessions;
-INSERT INTO tokens SELECT * FROM old_tokens;
-INSERT INTO requests(id,scope,digest,result) SELECT id,scope,digest,result FROM old_requests;
-INSERT INTO items(id,name,note,itemGroup,version) SELECT id,name,note,itemGroup,version FROM old_items;
-INSERT INTO categories SELECT id,name,version FROM old_categories;
-INSERT INTO item_categories SELECT r.itemId,r.categoryId,o.position FROM old_item_categories r LEFT JOIN old_category_order o USING(itemId,categoryId);
-INSERT INTO documents SELECT id,kind,name,version,status,useDate,source,archive FROM old_documents;
-INSERT INTO sections SELECT s.value->>'id',d.id,s.value->>'parentSectionId',s.value->>'name',CASE json_type(s.value,'$.afterEntryId') WHEN 'null' THEN '' ELSE s.value->>'afterEntryId' END,s.key FROM old_documents d,json_each(d.sections) s;
-INSERT INTO entries SELECT id,documentId,itemId,sectionId,name,quantity,unit,note,position,checked,direct FROM old_entries;
-INSERT INTO groups SELECT id,documentId,categoryId,originalCategoryId,name,members,excluded FROM old_groups;
-INSERT INTO entry_sources SELECT * FROM old_entry_sources;
-INSERT INTO template_revisions SELECT * FROM old_template_revisions;
-${old.map((t) => `DROP TABLE old_${t};`).join("\n")}
-DROP TABLE migrations;
+PRAGMA user_version=1;
 `;

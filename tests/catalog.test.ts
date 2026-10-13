@@ -39,35 +39,17 @@ test("catalog validates flat categories, references, CSRF, versions and request 
           method: "POST",
           url: "/api/v1/categories",
           headers: { cookie },
-          payload: { name: "bad", parentId: null },
+          payload: { name: "bad" },
         })
       ).statusCode,
       403,
     );
-    const root = (
-      await call("POST", "/categories", { name: "Food", parentId: null })
-    ).json();
+    const root = (await call("POST", "/categories", { name: "Food" })).json();
     const child = (
       await call("POST", "/categories", {
         name: "Ingredients",
-        parentId: null,
       })
     ).json();
-    assert.equal(
-      (
-        await call("PUT", "/categories/" + root.id, {
-          name: "Food",
-          parentId: child.id,
-          version: 1,
-        })
-      ).statusCode,
-      400,
-    );
-    assert.equal(
-      (await call("POST", "/categories", { name: "nested", parentId: root.id }))
-        .statusCode,
-      400,
-    );
     const body = {
       requestId: id(),
       name: "egg",

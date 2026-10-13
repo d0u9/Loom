@@ -18,15 +18,12 @@ test("category details show direct members and remove only the chosen membership
   };
   const parent = await create("/categories", {
     name: "Parent " + info.project.name,
-    parentId: null,
   });
   const child = await create("/categories", {
     name: "Child " + info.project.name,
-    parentId: null,
   });
   const outside = await create("/categories", {
     name: "Outside " + info.project.name,
-    parentId: null,
   });
   const item = await create("/items", {
     name: "Member " + info.project.name,
@@ -73,7 +70,10 @@ test("category details show direct members and remove only the chosen membership
   await expect(
     page.getByRole("dialog", { name: localized["fixture.2a9fc4c4bcc7"] }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  // Touch has no Escape: tapping the backdrop closes the Modal.
+  if (info.project.name === "mobile") await page.mouse.click(4, 4);
+  else await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.screenshot({
     path: `test-results/${info.project.name}-category-index.png`,
     fullPage: true,

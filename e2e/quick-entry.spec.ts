@@ -37,6 +37,27 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     );
     const quick = page.getByLabel(localized["New temporary entry"], { exact: true });
     await expect(quick).toBeVisible();
+    if (kind === "checklist") {
+      const mode = page.getByRole("button", { name: new RegExp(localized["fixture.8ff72e270b7e"], "") });
+      await expect(mode).toHaveAttribute("aria-pressed", "false");
+      const inactive = await mode.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      );
+      await mode.click();
+      await expect(mode).toHaveAttribute("aria-pressed", "true");
+      await expect(quick).toBeHidden();
+      const active = await mode.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      );
+      expect(active).not.toBe(inactive);
+      if (info.project.name === "desktop") {
+        await mode.hover();
+        await expect(mode).toHaveCSS("background-color", active);
+      }
+      await mode.click();
+      await expect(mode).toHaveAttribute("aria-pressed", "false");
+      await expect(quick).toBeVisible();
+    }
     await quick.press("Enter");
     await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveCount(0);
     await quick.fill("First");
@@ -121,6 +142,14 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       await expect(
         page.getByLabel(localized["New temporary entry"], { exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: localized["Show completed"], exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        page
+          .getByRole("button", { name: localized["Show completed"], exact: true })
+          .locator("svg.lucide-list-filter"),
+      ).toHaveCount(1);
       await page
         .getByRole("button", { name: localized["Show completed"], exact: true })
         .click();

@@ -321,7 +321,7 @@ test("old revisions expose duplicates and history apply merges selected values a
       b = { ...entry(item), quantity: "7", checked: true };
     const snapshot = JSON.stringify({
       ...d,
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 2,
       entries: [a, b],
     });
@@ -548,81 +548,6 @@ test("entries and sections share one order per parent and survive save and copy"
       })
     ).json();
     assert.deepEqual(order(legacyCopy, null), ["First", "p", "q", "Last"]);
-  } finally {
-    await h.close();
-  }
-});
-
-test("legacy third level is preserved and history conversion requires a preview confirmation", async () => {
-  const h = await setup();
-  try {
-    const a = { id: id(), name: "A", parentSectionId: null };
-    const b = { id: id(), name: "B", parentSectionId: a.id };
-    const c = { id: id(), name: "C", parentSectionId: a.id };
-    const e = { ...entry(), sectionId: c.id, checked: true };
-    const result = await h.call("POST", "/documents", {
-      kind: "checklist",
-      name: "Legacy",
-      sections: [a, b, c],
-      entries: [e],
-      groups: [],
-      requestId: id(),
-    });
-    assert.equal(result.statusCode, 200, result.body);
-    let d = result.json();
-    await h.call(
-      "PUT",
-      `/checklists/${d.id}/entries/${d.entries[0].id}/checked`,
-      { checked: true, requestId: id() },
-    );
-    a.id = d.sections.find((s: any) => s.name === "A").id;
-    b.id = d.sections.find((s: any) => s.name === "B").id;
-    c.id = d.sections.find((s: any) => s.name === "C").id;
-    h.store.run("UPDATE sections SET parentSectionId=? WHERE id=?", b.id, c.id);
-    d = (await h.call("GET", `/documents/${d.id}`)).json();
-    assert.equal(
-      d.sections.find((s: any) => s.id === c.id).parentSectionId,
-      b.id,
-    );
-    const archived = await h.call("POST", `/checklists/${d.id}/archive`, {
-      version: d.version,
-      requestId: id(),
-    });
-    assert.equal(archived.statusCode, 200, archived.body);
-    d = archived.json();
-    const before = structuredClone(d);
-    const body = {
-      action: "restore",
-      name: d.name,
-      version: d.version,
-      resolutions: {},
-      requestId: id(),
-    };
-    const preview = (
-      await h.call("POST", `/documents/${d.id}/history-preview`, body)
-    ).json();
-    assert.equal(preview.sectionChanges[0].name, "C");
-    assert.equal(
-      (await h.call("POST", `/documents/${d.id}/history-apply`, body))
-        .statusCode,
-      400,
-    );
-    const applied = await h.call("POST", `/documents/${d.id}/history-apply`, {
-      ...body,
-      flattenSections: true,
-    });
-    assert.equal(applied.statusCode, 200, applied.body);
-    const restored = applied.json();
-    assert.equal(
-      restored.sections.find((s: any) => s.name === "C").parentSectionId,
-      restored.sections.find((s: any) => s.name === "A").id,
-    );
-    assert.equal(restored.entries[0].checked, true);
-    assert.equal(restored.entries[0].note, e.note);
-    assert.equal(
-      before.sections.find((s: any) => s.id === c.id).parentSectionId,
-      b.id,
-    );
   } finally {
     await h.close();
   }

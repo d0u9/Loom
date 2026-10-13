@@ -17,7 +17,6 @@ test("Item category badges and reserved note space align cards", async ({
     ).json();
   const category = await post("/categories", {
     name: "Badge " + info.project.name,
-    parentId: null,
   });
   const second = await post("/categories", {
     name: "Second badge " + info.project.name,

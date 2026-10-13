@@ -22,7 +22,6 @@ test("resource URLs restore details, date filters and browser history", async ({
   };
   const category = await create("/categories", {
     name: "URL category " + info.project.name,
-    parentId: null,
   });
   const item = await create("/items", {
     name: "URL item " + info.project.name,

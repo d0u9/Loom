@@ -1,6 +1,6 @@
 # API Usage Contract
 
-Status: endpoints support flat Categories, Template/Checklist automatic merging, zero-source removal, and three section levels; runtime OpenAPI reflects actual request and response schemas.
+Status: endpoints support flat Categories, Template/Checklist automatic merging, zero-source removal, and two section levels; runtime OpenAPI reflects actual request and response schemas.
 
 The service prefix is `/api/v1`, with JSON requests and responses. Authenticated `GET /openapi.json` provides complete OpenAPI generated from runtime validation rules; the following records operation sequences and rules that schemas alone cannot express.
 
@@ -11,11 +11,11 @@ Successful login responses include `csrf` and `username`; with authentication en
 
 `POST /login {username,password}` sets an HttpOnly session and returns csrf; `GET /session` returns the current csrf and authEnabled; responses must not be cached. Session write requests submit `x-csrf-token`; `POST /logout {}` logs out. `POST /tokens {name}` creates a token shown only once; `GET /tokens` lists token IDs/names; `DELETE /tokens/:id` revokes a token. CLI uses `Authorization: Bearer TOKEN` without session CSRF.
 
-`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name}`; PUT adds version. parentId:null is still accepted; nonempty parentId returns 400, and responses omit parentId. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns direct member `itemIds`.
+`GET /items` and `/categories` return the catalog. Item POST submits `{name,note?,categoryIds,requestId}`; PUT `/:id` submits the same fields plus version. Category POST submits `{name}`; PUT adds version. Category has no parentId. Both DELETE `/:id` requests submit `{version}`; reference conflicts return the referring resource names, IDs, and kind. `GET /categories/:id/members` returns direct member `itemIds`.
 
 ## Template / Checklist
 
-Content may include sections, with section fields `{id,name,parentSectionId,afterEntryId?}`. Entries and child sections under the same parent share an order: entries follow array order, and a section immediately follows the sibling entry referenced by afterEntryId; null places it before all sibling entries, while an absent value (legacy data) or a reference that no longer points to a sibling entry places it after the sibling entries. Multiple sections at the same position follow array order. New entries append to the array and therefore appear last under that parent. When duplicate entries merge, sections referencing a merged entry instead reference the preceding retained sibling entry. Copy/instantiate/restore remap afterEntryId; Entry.sectionId:null/omitted means the root position. The current implementation supports at most three section levels, excluding the root and Item; the limit is now two, with historical three-level structures supported by promoting sections after confirmation.
+Content may include sections, with section fields `{id,name,parentSectionId,afterEntryId?}`. Entries and child sections under the same parent share an order: entries follow array order, and a section immediately follows the sibling entry referenced by afterEntryId; null places it before all sibling entries, while an absent value or a reference that no longer points to a sibling entry places it after the sibling entries. Multiple sections at the same position follow array order. New entries append to the array and therefore appear last under that parent. When duplicate entries merge, sections referencing a merged entry instead reference the preceding retained sibling entry. Copy/instantiate/restore remap afterEntryId; Entry.sectionId:null/omitted means the root position. At most two section levels, excluding the root and Item.
 
 Shared `/documents`: GET lists summaries, POST `{kind,name,entries,groups,requestId}` creates, GET `/:id` retrieves details, and PUT `/:id` submits `{name,entries,groups,version,requestId}` to replace the structure. kind is template or checklist; Template PUT generates a revision each time.
 
@@ -59,7 +59,7 @@ GET `/categories/:id/order` returns `{itemIds,version}`, containing the display 
 
 Nonempty Item IDs are unique within a document; the same Category has at most one active source group, and repeated additions do not increase the source count. GET documents returns entry.sourceCount = groupIds.length + Number(direct). A category group can be removed by deleting it through structural PUT; the server releases its sources and removes zero-source entries, without deleting global Item/Category records. Category preview/compose may include sections to retain the section structure; the preview shows source changes for removed entries, and saving is still required after applying. Temporary entries do not merge by name.
 
-Sections do not participate in source counts or checking; moving an entry changes only sectionId. When deleting a nonempty section, the client promotes child sections and entries to the parent, then submits the complete structure. The server validates absence of cycles, ownership by the same document, at most two levels, and valid references; invalid structures roll back the entire operation. New revisions/archives use schemaVersion:2; legacy schemaVersion:1 remains readable, and absent sections means the root position. Copy/restore/instantiate/convert to template assign new section IDs and remap parent-child relationships and entry positions.
+Sections do not participate in source counts or checking; moving an entry changes only sectionId. When deleting a nonempty section, the client promotes child sections and entries to the parent, then submits the complete structure. The server validates absence of cycles, ownership by the same document, at most two levels, and valid references; invalid structures roll back the entire operation. Revisions/archives use schemaVersion:2; other versions are not read. Copy/restore/instantiate/convert to template assign new section IDs and remap parent-child relationships and entry positions.
 
 ## Disabling Authentication through Configuration
 
@@ -73,4 +73,4 @@ Item GET/POST/PUT responses add `itemGroup: string | null`. POST/PUT may submit 
 
 GET `/items` returns all items; `?itemGroup=Food` filters by the trimmed group name using an exact, case-sensitive match; `?itemGroup=` returns ungrouped items. No matches return an empty array. Group names come from deduplicating nonempty itemGroup values across all Items; no separate Group API is added.
 
-Converting legacy three-level content: history-preview returns `sectionChanges` (promoted section id/name/parentSectionId); history-apply requires `flattenSections:true` when sections exceed the depth limit. Without confirmation, returns 400; confirmed promotion retains content, sources, and restored checked states, leaving the original snapshot unchanged.
+

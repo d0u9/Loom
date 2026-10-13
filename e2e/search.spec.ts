@@ -20,9 +20,8 @@ test("four resource directories share live search in card and list views", async
   const name = "FindMe " + info.project.name;
   const parent = await create("/categories", {
     name: "SearchParent " + info.project.name,
-    parentId: null,
   });
-  const category = await create("/categories", { name, parentId: null });
+  const category = await create("/categories", { name });
   await create("/items", {
     name,
     note: "RemarkNeedle " + info.project.name,
