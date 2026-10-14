@@ -48,7 +48,7 @@ Backup uses the SQLite online backup API and supports running WAL databases. Res
 
 ### Published image
 
-GitHub Actions builds `dev` as `ghcr.io/d0u9/loom:dev`. Version tags such as `image-v0.0.1`, created on a commit reachable from `dev`, publish `ghcr.io/d0u9/loom:0.0.1`. Image versions are independent of package versions and the historical `v0.0.1` Git tag. Builds currently target Linux amd64. Each build checks fresh startup and authentication-disabled host configuration before publishing.
+GitHub Actions builds `dev` as `ghcr.io/d0u9/loom:dev`. Version tags such as `image-v0.0.1`, created on a commit reachable from `dev`, publish `ghcr.io/d0u9/loom:0.0.1` and move `ghcr.io/d0u9/loom:latest` to that build. Image versions are independent of package versions and the historical `v0.0.1` Git tag. Builds currently target Linux amd64. Each build checks fresh startup and authentication-disabled host configuration before publishing.
 
 From the repository directory, using the supplied host `config/`:
 
