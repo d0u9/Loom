@@ -6,12 +6,11 @@ If pnpm is not installed, use `npm install -g pnpm@12.4.1`. The repository maint
 
 ```sh
 pnpm install --frozen-lockfile
-LOOM_PASSWORD='a-password-of-at-least-ten-characters' pnpm run init
 pnpm run build
 pnpm start
 ```
 
-Open http://127.0.0.1:3000; the default username is `admin`. `LOOM_DB` defaults to `data/loom.sqlite`, and `LOOM_USER` sets the initialization username. Remote deployments use HTTPS, set `HOST=0.0.0.0`, and let a reverse proxy handle TLS.
+Open http://127.0.0.1:3000. On first use, set a username and password (at least 10 characters) on the Web page; submitting enters the application directly. Existing accounts see the login page. `LOOM_DB` defaults to `data/loom.sqlite`, and `LOOM_USER` sets the initialization username. Remote deployments use HTTPS, set `HOST=0.0.0.0`, and let a reverse proxy handle TLS.
 
 Development needs only one command to start the backend and frontend together:
 
@@ -20,7 +19,7 @@ Development needs only one command to start the backend and frontend together:
 pnpm dev --host
 ```
 
-Open http://localhost:5173; API requests automatically proxy to backend port 3000. The frontend updates automatically and the backend restarts using Node file watching, avoiding calls to outdated endpoints after page updates. Ctrl+C stops both services. Development needs no build first or separate terminal running `pnpm run server`; first use still requires account initialization. Restart `pnpm dev` once after changing the development startup script itself.
+Open http://localhost:5173; API requests automatically proxy to backend port 3000. The frontend updates automatically and the backend restarts using Node file watching, avoiding calls to outdated endpoints after page updates. Ctrl+C stops both services. Development needs no build first or separate terminal running `pnpm run server`; first use sets up the account directly on the Web page. Restart `pnpm dev` once after changing the development startup script itself.
 
 `pnpm test` verifies the API/database, and `pnpm run check` checks types. Browser-session write requests must submit the `x-csrf-token` returned by `/api/v1/session`. External callers can create revocable Bearer tokens. After authentication, `/api/v1/openapi.json` provides the API contract.
 
@@ -49,9 +48,14 @@ Backup uses the SQLite online backup API and supports running WAL databases. Res
 
 ```sh
 docker compose build
-docker compose run --rm -e LOOM_PASSWORD='a-password-of-at-least-ten-characters' loom node dist/server/server/cli.js init
 docker compose up -d
 ```
+
+Compose mounts host `./config/` read-only at container `/etc/loom/` and reads `config/loom.config.json` through `LOOM_CONFIG`. The database remains in the existing `loom-data` volume; recreating the container preserves data.
+
+Disable authentication: Set `auth.enabled` to `false` in host `config/loom.config.json`. Run `docker compose up -d --force-recreate` when first applying the new mount; later configuration changes need only `docker compose restart loom`, without entering the container, copying files, or rebuilding the image. The whole configuration directory is mounted, so restarting also reads new content after editors replace files.
+
+Set up the account on the first Web visit, without executing `docker exec … init`. Existing data volumes use the original account for login. `pnpm run init` remains available for CLI pre-initialization and requires `LOOM_PASSWORD`.
 
 The image uses a non-root user, `/data` is a persistent volume, and the port binds only to localhost by default. When deploying across networks behind a reverse proxy, enable HTTPS and set `TRUST_PROXY` to trusted proxy IPs/CIDRs; do not trust arbitrary sources. The image contains only production dependencies and build outputs.
 
@@ -83,11 +87,11 @@ Database schema is currently version 1 (`server/db.ts`, recorded in `PRAGMA user
 
 Set enabled to false, then restart `pnpm dev` or the production service to use Web and API without login. The root opens `/checklists` directly, other direct links retain their paths, and sign-out is hidden; account initialization is unnecessary. Writes still first obtain csrf from `/api/v1/session` and then supply x-csrf-token; valid Bearer tokens also remain usable.
 
-`LOOM_CONFIG=/absolute/path/config.json pnpm start` specifies a configuration file. Docker can mount it at `/data/loom.config.json` or specify LOOM_CONFIG. Invalid JSON/types/unknown fields and missing custom paths fail startup, preventing invalid configuration from silently taking effect. A missing default file still enables login. Optional `auth.loginRateLimit` (positive integer, login attempts per minute) defaults to 10; retain the production default. Only e2e passes a higher value in `e2e/start.ts`. Database, listening address, and port continue using existing environment variables.
+`LOOM_CONFIG=/absolute/path/config.json pnpm start` specifies a configuration file. Repository Compose defaults to host `config/loom.config.json`; direct local execution still defaults to `data/loom.config.json`. For your own `docker run`, add `--mount type=bind,source="$(pwd)/config",target=/etc/loom,readonly -e LOOM_CONFIG=/etc/loom/loom.config.json` alongside the existing database volume. Restart the container after changing host configuration. Invalid JSON/types/unknown fields and missing custom paths fail startup, preventing invalid configuration from silently taking effect. A missing default file still enables login. Optional `auth.loginRateLimit` (positive integer, login attempts per minute) defaults to 10; retain the production default. Only e2e passes a higher value in `e2e/start.ts`. Database, listening address, and port continue using existing environment variables.
 
-Disabling login lets anyone who can connect to the service access and modify all data, including LAN devices. Re-enabling login does not delete data or accounts. If no account was initialized, first create it using the init steps above, then enable login and restart.
+Disabling login lets anyone who can connect to the service access and modify all data, including LAN devices. Re-enabling login does not delete data or accounts. If no account was initialized, re-enable login, restart, then set up the account on the Web page.
 
-Move to another machine: Stop the service and wait for exit, copy the entire `data/` into `data/` in the same project version, then start without reinitializing the account. Default configuration moves together with the database. If `LOOM_DB` or `LOOM_CONFIG` was set, copy the specified files separately. Move old project-root `loom.config.json` to `data/loom.config.json`; the new location does not automatically read the old one. A missing default file enables authentication. `data/` is private local data; do not commit it to Git or include it in images.
+Move to another machine: Stop the service and wait for exit, copy the entire `data/` into `data/` in the same project version, then start without reinitializing the account. Direct local execution moves default configuration together with the database; repository Compose also requires copying `config/`. If `LOOM_DB` or `LOOM_CONFIG` was set, copy the specified files separately. Move old project-root `loom.config.json` to `data/loom.config.json`; the new location does not automatically read the old one. A missing default file enables authentication. `data/` is private local data; do not commit it to Git or include it in images.
 
 ## Interface Language
 

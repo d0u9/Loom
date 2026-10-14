@@ -32,6 +32,11 @@ test("all fixed framework translations have English entries and labels follow la
               ]
             : null;
         if (text !== null) {
+          assert.equal(
+            typeof text,
+            "string",
+            `${name}: missing localized resource`,
+          );
           const key = text.trim();
           assert(english[key], `${name}: missing translation ${key}`);
         }

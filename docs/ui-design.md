@@ -250,3 +250,7 @@ Whole-group addition: in template/checklist Add from items dialogs, divide candi
 2026-10-14: Template and Checklist share autosave. One-off operations submit immediately; text submits after a 500ms pause. Further edits during saving submit serially; failures retain the draft and original requestId for explicit retry. Remove the routine save button; finishing editing only switches to reading mode. Drain the save queue before leaving within the app or creating a checklist from a template, and report failures; browser close/refresh still protects unsaved content. This overrides the earlier explicit template save requirement, without adding revisions or database changes.
 
 2026-10-14: Checklist collections use shared view-switch Active/Archived/All filters, defaulting to Active for normal navigation and intersecting with search. Calendar-date entry defaults to All to retain that day's archives, with state switching still available. Direct detail links are unaffected by list filters.
+
+## First-run setup
+
+An authenticated installation without an account reuses the login form for first-run setup. The page offers username, password, a minimum-length hint, and Create account, with the existing language switch and error display. Password autocomplete uses new-password during setup and current-password for login. Submission signs in immediately; existing installations show normal login, and anonymous mode goes straight to the application.

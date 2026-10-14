@@ -60,13 +60,17 @@ export async function api(
             ? [
                 localized[" References:"],
                 ...data.details.flatMap((ref: any, index: number) => [
-                  ...(index ? [{ literal: localized["Reference separator"] }] : []),
+                  ...(index
+                    ? [{ literal: localized["Reference separator"] }]
+                    : []),
                   ref.kind === "Category"
                     ? localized["Category"]
                     : ref.kind === "template"
                       ? localized["Template"]
                       : localized["Checklist"],
-                  { literal: `${localized["Reference opening quote"]}${ref.name}${localized["Reference closing quote"]}` },
+                  {
+                    literal: `${localized["Reference opening quote"]}${ref.name}${localized["Reference closing quote"]}`,
+                  },
                 ]),
               ]
             : []),

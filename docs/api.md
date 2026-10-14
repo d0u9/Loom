@@ -60,7 +60,7 @@ Sections do not participate in identity or checking; moving changes only section
 
 ## Disabling Authentication through Configuration
 
-data/loom.config.json with auth.enabled:false, followed by a restart, makes anonymous GET /session return `{csrf,authEnabled:false}`; reading catalog/documents requires no login. Anonymous writes still submit x-csrf-token, and any supplied Origin must match the service; Bearer tokens are still validated. POST /login returns 409 in this mode; OpenAPI global security is []. The default auth.enabled:true continues to require authentication and does not automatically create accounts. Anonymous csrf changes after process restart; clients must fetch /session again before writing.
+data/loom.config.json with auth.enabled:false, followed by a restart, makes anonymous GET /session return `{csrf,authEnabled:false}`; reading catalog/documents requires no login. Anonymous writes still submit x-csrf-token, and any supplied Origin must match the service; Bearer tokens are still validated. POST /login returns 409 in this mode; OpenAPI global security is []. The default auth.enabled:true continues to require authentication and when no account exists, only first-run setup is available, without automatically creating a default account. Anonymous csrf changes after process restart; clients must fetch /session again before writing.
 
 Structural saves reject nonempty category sources with 409 and roll back the entire save. When Web receives an explicit Invalid CSRF token / 403, it fetches session again and retries at most once with the original request content and requestId; other errors are not automatically retried.
 
@@ -73,3 +73,13 @@ GET `/items` returns all items; `?itemGroup=Food` filters by the trimmed group n
 ### Creating a Checklist from a Category
 
 `POST /api/v1/categories/:id/checklists`: `{name, useDate?: YYYY-MM-DD|null, version, memberIds: UUID[], requestId}`. Returns the complete document. Within a transaction, checks the Category version and current direct member set and creates unchecked independent entries in current member order, without creating a category source group; an empty category can create an empty checklist. Version or membership changes return 409 without creating a checklist; retrying the same requestId with the same request returns the original result, while different content returns 409. Later category edits do not update existing checklists.
+
+## First-run account setup
+
+With authentication enabled and no account in the database, `GET /session` returns `{csrf,authEnabled:true,setupRequired:true}` without a session cookie. Business endpoints remain protected. The response is not cached; an invalid Bearer token still returns 401.
+
+`POST /setup {username,password}` creates the first account and signs in immediately, returning `{csrf,username}` and an HttpOnly, SameSite=Strict session cookie (Secure over HTTPS). The password must have 10–1000 characters; username is trimmed and must have 1–200 characters. Browser requests submit the setup CSRF from `/session`, and a supplied Origin must match the service. Valid Bearer credentials follow the existing external API contract. Setup shares the configured login rate limit.
+
+Account existence is checked together with account/session creation in one transaction. An initialized database returns 409 and never overwrites credentials; anonymous mode returns 409. If the response is lost, Web checks `/session` to recover an established session or returns to login when another client completed setup. CLI initialization remains optional. No schema change is required.
+
+Docker Compose reads the host's `config/loom.config.json` through a read-only directory bind mount at `/etc/loom`, with `LOOM_CONFIG=/etc/loom/loom.config.json`. The database remains in the existing `loom-data` volume. Apply new mount settings by recreating the container once; subsequent host configuration edits only require a service restart. Standalone server runs retain `data/loom.config.json` as the default path. Missing explicitly configured files fail startup.

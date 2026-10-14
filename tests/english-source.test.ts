@@ -1,28 +1,31 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
-test("program source keeps localized text in separate resources", () => {
-  function inspect(directory: string) {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const file = join(directory, entry.name);
-      if (entry.isDirectory()) inspect(file);
-      else if (/\.(ts|tsx|js|mjs|cjs|css|html)$/.test(file))
-        assert.doesNotMatch(
-          readFileSync(file, "utf8"),
-          /\p{Script=Han}/u,
-          file,
-        );
+test("tracked text and filenames use English outside bilingual resources", () => {
+  const files = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean);
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  for (const file of files) {
+    assert.doesNotMatch(
+      file,
+      /[\p{Script=Han}\u3000-\u303f\uff00-\uffef]/u,
+      file,
+    );
+    if (file === "locales/zh.json") continue;
+    let text: string;
+    try {
+      text = decoder.decode(readFileSync(file));
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      continue; // Binary assets have no source text to translate.
     }
+    assert.doesNotMatch(
+      text,
+      /[\p{Script=Han}\u3000-\u303f\uff00-\uffef]/u,
+      file,
+    );
   }
-  for (const directory of [
-    "server",
-    "shared",
-    "web",
-    "tests",
-    "e2e",
-    "scripts",
-  ])
-    inspect(directory);
 });

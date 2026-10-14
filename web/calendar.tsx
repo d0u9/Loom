@@ -93,7 +93,13 @@ export function Calendar({
               variant="ghost"
               key={key}
               className={`${day.getMonth() !== month.getMonth() ? "outside" : ""} ${date === key ? "selected" : ""} ${today === key ? "today" : ""}`}
-              aria-label={"" + key + localized["Calendar count separator"] + count + t(localized[" checklists"])}
+              aria-label={
+                "" +
+                key +
+                localized["Calendar count separator"] +
+                count +
+                t(localized[" checklists"])
+              }
               aria-pressed={date === key}
               aria-current={today === key ? "date" : undefined}
               onClick={() => onSelect(key)}

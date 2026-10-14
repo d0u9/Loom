@@ -646,7 +646,9 @@ export function Documents({
           }
           placeholder={
             label
-              ? t(localized["Add to “"]) + label + t(localized["Add prompt suffix"])
+              ? t(localized["Add to “"]) +
+                label +
+                t(localized["Add prompt suffix"])
               : t(localized["Add temporary entry…"])
           }
           value={value}
