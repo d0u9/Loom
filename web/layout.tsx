@@ -135,7 +135,10 @@ export function AppLayout({
                 }
               }}
             >
-              <summary aria-label={t(localized["Account menu"])} title={t(localized["Account menu"])}>
+              <summary
+                aria-label={t(localized["Account menu"])}
+                title={t(localized["Account menu"])}
+              >
                 <Icon name="moreVertical" />
               </summary>
               <div className="account-menu">
@@ -163,7 +166,8 @@ export function AppLayout({
 
 export function LanguageSwitch() {
   const language = useLanguage();
-  const label = language === "zh" ? localized["fixture.3e8e498593dc"] : "Switch to Chinese";
+  const label =
+    language === "zh" ? localized["fixture.3e8e498593dc"] : "Switch to Chinese";
   return (
     <Button
       variant="icon"

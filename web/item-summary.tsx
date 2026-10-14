@@ -48,8 +48,14 @@ export function ItemSummary({
       >
         <span
           className="category-tag item-group-tag"
-          aria-label={t(localized["Group:"]) + (item.itemGroup || t(localized["Ungrouped"]))}
-          title={t(localized["Group:"]) + (item.itemGroup || t(localized["Ungrouped"]))}
+          aria-label={
+            t(localized["Group:"]) +
+            (item.itemGroup || t(localized["Ungrouped"]))
+          }
+          title={
+            t(localized["Group:"]) +
+            (item.itemGroup || t(localized["Ungrouped"]))
+          }
         >
           <Icon name="group" />
           <span>{item.itemGroup || t(localized["Ungrouped"])}</span>

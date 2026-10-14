@@ -2,10 +2,17 @@ import localized from "../locales/zh.json" with { type: "json" };
 import { test, expect } from "@playwright/test";
 test("check circles align across section depths", async ({ page }, info) => {
   await page.goto("/checklists");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"], exact: true }),
+    page.getByRole("button", {
+      name: localized["fixture.9502ae5b9eb9"],
+      exact: true,
+    }),
   ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const sections = [0, 1, 2].map((i) => ({
@@ -53,7 +60,10 @@ test("check circles align across section depths", async ({ page }, info) => {
     return b.x + b.width / 2;
   };
   const circle = (n: number) =>
-    page.getByRole("checkbox", { name: localized["fixture.15feacff1ce5"] + n, exact: true });
+    page.getByRole("checkbox", {
+      name: localized["fixture.15feacff1ce5"] + n,
+      exact: true,
+    });
   const toggle = (n: number) =>
     page
       .locator(".section-heading", { hasText: "Section " + n })
@@ -73,16 +83,25 @@ test("check circles align across section depths", async ({ page }, info) => {
   } else
     expect(Math.max(...positions) - Math.min(...positions)).toBeLessThan(1);
   const row = page
-    .getByRole("checkbox", { name: localized["fixture.e1774082acd5"], exact: true })
+    .getByRole("checkbox", {
+      name: localized["fixture.e1774082acd5"],
+      exact: true,
+    })
     .locator(
       "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' entry ')][1]",
     );
   const before = await row.boundingBox();
   await page
-    .getByRole("checkbox", { name: localized["fixture.e1774082acd5"], exact: true })
+    .getByRole("checkbox", {
+      name: localized["fixture.e1774082acd5"],
+      exact: true,
+    })
     .check();
   await expect(
-    page.getByRole("checkbox", { name: localized["fixture.e1774082acd5"], exact: true }),
+    page.getByRole("checkbox", {
+      name: localized["fixture.e1774082acd5"],
+      exact: true,
+    }),
   ).toBeChecked();
   await expect(row.locator(".entry-name-display")).toHaveCSS(
     "text-decoration-line",

@@ -5,9 +5,15 @@ test("Item sorting supports both fields and directions with search and view swit
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const prefix = `Sort ${info.project.name} `;
   for (const [name, itemGroup] of [
@@ -33,17 +39,28 @@ test("Item sorting supports both fields and directions with search and view swit
   const order = async (letters: string[]) =>
     expect(names).toHaveText(letters.map((n) => prefix + n));
   await order(["A", "B", "C", "D"]);
-  await page.getByRole("button", { name: localized["Descending"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Descending"], exact: true })
+    .click();
   await order(["D", "C", "B", "A"]);
-  await page.getByRole("button", { name: localized["Group"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Group"], exact: true })
+    .click();
   await order(["A", "C", "B", "D"]);
-  await page.getByRole("button", { name: localized["Ascending"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Ascending"], exact: true })
+    .click();
   await order(["D", "B", "C", "A"]);
-  await page.getByRole("button", { name: localized["List"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["List"], exact: true })
+    .click();
   await order(["D", "B", "C", "A"]);
   await page.getByRole("tab", { name: "A", exact: true }).click();
   await order(["B", "C"]);
-  const direction = page.getByRole("button", { name: localized["Descending"], exact: true });
+  const direction = page.getByRole("button", {
+    name: localized["Descending"],
+    exact: true,
+  });
   await direction.focus();
   await page.keyboard.press("Enter");
   await expect(direction).toHaveAttribute("aria-pressed", "true");

@@ -9,7 +9,9 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
     await expect(
       page.getByRole("button", { name: localized["New item"], exact: true }),
     ).toBeVisible();
@@ -79,7 +81,9 @@ for (const kind of ["template", "checklist"]) {
       `/${kind === "template" ? "templates" : "checklists"}/${d.id}`,
     );
     if (kind === "checklist")
-      await page.getByRole("button", { name: localized["Reading mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Reading mode"], exact: true })
+        .click();
     const row = (name: string) => page.getByLabel(name, { exact: true });
     const root = row("Root after section");
     await expect(root).toBeVisible();
@@ -136,12 +140,19 @@ for (const kind of ["template", "checklist"]) {
       await expect(row("Root consecutive").locator(".entry-note")).toBeHidden();
     } else {
       expect((await row("Root first").boundingBox())!.height).toBe(52);
-      expect((await row(localized["fixture.745a621953bf"]).boundingBox())!.height).toBe(58);
-      expect((await row(localized["Section "] + childName).boundingBox())!.height).toBe(54);
+      expect(
+        (await row(localized["fixture.745a621953bf"]).boundingBox())!.height,
+      ).toBe(58);
+      expect(
+        (await row(localized["Section "] + childName).boundingBox())!.height,
+      ).toBe(54);
     }
     if (kind === "checklist") {
       await page
-        .getByRole("checkbox", { name: localized["fixture.b56d4875e85e"], exact: true })
+        .getByRole("checkbox", {
+          name: localized["fixture.b56d4875e85e"],
+          exact: true,
+        })
         .check();
       await expect(
         page.getByRole("checkbox", {
@@ -154,9 +165,14 @@ for (const kind of ["template", "checklist"]) {
       path: `test-results/${kind}-${info.project.name}-root-rows.png`,
       fullPage: true,
     });
-    await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await expect(
-      page.getByRole("button", { name: localized["fixture.0a38d28ad5cc"], exact: true }),
+      page.getByRole("button", {
+        name: localized["fixture.0a38d28ad5cc"],
+        exact: true,
+      }),
     ).toBeVisible();
     if (info.project.name === "mobile")
       expect(await heights()).toEqual(Array(9).fill(40));

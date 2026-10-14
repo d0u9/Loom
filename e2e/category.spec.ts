@@ -4,9 +4,15 @@ test("category details show direct members and remove only the chosen membership
   page,
 }, info) => {
   await page.goto("/");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -64,8 +70,12 @@ test("category details show direct members and remove only the chosen membership
     ),
   ).toBeLessThan(2);
   // Mobile folds card actions behind a more toggle.
-  await parentRow.getByRole("button", { name: localized["Edit"], exact: true }).click();
-  await expect(page.getByRole("dialog", { name: localized["fixture.b46f0b9bd727"] })).toBeVisible();
+  await parentRow
+    .getByRole("button", { name: localized["Edit"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: localized["fixture.b46f0b9bd727"] }),
+  ).toBeVisible();
   // Touch has no Escape: tapping the backdrop closes the Modal.
   if (info.project.name === "mobile") await page.mouse.click(4, 4);
   else await page.keyboard.press("Escape");
@@ -80,7 +90,10 @@ test("category details show direct members and remove only the chosen membership
     .filter({
       has: page.getByRole("heading", { name: parent.name, exact: true }),
     })
-    .getByRole("button", { name: localized["Open "] + parent.name, exact: true })
+    .getByRole("button", {
+      name: localized["Open "] + parent.name,
+      exact: true,
+    })
     .click();
   await expect(
     page
@@ -104,14 +117,20 @@ test("category details show direct members and remove only the chosen membership
     }),
   ).toHaveCount(0);
   await expect(
-    member.getByRole("button", { name: localized["fixture.c3a1a296eec7"] + item.name }),
+    member.getByRole("button", {
+      name: localized["fixture.c3a1a296eec7"] + item.name,
+    }),
   ).toHaveCount(0);
   await member
     .getByRole("button", { name: localized["Open "] + item.name, exact: true })
     .focus();
   await page.keyboard.press("Enter");
-  await page.getByLabel(localized["Note"], { exact: true }).fill("Updated note");
-  await page.getByRole("button", { name: localized["Save"], exact: true }).click();
+  await page
+    .getByLabel(localized["Note"], { exact: true })
+    .fill("Updated note");
+  await page
+    .getByRole("button", { name: localized["Save"], exact: true })
+    .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(member.locator(".item-note")).toHaveText("Updated note");
   await expect(member.getByText(parent.name, { exact: true })).toHaveCount(0);
@@ -139,7 +158,10 @@ test("category details show direct members and remove only the chosen membership
     fullPage: true,
   });
   await member
-    .getByRole("button", { name: localized["From "] + parent.name + localized[" Remove"], exact: true })
+    .getByRole("button", {
+      name: localized["From "] + parent.name + localized[" Remove"],
+      exact: true,
+    })
     .click();
   await expect(member).toHaveCount(0);
   let stored = await (await page.request.get("/api/v1/items")).json();
@@ -149,9 +171,13 @@ test("category details show direct members and remove only the chosen membership
     .locator(".page-header")
     .getByRole("button", { name: localized["Add members"], exact: true })
     .click();
-  await page.getByLabel(localized["Add existing item"], { exact: true }).click();
+  await page
+    .getByLabel(localized["Add existing item"], { exact: true })
+    .click();
   // The open list floats above the modal instead of being clipped by it.
-  const list = page.getByRole("listbox", { name: localized["Add existing item"] });
+  const list = page.getByRole("listbox", {
+    name: localized["Add existing item"],
+  });
   const box = (await list.boundingBox())!;
   expect(
     await page.evaluate(
@@ -161,7 +187,10 @@ test("category details show direct members and remove only the chosen membership
   ).toBe(true);
   // Pinyin initials and syllables filter Chinese names: "jid" finds eggs.
   await page
-    .getByRole("combobox", { name: localized["Add existing item"], exact: true })
+    .getByRole("combobox", {
+      name: localized["Add existing item"],
+      exact: true,
+    })
     .fill("jid");
   await expect(
     page.getByRole("option", { name: egg.name, exact: true }),
@@ -170,16 +199,19 @@ test("category details show direct members and remove only the chosen membership
     page.getByRole("option", { name: other.name, exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("combobox", { name: localized["Add existing item"], exact: true })
+    .getByRole("combobox", {
+      name: localized["Add existing item"],
+      exact: true,
+    })
     .fill(other.name);
   await page.getByRole("option", { name: other.name, exact: true }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: localized["Add members"], exact: true })
     .click();
-  await expect(page.getByLabel(localized["Add existing item"], { exact: true })).toHaveValue(
-    "",
-  );
+  await expect(
+    page.getByLabel(localized["Add existing item"], { exact: true }),
+  ).toHaveValue("");
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("heading", { name: other.name, exact: true }),
@@ -209,15 +241,26 @@ test("category details show direct members and remove only the chosen membership
     .getByLabel(localized["Name"], { exact: true })
     .fill(" " + item.name + " ");
   await expect(
-    creation.getByText(localized["An item with this name already exists. Select it to avoid creating a duplicate."], {
+    creation.getByText(
+      localized[
+        "An item with this name already exists. Select it to avoid creating a duplicate."
+      ],
+      {
+        exact: true,
+      },
+    ),
+  ).toBeVisible();
+  await expect(
+    creation.getByRole("button", {
+      name: localized["Create a separate item"],
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    creation.getByRole("button", { name: localized["Create a separate item"], exact: true }),
-  ).toBeVisible();
   await creation
-    .getByRole("button", { name: localized["Select existing item:"] + item.name, exact: true })
+    .getByRole("button", {
+      name: localized["Select existing item:"] + item.name,
+      exact: true,
+    })
     .click();
   await page
     .getByRole("dialog")
@@ -240,8 +283,12 @@ test("category details show direct members and remove only the chosen membership
       exact: true,
     }),
   ).toBeDisabled();
-  await creation.getByLabel(localized["Name"], { exact: true }).fill("Cancelled member");
-  await creation.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+  await creation
+    .getByLabel(localized["Name"], { exact: true })
+    .fill("Cancelled member");
+  await creation
+    .getByRole("button", { name: localized["Cancel"], exact: true })
+    .click();
   expect(
     (await (await page.request.get("/api/v1/items")).json()).some(
       (i: any) => i.name === "Cancelled member",
@@ -269,27 +316,41 @@ test("category details show direct members and remove only the chosen membership
     .getByRole("button", { name: localized["Create and add"], exact: true })
     .click();
   await expect(creation.getByRole("alert")).toBeVisible();
-  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue(
-    newName,
-  );
+  await expect(
+    creation.getByLabel(localized["Name"], { exact: true }),
+  ).toHaveValue(newName);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(1);
-  await creation.getByRole("button", { name: localized["Retry save"], exact: true }).click();
+  await creation
+    .getByRole("button", { name: localized["Retry save"], exact: true })
+    .click();
   await expect(page.getByRole("dialog")).toHaveCount(1);
-  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue("");
-  await expect(creation.getByLabel(localized["Name"], { exact: true })).toBeFocused();
-  await expect(creation.getByLabel(localized["Note"], { exact: true })).toHaveValue("");
+  await expect(
+    creation.getByLabel(localized["Name"], { exact: true }),
+  ).toHaveValue("");
+  await expect(
+    creation.getByLabel(localized["Name"], { exact: true }),
+  ).toBeFocused();
+  await expect(
+    creation.getByLabel(localized["Note"], { exact: true }),
+  ).toHaveValue("");
   await expect(
     creation.getByRole("checkbox", { name: parent.name, exact: true }),
   ).toBeChecked();
   const secondName = "Another member " + info.project.name;
-  await creation.getByLabel(localized["Name"], { exact: true }).fill(secondName);
+  await creation
+    .getByLabel(localized["Name"], { exact: true })
+    .fill(secondName);
   await creation
     .getByRole("button", { name: localized["Create and add"], exact: true })
     .click();
-  await expect(creation.getByLabel(localized["Name"], { exact: true })).toHaveValue("");
+  await expect(
+    creation.getByLabel(localized["Name"], { exact: true }),
+  ).toHaveValue("");
   await expect(page.getByRole("dialog")).toHaveCount(1);
-  await creation.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+  await creation
+    .getByRole("button", { name: localized["Cancel"], exact: true })
+    .click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(

@@ -194,7 +194,9 @@ function App() {
         <p className="error" role="alert">
           {t(error)}
         </p>
-        <Button onClick={() => void loadSession()}>{t(localized["Retry"])}</Button>
+        <Button onClick={() => void loadSession()}>
+          {t(localized["Retry"])}
+        </Button>
       </main>
     ) : (
       <div aria-busy="true">
@@ -278,7 +280,9 @@ function App() {
           submitDisabled={categoryCreateBusy}
           cancelDisabled={categoryCreateBusy || !!categoryCreatePending.current}
           submitLabel={
-            categoryCreatePending.current ? t(localized["Retry creation"]) : t(localized["Create"])
+            categoryCreatePending.current
+              ? t(localized["Retry creation"])
+              : t(localized["Create"])
           }
           onSubmit={() => void createCategoryChecklist()}
           onClose={() => {
@@ -369,7 +373,9 @@ function App() {
           !(section === "Category"
             ? currentCategory
             : items.find((i) => i.id === route.id)) ? (
-            <p role="alert">{t(localized["This resource does not exist or was deleted."])}</p>
+            <p role="alert">
+              {t(localized["This resource does not exist or was deleted."])}
+            </p>
           ) : section === "Category" && currentCategory ? (
             <CategoryList
               key={currentCategory.id}
@@ -486,13 +492,18 @@ function App() {
                       aria-controls="item-directory"
                       onClick={() => setItemGroup(group)}
                     >
-                      {group === null ? t(localized["All"]) : group || t(localized["Ungrouped"])}
+                      {group === null
+                        ? t(localized["All"])
+                        : group || t(localized["Ungrouped"])}
                     </Button>
                   ))}
                 </div>
               )}
               {section === "Item" && (
-                <div className="item-sort-controls" aria-label={t(localized["Item sorting"])}>
+                <div
+                  className="item-sort-controls"
+                  aria-label={t(localized["Item sorting"])}
+                >
                   <div
                     className="view-switch"
                     role="group"
@@ -610,7 +621,10 @@ function App() {
                             title={t(localized["Delete"])}
                             onClick={async () => {
                               if (
-                                await ask(t(localized["Delete "]) + x.name + localized["Question mark"], t(localized["Delete"]))
+                                await ask(
+                                  t(localized["Delete "]) + x.name + localized["Question mark"],
+                                  t(localized["Delete"]),
+                                )
                               )
                                 void attempt(async () => {
                                   await api(
@@ -641,7 +655,9 @@ function App() {
                             className="category-tags"
                             aria-label={t(localized["Parent category"])}
                           >
-                            <span className="empty">{t(localized["Category"])}</span>
+                            <span className="empty">
+                              {t(localized["Category"])}
+                            </span>
                           </div>
                         </>
                       )}
@@ -665,7 +681,11 @@ function App() {
               error={error}
               fieldsDisabled={!!catalogPending}
               cancelDisabled={!!catalogPending}
-              submitLabel={catalogPending ? t(localized["Retry save"]) : t(localized["Save"])}
+              submitLabel={
+                catalogPending
+                  ? t(localized["Retry save"])
+                  : t(localized["Save"])
+              }
               onClose={() => {
                 if (!catalogPending) closeEditing();
               }}

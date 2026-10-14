@@ -5,9 +5,15 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) =>
     (
@@ -36,7 +42,9 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
   const row = page.getByRole("article").filter({
     has: page.getByRole("heading", { name: item.name, exact: true }),
   });
-  await expect(row.locator(".item-group-tag")).toHaveText(localized["Ungrouped"]);
+  await expect(row.locator(".item-group-tag")).toHaveText(
+    localized["Ungrouped"],
+  );
   const tag = page.getByRole("tab", { name: group, exact: true });
   const current = async () =>
     (await (await page.request.get("/api/v1/items")).json()).find(
@@ -104,10 +112,16 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
   await expect(row.locator(".item-group-tag")).toHaveText(group);
   expect((await current()).note).toBe("keep this");
   expect((await current()).categoryIds).toEqual([category.id]);
-  await page.getByRole("button", { name: localized["List"], exact: true }).click();
-  await drag(page.getByRole("tab", { name: localized["Ungrouped"], exact: true }));
+  await page
+    .getByRole("button", { name: localized["List"], exact: true })
+    .click();
+  await drag(
+    page.getByRole("tab", { name: localized["Ungrouped"], exact: true }),
+  );
   await expect.poll(async () => (await current()).itemGroup).toBeNull();
-  await expect(row.locator(".item-group-tag")).toHaveText(localized["Ungrouped"]);
+  await expect(row.locator(".item-group-tag")).toHaveText(
+    localized["Ungrouped"],
+  );
   await page.reload();
   expect((await current()).itemGroup).toBeNull();
   await page
@@ -124,9 +138,14 @@ test("drag Item cards and rows onto group tags without opening or losing fields"
   );
   await drag(tag);
   await expect(
-    page.getByText(localized["Content changed or the action conflicts with its current state. Refresh and retry."], {
-      exact: true,
-    }),
+    page.getByText(
+      localized[
+        "Content changed or the action conflicts with its current state. Refresh and retry."
+      ],
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   expect((await current()).itemGroup).toBeNull();
   await page.unroute("**/api/v1/items/" + item.id);

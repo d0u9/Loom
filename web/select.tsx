@@ -181,7 +181,9 @@ export function Select({
           className="combobox-options"
           style={place}
         >
-          {choices.length === 0 && <p className="empty">{t(localized["No matching options"])}</p>}
+          {choices.length === 0 && (
+            <p className="empty">{t(localized["No matching options"])}</p>
+          )}
           {choices.map((option, index) => (
             <Button
               key={option.value}

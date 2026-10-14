@@ -7,20 +7,9 @@
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": [
-      "ES2023",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "noEmit": true,
     "resolveJsonModule": true
   },
-  "include": [
-    "server",
-    "shared",
-    "web",
-    "tests",
-    "e2e",
-    "*.ts"
-  ]
+  "include": ["server", "shared", "web", "tests", "e2e", "*.ts"]
 }

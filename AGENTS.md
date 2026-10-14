@@ -192,3 +192,9 @@ Latest confirmation and implementation (2026-10-12): Template/Checklist Sections
 
 
 2026-10-14: Template and Checklist uniformly autosave. One-time actions submit immediately, and text submits after a 500ms pause. Continued editing during a save submits serially; failures retain the draft and original requestId for explicit retry. Remove the everyday Save button; Finish editing only switches to read mode. Drain the save queue before in-app navigation and creating a checklist from a template, prompting on failure; browser close/refresh still protects unsaved content. This supersedes earlier explicit-template-save constraints without adding revisions or database changes.
+
+## Source language (2026-10-14)
+
+- Program source, comments, identifiers, and commit messages must use English. Chinese translations and Chinese test data belong in separate JSON resources under `locales/`; Markdown product documentation may remain Chinese.
+- Preserve the bilingual UI, Chinese search and pinyin coverage. Source files reference localized text through English resource keys; do not hide Chinese text in Unicode escapes.
+- Historical source snapshots follow the same rule. Rewriting local history changes commit IDs; preserve a verified Git bundle before rewriting, and never push rewritten history without explicit authorization.

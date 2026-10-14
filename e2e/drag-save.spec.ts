@@ -9,8 +9,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     const response = await page.request.post("/api/v1/documents", {
@@ -34,7 +38,9 @@ for (const kind of ["template", "checklist"]) {
     const doc = await response.json();
     await page.goto(`/${kind}s/${doc.id}`);
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     const rows = page.locator(".entries > .entry");
     const read = async () =>
       await (await page.request.get(`/api/v1/documents/${doc.id}`)).json();
@@ -88,7 +94,9 @@ for (const kind of ["template", "checklist"]) {
       { steps: 8 },
     );
     await page.mouse.up();
-    await expect(page.getByRole("alert")).toContainText(localized["fixture.bb87c5f2cdbf"]);
+    await expect(page.getByRole("alert")).toContainText(
+      localized["fixture.bb87c5f2cdbf"],
+    );
     await expect(rows.first()).toHaveAttribute("aria-label", "Row 1");
     await expect(rows.nth(1)).toHaveAttribute("aria-label", "Row 0");
     expect((await read()).entries).toEqual(doc.entries);

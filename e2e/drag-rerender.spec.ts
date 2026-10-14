@@ -9,8 +9,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     for (const input of info.project.name === "mobile"
@@ -53,8 +57,12 @@ for (const kind of ["template", "checklist"]) {
         }
         return route.continue();
       });
-      await page.getByLabel(localized["New temporary entry"], { exact: true }).fill("Pending");
-      await page.getByLabel(localized["New temporary entry"], { exact: true }).press("Enter");
+      await page
+        .getByLabel(localized["New temporary entry"], { exact: true })
+        .fill("Pending");
+      await page
+        .getByLabel(localized["New temporary entry"], { exact: true })
+        .press("Enter");
       await expect.poll(() => writes).toBe(1);
       const row = page.locator(`[data-sort-id="${doc.entries[0].id}"]`);
       const target = page.locator(`[data-sort-id="${doc.entries[1].id}"]`);

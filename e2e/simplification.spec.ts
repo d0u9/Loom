@@ -5,10 +5,17 @@ test("template saves replace current content without revisions and history defau
   page,
 }, info) => {
   await page.goto("/templates");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: localized["fixture.8b6c722cd24d"], exact: true }),
+    page.getByRole("button", {
+      name: localized["fixture.8b6c722cd24d"],
+      exact: true,
+    }),
   ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const item = await (
@@ -22,31 +29,55 @@ test("template saves replace current content without revisions and history defau
     })
   ).json();
   expect(item).toHaveProperty("id");
-  await page.getByRole("button", { name: localized["fixture.8b6c722cd24d"], exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: localized["fixture.8b6c722cd24d"],
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("dialog")
     .getByLabel(localized["Name"], { exact: true })
     .fill("Simple " + info.project.name);
-  await page.getByRole("button", { name: localized["Create"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Create"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/templates\/[\w-]+$/);
-  const create = page.getByRole("button", { name: localized["Create checklist"], exact: true });
+  const create = page.getByRole("button", {
+    name: localized["Create checklist"],
+    exact: true,
+  });
   await expect(create).toHaveCount(0);
-  await page.getByRole("button", { name: localized["Done editing"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Done editing"], exact: true })
+    .click();
   await expect(create).toBeEnabled();
   for (const name of ["First", "Second"]) {
-    await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
-    await page.getByLabel(localized["New temporary entry"], { exact: true }).fill(name);
-    await page.getByLabel(localized["New temporary entry"], { exact: true }).press("Enter");
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
+    await page
+      .getByLabel(localized["New temporary entry"], { exact: true })
+      .fill(name);
+    await page
+      .getByLabel(localized["New temporary entry"], { exact: true })
+      .press("Enter");
     await expect(create).toHaveCount(0);
-    await page.getByRole("button", { name: localized["Done editing"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Done editing"], exact: true })
+      .click();
     await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
     await expect(create).toBeEnabled();
   }
-  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["More actions"], exact: true })
+    .click();
   await expect(page.getByLabel("Revision", { exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await create.click();
-  await page.getByRole("button", { name: localized["Confirm / Retry"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Confirm / Retry"], exact: true })
+    .click();
   const list = (
     await (await page.request.get("/api/v1/documents")).json()
   ).find(
@@ -95,13 +126,23 @@ test("template saves replace current content without revisions and history defau
   });
   expect(deleteResponse.ok()).toBe(true);
   await page.goto(`/checklists/${d.id}`);
-  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
-  await page.getByRole("button", { name: localized["Restore archive"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["More actions"], exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: localized["Restore archive"], exact: true })
+    .click();
   await expect(
-    page.getByText(localized["Deleted items will be kept as temporary entries. Their content is preserved."]),
+    page.getByText(
+      localized[
+        "Deleted items will be kept as temporary entries. Their content is preserved."
+      ],
+    ),
   ).toBeVisible();
   await expect(page.getByRole("dialog").getByRole("combobox")).toHaveCount(0);
-  await page.getByRole("button", { name: localized["Confirm / Retry"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Confirm / Retry"], exact: true })
+    .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const restored = await (
     await page.request.get(`/api/v1/documents/${d.id}`)

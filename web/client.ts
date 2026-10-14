@@ -34,7 +34,9 @@ export async function api(
         response.ok ? 502 : response.status,
         message(
           { literal: label },
-          localized[" returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."],
+          localized[
+            " returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."
+          ],
         ),
       );
     if (

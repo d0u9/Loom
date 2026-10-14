@@ -5,9 +5,15 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const entry = (name: string) => ({
     id: crypto.randomUUID(),
@@ -38,17 +44,31 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
       ),
     );
   await expect.poll(names).toEqual(["A", "B", "C"]);
-  await expect(page.getByRole("button", { name: new RegExp(localized["fixture.cfc7ae4882ff"], "") })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(localized["fixture.cfc7ae4882ff"], ""),
+    }),
+  ).toHaveCount(0);
 
   await page.locator(".entry[data-sort-id]").first().focus();
   await page.keyboard.press("ArrowDown");
   await expect.poll(names).toEqual(["B", "A", "C"]);
   // Saved entries stay checkable right after a reorder.
-  await page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name).click();
-  await expect(page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name)).toBeChecked();
-  await expect(page.getByRole("status")).toHaveText(new RegExp(localized["Saved"], ""));
-  await page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name).click();
-  await expect(page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name)).not.toBeChecked();
+  await page
+    .getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name)
+    .click();
+  await expect(
+    page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name),
+  ).toBeChecked();
+  await expect(page.getByRole("status")).toHaveText(
+    new RegExp(localized["Saved"], ""),
+  );
+  await page
+    .getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name)
+    .click();
+  await expect(
+    page.getByLabel(localized["fixture.c9bba6ddc6b6"] + info.project.name),
+  ).not.toBeChecked();
   // Circles stay visible while the reorder autosaves.
   expect(
     await page
@@ -77,12 +97,16 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   });
   if (!(await note.isVisible()))
     await page
-      .getByLabel(localized["fixture.bae2ce3e5309"] + info.project.name, { exact: true })
+      .getByLabel(localized["fixture.bae2ce3e5309"] + info.project.name, {
+        exact: true,
+      })
       .click();
   await note.click();
   const dialog = page.getByRole("dialog", { name: localized["Edit note"] });
   await dialog.getByLabel(localized["Note"]).fill("Two packs");
-  await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
+  await dialog
+    .getByRole("button", { name: localized["Save"], exact: true })
+    .click();
   await expect(page.locator(".entry-note")).toHaveText("Two packs");
   expect(
     await page
@@ -117,7 +141,9 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
   const headings = () =>
     page.locator(".section-heading strong").allTextContents();
   await expect.poll(headings).toEqual(["S1", "S2"]);
-  await page.getByLabel(localized["fixture.755bc33fa9ae"], { exact: true }).focus();
+  await page
+    .getByLabel(localized["fixture.755bc33fa9ae"], { exact: true })
+    .focus();
   await page.keyboard.press("ArrowDown");
   await expect.poll(headings).toEqual(["S2", "S1"]);
   // An entry's arrow keys walk visible rows: down enters the next section,
@@ -155,9 +181,9 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
     await page.mouse.move(target.x + 40, target.y + target.height - 6, {
       steps: 8,
     });
-    await expect(page.getByLabel(localized["fixture.755bc33fa9ae"], { exact: true })).toHaveClass(
-      /drop-hover/,
-    );
+    await expect(
+      page.getByLabel(localized["fixture.755bc33fa9ae"], { exact: true }),
+    ).toHaveClass(/drop-hover/);
     await page.mouse.up();
     // X now sits under S1, which is the last row.
     await expect(page.locator(".entries > .entry").last()).toHaveAttribute(

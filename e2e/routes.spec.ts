@@ -5,10 +5,16 @@ test("resource URLs restore details, date filters and browser history", async ({
   page,
 }, info) => {
   await page.goto("/templates");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/templates$/);
-  await expect(page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -63,7 +69,9 @@ test("resource URLs restore details, date filters and browser history", async ({
     await expect(
       page.locator(".page-header").getByRole("heading", { name, exact: true }),
     ).toBeVisible();
-    await expect(page.getByLabel(localized["Password"], { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByLabel(localized["Password"], { exact: true }),
+    ).toHaveCount(0);
   }
   await page.goto("/items/" + item.id);
   await expect(
@@ -73,13 +81,17 @@ test("resource URLs restore details, date filters and browser history", async ({
   ).toHaveValue(item.name);
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/items$/);
-  await page.getByRole("link", { name: localized["Category"], exact: true }).click();
+  await page
+    .getByRole("link", { name: localized["Category"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/categories$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/items$/);
   await expect(page.locator(".page-header h2")).toHaveText(localized["Item"]);
   await page.goForward();
-  await expect(page.locator(".page-header h2")).toHaveText(localized["Category"]);
+  await expect(page.locator(".page-header h2")).toHaveText(
+    localized["Category"],
+  );
   const popupPromise = page.context().waitForEvent("page");
   await page
     .getByRole("link", { name: localized["Item"], exact: true })
@@ -94,14 +106,22 @@ test("resource URLs restore details, date filters and browser history", async ({
 
   await page.goto("/checklists?date=2027-02-15");
   await expect(
-    page.getByRole("button", { name: localized["Open "] + checklist.name, exact: true }),
+    page.getByRole("button", {
+      name: localized["Open "] + checklist.name,
+      exact: true,
+    }),
   ).toBeVisible();
-  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
+  await page
+    .getByRole("link", { name: localized["Checklist"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/checklists$/);
 
   await page.goto("/templates");
   await page
-    .getByRole("button", { name: localized["Open "] + template.name, exact: true })
+    .getByRole("button", {
+      name: localized["Open "] + template.name,
+      exact: true,
+    })
     .click();
   await page.getByRole("button", { name: localized["More actions"] }).click();
   await page.route(`**/api/v1/documents/${template.id}`, async (route) => {
@@ -113,7 +133,9 @@ test("resource URLs restore details, date filters and browser history", async ({
       });
     return route.continue();
   });
-  await page.getByLabel(localized["Name"], { exact: true }).fill("Unsaved name");
+  await page
+    .getByLabel(localized["Name"], { exact: true })
+    .fill("Unsaved name");
   await page.keyboard.press("Escape");
   await page.goBack();
   // The leave prompt is the app's own Modal, not window.confirm.
@@ -124,9 +146,13 @@ test("resource URLs restore details, date filters and browser history", async ({
   await expect(page).toHaveURL(new RegExp("/templates/" + template.id + "$"));
   await expect(page.locator(".page-header h2")).toHaveText("Unsaved name");
   await page.goBack();
-  await leaveDialog.getByRole("button", { name: localized["Discard and leave"] }).click();
+  await leaveDialog
+    .getByRole("button", { name: localized["Discard and leave"] })
+    .click();
   await expect(page).toHaveURL(/\/templates$/);
-  await expect(page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: localized["fixture.8b6c722cd24d"] }),
+  ).toBeVisible();
   const missingApi = await page.request.get("/api/v1/no-such-route");
   expect(missingApi.status()).toBe(404);
   expect(missingApi.headers()["content-type"]).toContain("application/json");

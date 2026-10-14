@@ -5,9 +5,15 @@ test("create checklist from Category supports cancel, date and safe retry", asyn
   page,
 }, info) => {
   await page.goto("/categories");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.aa50ecc050be"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["fixture.aa50ecc050be"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const create = async (path: string, data: any) => {
     const r = await page.request.post("/api/v1" + path, {
@@ -25,17 +31,29 @@ test("create checklist from Category supports cancel, date and safe retry", asyn
     categoryIds: [category.id],
   });
   await page.goto("/categories/" + category.id);
-  const trigger = page.getByRole("button", { name: localized["Create checklist"], exact: true });
+  const trigger = page.getByRole("button", {
+    name: localized["Create checklist"],
+    exact: true,
+  });
   await trigger.click();
-  const modal = page.getByRole("dialog", { name: localized["Create checklist"], exact: true });
-  await expect(modal.getByLabel(localized["Name"], { exact: true })).toBeFocused();
-  await expect(modal.getByLabel(localized["Name"], { exact: true })).toHaveValue(
-    category.name,
-  );
-  await modal.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+  const modal = page.getByRole("dialog", {
+    name: localized["Create checklist"],
+    exact: true,
+  });
+  await expect(
+    modal.getByLabel(localized["Name"], { exact: true }),
+  ).toBeFocused();
+  await expect(
+    modal.getByLabel(localized["Name"], { exact: true }),
+  ).toHaveValue(category.name);
+  await modal
+    .getByRole("button", { name: localized["Cancel"], exact: true })
+    .click();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await modal.getByLabel(localized["Use date [8e8a943bc35e]"]).fill("2026-10-26");
+  await modal
+    .getByLabel(localized["Use date [8e8a943bc35e]"])
+    .fill("2026-10-26");
   const bodies: any[] = [];
   await page.route("**/api/v1/categories/*/checklists", async (route) => {
     bodies.push(route.request().postDataJSON());
@@ -47,9 +65,13 @@ test("create checklist from Category supports cancel, date and safe retry", asyn
       });
     } else await route.continue();
   });
-  await modal.getByRole("button", { name: localized["Create"], exact: true }).click();
+  await modal
+    .getByRole("button", { name: localized["Create"], exact: true })
+    .click();
   await expect(modal.getByRole("alert")).toBeVisible();
-  await modal.getByRole("button", { name: localized["Retry creation"], exact: true }).click();
+  await modal
+    .getByRole("button", { name: localized["Retry creation"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/checklists\/[\w-]+$/);
   expect(bodies).toHaveLength(2);
   expect(bodies[1]).toEqual(bodies[0]);
@@ -76,7 +98,9 @@ test("create checklist from Category supports cancel, date and safe retry", asyn
         })
       : route.continue(),
   );
-  await modal.getByRole("button", { name: localized["Create"], exact: true }).click();
+  await modal
+    .getByRole("button", { name: localized["Create"], exact: true })
+    .click();
   await expect(page).toHaveURL(/\/checklists\/[\w-]+$/);
   await expect(
     page.getByRole("checkbox", {

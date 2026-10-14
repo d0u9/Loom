@@ -5,9 +5,15 @@ test("Item content is shared by catalog, category, template and checklist", asyn
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const post = async (path: string, data: any) => {
     const response = await page.request.post("/api/v1" + path, {
@@ -55,7 +61,10 @@ test("Item content is shared by catalog, category, template and checklist", asyn
   ]) {
     await page.goto(path);
     const summary = page.locator(".item-summary").filter({
-      has: page.getByText(localized["fixture.39fc170c2594"] + info.project.name, { exact: true }),
+      has: page.getByText(
+        localized["fixture.39fc170c2594"] + info.project.name,
+        { exact: true },
+      ),
     });
     await expect(summary).toHaveCount(1);
     await expect(summary.locator(".item-group-tag")).toHaveText("Shared group");
@@ -83,7 +92,9 @@ test("Item content is shared by catalog, category, template and checklist", asyn
         : "13px",
     );
     if (path.startsWith("/templates/") || path.startsWith("/checklists/")) {
-      await expect(summary.getByLabel(localized["Entry name"])).toHaveValue(item.name);
+      await expect(summary.getByLabel(localized["Entry name"])).toHaveValue(
+        item.name,
+      );
       await expect(summary.locator(".entry-note")).toHaveText("Entry note");
       await expect(page.getByLabel("quantity", { exact: true })).toHaveCount(0);
     }

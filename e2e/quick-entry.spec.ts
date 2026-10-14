@@ -4,10 +4,17 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
   page,
 }, info) => {
   await page.goto("/checklists");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"], exact: true }),
+    page.getByRole("button", {
+      name: localized["fixture.9502ae5b9eb9"],
+      exact: true,
+    }),
   ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const section = crypto.randomUUID(),
@@ -35,11 +42,18 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       "/" + (kind === "template" ? "templates" : "checklists") + "/" + d.id,
     );
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     await expect(
       page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: localized["fixture.3e8e498593dc"], exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: localized["fixture.3e8e498593dc"],
+        exact: true,
+      })
+      .click();
     await expect(
       page.getByPlaceholder("Add to “Parent”…", { exact: true }),
     ).toBeVisible();
@@ -49,10 +63,14 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await expect(
       page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
     ).toBeVisible();
-    const quick = page.getByLabel(localized["New temporary entry"], { exact: true });
+    const quick = page.getByLabel(localized["New temporary entry"], {
+      exact: true,
+    });
     await expect(quick).toBeVisible();
     if (kind === "checklist") {
-      const mode = page.getByRole("button", { name: new RegExp(localized["fixture.8ff72e270b7e"], "") });
+      const mode = page.getByRole("button", {
+        name: new RegExp(localized["fixture.8ff72e270b7e"], ""),
+      });
       await expect(mode).toHaveAttribute("aria-pressed", "false");
       await expect(mode.locator("svg.lucide-list-checks")).toHaveCount(1);
       const inactive = await mode.evaluate(
@@ -75,23 +93,32 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       await expect(quick).toBeVisible();
     }
     await quick.press("Enter");
-    await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByLabel(localized["Entry name"], { exact: true }),
+    ).toHaveCount(0);
     await quick.fill("First");
     await quick.press("Enter");
     await expect(quick).toHaveValue("");
     await expect(quick).toBeFocused();
-    await expect(page.getByLabel(localized["Entry name"], { exact: true })).toHaveText(
-      "First",
-    );
     await expect(
-      page.getByRole("button", { name: localized["fixture.d2774989deec"], exact: true }),
+      page.getByLabel(localized["Entry name"], { exact: true }),
+    ).toHaveText("First");
+    await expect(
+      page.getByRole("button", {
+        name: localized["fixture.d2774989deec"],
+        exact: true,
+      }),
     ).toHaveCount(0);
     await expect(page.getByRole("status")).toContainText(localized["Saved"]);
-    await page.getByRole("button", { name: localized["Entry name"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Entry name"], exact: true })
+      .click();
     const input = page.getByLabel(localized["Entry name"], { exact: true });
     await input.fill("Renamed");
     await input.press("Enter");
-    await expect(page.locator(localized["fixture.5c1684296f6f"])).toHaveCount(0);
+    await expect(page.locator(localized["fixture.5c1684296f6f"])).toHaveCount(
+      0,
+    );
     await expect
       .poll(
         async () =>
@@ -103,7 +130,10 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       ["Parent", d.sections.find((s: any) => s.name === "Parent").id],
       ["Child", d.sections.find((s: any) => s.name === "Child").id],
     ]) {
-      const nested = page.getByLabel(localized["New temporary entry · "] + name, { exact: true });
+      const nested = page.getByLabel(
+        localized["New temporary entry · "] + name,
+        { exact: true },
+      );
       await nested.fill("In " + name);
       await nested.press("Enter");
       await expect(nested).toHaveValue("");
@@ -131,7 +161,10 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     }
     if (kind === "checklist") {
       await page
-        .getByRole("checkbox", { name: localized["fixture.8ab55a915a40"], exact: true })
+        .getByRole("checkbox", {
+          name: localized["fixture.8ab55a915a40"],
+          exact: true,
+        })
         .check();
       await expect(page.locator(".entry[data-sort-id]").last()).toHaveAttribute(
         "aria-label",
@@ -141,32 +174,49 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         .getByRole("button", { name: localized["Hide completed"], exact: true })
         .click();
       await expect(
-        page.getByRole("checkbox", { name: localized["fixture.8ab55a915a40"], exact: true }),
+        page.getByRole("checkbox", {
+          name: localized["fixture.8ab55a915a40"],
+          exact: true,
+        }),
       ).toHaveCount(0);
       await expect(
         page.getByLabel(localized["New temporary entry"], { exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: localized["Show completed"], exact: true }),
+        page.getByRole("button", {
+          name: localized["Show completed"],
+          exact: true,
+        }),
       ).toHaveAttribute("aria-pressed", "true");
       await expect(
         page
-          .getByRole("button", { name: localized["Show completed"], exact: true })
+          .getByRole("button", {
+            name: localized["Show completed"],
+            exact: true,
+          })
           .locator("svg.lucide-list-filter"),
       ).toHaveCount(1);
       await page
         .getByRole("button", { name: localized["Show completed"], exact: true })
         .click();
       await expect(
-        page.getByRole("checkbox", { name: localized["fixture.8ab55a915a40"], exact: true }),
+        page.getByRole("checkbox", {
+          name: localized["fixture.8ab55a915a40"],
+          exact: true,
+        }),
       ).toBeChecked();
     }
     await expect(
-      page.getByRole("button", { name: localized["fixture.82d440e5f3ee"], exact: true }),
+      page.getByRole("button", {
+        name: localized["fixture.82d440e5f3ee"],
+        exact: true,
+      }),
     ).toHaveCount(0);
     await page.reload();
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     await expect(
       page
         .getByLabel(localized["Entry name"], { exact: true })

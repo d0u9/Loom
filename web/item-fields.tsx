@@ -23,7 +23,13 @@ export function ItemNameMatches({
     <div className="item-name-notice" role="status">
       <p>
         <CircleAlert className="icon" aria-hidden="true" />
-        <span>{t(localized["An item with this name already exists. Select it to avoid creating a duplicate."])}</span>
+        <span>
+          {t(
+            localized[
+              "An item with this name already exists. Select it to avoid creating a duplicate."
+            ],
+          )}
+        </span>
       </p>
       {items.map((item) => (
         <Button
@@ -83,7 +89,9 @@ export function ItemFields({
         <legend>{t(localized["Categories"])}</legend>
         <div className="category-choices">
           {categories.length === 0 && (
-            <p className="empty">{t(localized["No categories yet. You can add them later."])}</p>
+            <p className="empty">
+              {t(localized["No categories yet. You can add them later."])}
+            </p>
           )}
           {categories.map((c) => (
             <label key={c.id}>

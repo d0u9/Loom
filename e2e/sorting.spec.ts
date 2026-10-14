@@ -4,9 +4,15 @@ test("category single rows sort with keyboard and pointer and survive reload", a
   page,
 }, info) => {
   await page.goto("/");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const post = async (path: string, data: any) =>
     (
@@ -30,11 +36,15 @@ test("category single rows sort with keyboard and pointer and survive reload", a
   });
   async function open() {
     await page.reload();
-    await page.getByRole("link", { name: localized["Category"], exact: true }).click();
+    await page
+      .getByRole("link", { name: localized["Category"], exact: true })
+      .click();
     await page
       .getByRole("button", { name: localized["Open "] + c.name, exact: true })
       .click();
-    await page.getByRole("button", { name: localized["List"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["List"], exact: true })
+      .click();
   }
   await open();
   const rows = page.locator("[data-sort-id]");
@@ -90,9 +100,14 @@ test("category single rows sort with keyboard and pointer and survive reload", a
     .toEqual(before);
   await open();
   await expect(rows.first()).toHaveAttribute("data-sort-id", before[0]!);
-  await expect(page.getByText(localized["fixture.9378c94cc635"], { exact: false })).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: localized["fixture.44f94ef284cf"], exact: true }),
+    page.getByText(localized["fixture.9378c94cc635"], { exact: false }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: localized["fixture.44f94ef284cf"],
+      exact: true,
+    }),
   ).toHaveCount(0);
   if (info.project.name === "mobile") {
     const session = await page.context().newCDPSession(page);
@@ -126,7 +141,9 @@ test("category single rows sort with keyboard and pointer and survive reload", a
     await session.detach();
   }
   // Card grids use the same upper/lower drop zones as rows, including horizontal moves.
-  await page.getByRole("button", { name: localized["Cards"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Cards"], exact: true })
+    .click();
   const cardOrder = (
     await (await page.request.get(`/api/v1/categories/${c.id}/order`)).json()
   ).itemIds;

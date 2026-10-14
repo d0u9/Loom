@@ -4,9 +4,15 @@ test("checklists default to active and combine status, search and date", async (
   page,
 }, info) => {
   await page.goto("/checklists");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["fixture.9502ae5b9eb9"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   for (const archived of [false, true]) {
     const response = await page.request.post("/api/v1/documents", {
@@ -51,10 +57,14 @@ test("checklists default to active and combine status, search and date", async (
   ).toHaveAttribute("aria-pressed", "true");
   await expect(active).toBeVisible();
   await expect(archived).toHaveCount(0);
-  await filter.getByRole("button", { name: localized["Archived"], exact: true }).click();
+  await filter
+    .getByRole("button", { name: localized["Archived"], exact: true })
+    .click();
   await expect(active).toHaveCount(0);
   await expect(archived).toBeVisible();
-  await filter.getByRole("button", { name: localized["All"], exact: true }).focus();
+  await filter
+    .getByRole("button", { name: localized["All"], exact: true })
+    .focus();
   await page.keyboard.press("Enter");
   await expect(active).toBeVisible();
   await expect(archived).toBeVisible();
@@ -68,7 +78,9 @@ test("checklists default to active and combine status, search and date", async (
     filter.getByRole("button", { name: localized["All"], exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(archived).toBeVisible();
-  await page.getByRole("link", { name: localized["Checklist"], exact: true }).click();
+  await page
+    .getByRole("link", { name: localized["Checklist"], exact: true })
+    .click();
   await expect(
     filter.getByRole("button", { name: localized["Active"], exact: true }),
   ).toHaveAttribute("aria-pressed", "true");

@@ -5,9 +5,15 @@ test("Item group tabs combine with search and shared editing", async ({
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const group = "Food " + info.project.name;
   const other = "Drink " + info.project.name;
@@ -35,11 +41,16 @@ test("Item group tabs combine with search and shared editing", async ({
   await expect(
     page.getByRole("heading", { name: "Egg" + info.project.name, exact: true }),
   ).toBeVisible();
-  const search = page.getByRole("searchbox", { name: localized["Search"], exact: true });
+  const search = page.getByRole("searchbox", {
+    name: localized["Search"],
+    exact: true,
+  });
   await search.fill("Water");
   await expect(page.locator(".record-card")).toHaveCount(0);
   await search.fill("");
-  await page.getByRole("button", { name: localized["List"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["List"], exact: true })
+    .click();
   await expect(page.locator(".records-list .record-card")).toHaveCount(1);
   await page.getByRole("button", { name: localized["New item"] }).click();
   const dialog = page.getByRole("dialog");
@@ -49,7 +60,9 @@ test("Item group tabs combine with search and shared editing", async ({
   });
   await expect(groupInput).toHaveValue(group);
   await groupInput.click();
-  await expect(dialog.getByRole("listbox", { name: localized["Catalog group"] })).toBeVisible();
+  await expect(
+    dialog.getByRole("listbox", { name: localized["Catalog group"] }),
+  ).toBeVisible();
   await dialog.getByRole("option", { name: other, exact: true }).click();
   await expect(groupInput).toHaveValue(other);
   await groupInput.fill(localized["fixture.0c8bca718d5c"] + info.project.name);
@@ -59,7 +72,9 @@ test("Item group tabs combine with search and shared editing", async ({
       exact: true,
     })
     .click();
-  await expect(groupInput).toHaveValue(localized["fixture.0c8bca718d5c"] + info.project.name);
+  await expect(groupInput).toHaveValue(
+    localized["fixture.0c8bca718d5c"] + info.project.name,
+  );
   await groupInput.fill(group);
   await groupInput.press("ArrowDown");
   await groupInput.press("ArrowDown");
@@ -76,17 +91,26 @@ test("Item group tabs combine with search and shared editing", async ({
   await dialog
     .getByLabel(localized["Name"], { exact: true })
     .fill("New" + info.project.name);
-  await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
+  await dialog
+    .getByRole("button", { name: localized["Save"], exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   await expect(page.locator(".record-card")).toHaveCount(2);
   await page
-    .getByRole("button", { name: localized["fixture.a6b4211e8042"] + info.project.name, exact: true })
+    .getByRole("button", {
+      name: localized["fixture.a6b4211e8042"] + info.project.name,
+      exact: true,
+    })
     .click();
   await dialog.getByLabel(localized["Catalog group"], { exact: true }).fill("");
-  await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
+  await dialog
+    .getByRole("button", { name: localized["Save"], exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   await expect(page.locator(".record-card")).toHaveCount(1);
-  await page.getByRole("tab", { name: localized["Ungrouped"], exact: true }).click();
+  await page
+    .getByRole("tab", { name: localized["Ungrouped"], exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "New" + info.project.name, exact: true }),
   ).toBeVisible();

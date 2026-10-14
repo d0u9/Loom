@@ -3,8 +3,12 @@ import { test, expect, type Page } from "@playwright/test";
 
 async function fixture(page: Page, suffix: string) {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: localized["New item"], exact: true }),
   ).toBeVisible();
@@ -63,9 +67,10 @@ async function fixture(page: Page, suffix: string) {
   };
 }
 async function group(page: Page, label: string) {
-  const input = page
-    .getByRole("dialog")
-    .getByRole("combobox", { name: localized["Filter by catalog group"], exact: true });
+  const input = page.getByRole("dialog").getByRole("combobox", {
+    name: localized["Filter by catalog group"],
+    exact: true,
+  });
   await input.click();
   await input.fill(label);
   await input.press("Enter");
@@ -86,15 +91,24 @@ for (const kind of ["template", "checklist"]) {
       `/${kind === "template" ? "templates" : "checklists"}/${d.id}`,
     );
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
-    const modal = page.getByRole("dialog", { name: localized["Add entries"], exact: true });
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
+    const modal = page.getByRole("dialog", {
+      name: localized["Add entries"],
+      exact: true,
+    });
     const section = modal.getByRole("combobox", {
       name: localized["Add to section"],
       exact: true,
     });
     // Opening via the arrow does not focus the input, so blur cannot close it.
-    const search = modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true });
+    const search = modal.getByLabel(localized["fixture.bb732b6bd964"], {
+      exact: true,
+    });
     await search.focus();
     const toggle = section.locator("..").locator(".combobox-toggle");
     if (info.project.name === "mobile") await toggle.tap();
@@ -116,7 +130,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(section).toHaveValue(localized["Root"]);
     await expect(search).toBeFocused();
     await section.click();
-    await modal.getByRole("option", { name: localized["Root"], exact: true }).click();
+    await modal
+      .getByRole("option", { name: localized["Root"], exact: true })
+      .click();
     await expect(section).toHaveAttribute("aria-expanded", "false");
     await expect(section).toHaveValue(localized["Root"]);
     await section.click();
@@ -130,7 +146,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(
       modal.getByRole("button", { name: f.egg.name, exact: true }),
     ).toHaveCount(0);
-    await modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill("jid");
+    await modal
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill("jid");
     await expect(
       modal.getByText(localized["fixture.2a762fa51309"], { exact: true }),
     ).toBeVisible();
@@ -142,7 +160,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(
       modal.getByRole("button", { name: f.egg.name, exact: true }),
     ).toBeVisible();
-    await modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill("");
+    await modal
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill("");
     await group(page, localized["Ungrouped"]);
     await expect(
       modal.getByRole("button", { name: f.bread.name, exact: true }),
@@ -159,12 +179,19 @@ for (const kind of ["template", "checklist"]) {
     ).toHaveCount(0);
     await group(page, f.drink);
     const size = await modal.boundingBox();
-    await modal.getByRole("tab", { name: localized["Add from categories"], exact: true }).click();
+    await modal
+      .getByRole("tab", { name: localized["Add from categories"], exact: true })
+      .click();
     expect(await modal.boundingBox()).toEqual(size);
     await expect(
-      modal.getByRole("combobox", { name: localized["Filter by catalog group"], exact: true }),
+      modal.getByRole("combobox", {
+        name: localized["Filter by catalog group"],
+        exact: true,
+      }),
     ).toBeDisabled();
-    await modal.getByLabel(localized["fixture.ccb9b92a9911"], { exact: true }).fill(f.source.name);
+    await modal
+      .getByLabel(localized["fixture.ccb9b92a9911"], { exact: true })
+      .fill(f.source.name);
     await modal
       .getByRole("button", {
         name: localized["From "] + f.source.name + localized[" Choose item"],
@@ -182,12 +209,16 @@ for (const kind of ["template", "checklist"]) {
       picker.getByRole("button", { name: f.egg.name, exact: true }),
     ).toHaveCount(0);
     await group(page, f.food);
-    await picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill("jid");
+    await picker
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill("jid");
     await picker.getByRole("button", { name: f.egg.name, exact: true }).click();
     const save = async (count: number) => {
       const open = page.getByRole("dialog");
       await expect(open).toBeVisible();
-      await open.getByRole("button", { name: localized["Done"], exact: true }).click();
+      await open
+        .getByRole("button", { name: localized["Done"], exact: true })
+        .click();
       await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
       await expect
         .poll(
@@ -202,22 +233,33 @@ for (const kind of ["template", "checklist"]) {
       await page.request.get(`/api/v1/documents/${d.id}`)
     ).json();
     expect(first.entries.map((e: any) => e.itemId)).toEqual([f.egg.id]);
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
-    await modal.getByRole("tab", { name: localized["Add from items"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
+    await modal
+      .getByRole("tab", { name: localized["Add from items"], exact: true })
+      .click();
     await group(page, f.food);
-    await modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill("jid");
+    await modal
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill("jid");
     await modal.getByRole("button", { name: f.egg.name, exact: true }).click();
     await expect(modal).toBeVisible();
-    await expect(modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true })).toHaveValue(
-      "jid",
-    );
-    await modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill("");
+    await expect(
+      modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }),
+    ).toHaveValue("jid");
+    await modal
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill("");
     await group(page, f.drink);
     const drinks = (await (await page.request.get("/api/v1/items")).json())
       .filter((i: any) => i.itemGroup === f.drink)
       .map((i: any) => i.id);
     await modal
-      .getByRole("button", { name: localized["Add whole group "] + f.drink, exact: true })
+      .getByRole("button", {
+        name: localized["Add whole group "] + f.drink,
+        exact: true,
+      })
       .click();
     await save(1 + drinks.length);
     expect(
@@ -225,11 +267,20 @@ for (const kind of ["template", "checklist"]) {
         await (await page.request.get(`/api/v1/documents/${d.id}`)).json()
       ).entries.map((e: any) => e.itemId),
     ).toEqual([f.egg.id, ...drinks]);
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
-    await modal.getByRole("tab", { name: localized["Add from categories"], exact: true }).click();
-    await modal.getByLabel(localized["fixture.ccb9b92a9911"], { exact: true }).fill(f.source.name);
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
     await modal
-      .getByRole("button", { name: localized["Add category "] + f.source.name, exact: true })
+      .getByRole("tab", { name: localized["Add from categories"], exact: true })
+      .click();
+    await modal
+      .getByLabel(localized["fixture.ccb9b92a9911"], { exact: true })
+      .fill(f.source.name);
+    await modal
+      .getByRole("button", {
+        name: localized["Add category "] + f.source.name,
+        exact: true,
+      })
       .click();
     await save(5);
     const stored = await (
@@ -251,8 +302,13 @@ test("category member picker excludes members, clears stale selections and keeps
 }, info) => {
   const f = await fixture(page, "category " + info.project.name);
   await page.goto("/categories/" + f.target.id);
-  await page.getByRole("button", { name: localized["Add members"], exact: true }).click();
-  const modal = page.getByRole("dialog", { name: localized["Add members"], exact: true });
+  await page
+    .getByRole("button", { name: localized["Add members"], exact: true })
+    .click();
+  const modal = page.getByRole("dialog", {
+    name: localized["Add members"],
+    exact: true,
+  });
   const select = modal.getByRole("combobox", {
     name: localized["Add existing item"],
     exact: true,
@@ -275,10 +331,15 @@ test("category member picker excludes members, clears stale selections and keeps
   ).toBeDisabled();
   await select.fill("jid");
   await select.press("Enter");
-  await modal.getByRole("button", { name: localized["Add members"], exact: true }).click();
+  await modal
+    .getByRole("button", { name: localized["Add members"], exact: true })
+    .click();
   await expect(select).toHaveValue("");
   await expect(
-    modal.getByRole("combobox", { name: localized["Filter by catalog group"], exact: true }),
+    modal.getByRole("combobox", {
+      name: localized["Filter by catalog group"],
+      exact: true,
+    }),
   ).toHaveValue(f.food);
   await select.click();
   await expect(
@@ -290,7 +351,9 @@ test("category member picker excludes members, clears stale selections and keeps
     page.getByRole("option", { name: f.bread.name, exact: true }),
   ).toBeVisible();
   await page.getByRole("option", { name: f.bread.name, exact: true }).click();
-  await modal.getByRole("button", { name: localized["Add members"], exact: true }).click();
+  await modal
+    .getByRole("button", { name: localized["Add members"], exact: true })
+    .click();
   await expect(select).toHaveValue("");
   const items = await (await page.request.get("/api/v1/items")).json();
   expect(items.find((i: any) => i.id === f.egg.id).categoryIds).toContain(
@@ -303,7 +366,11 @@ test("category member picker excludes members, clears stale selections and keeps
     f.target.id,
   );
   await group(page, f.drink);
-  await modal.getByRole("button", { name: new RegExp(localized["fixture.c70d38674b4f"], "") }).click();
+  await modal
+    .getByRole("button", {
+      name: new RegExp(localized["fixture.c70d38674b4f"], ""),
+    })
+    .click();
   await expect
     .poll(async () =>
       (await (await page.request.get("/api/v1/items")).json())
@@ -313,7 +380,12 @@ test("category member picker excludes members, clears stale selections and keeps
     .toBe(true);
   await group(page, localized["All"]);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: localized["fixture.3e8e498593dc"], exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: localized["fixture.3e8e498593dc"],
+      exact: true,
+    })
+    .click();
   await page.getByRole("button", { name: "Add members", exact: true }).click();
   await expect(
     page.getByRole("combobox", {
@@ -333,14 +405,27 @@ for (const kind of ["template", "checklist"]) {
       kind,
       name: "Create items " + kind,
       entries: [],
-      sections: [{ id: sectionId, name: localized["fixture.fa1915720634"], parentSectionId: null }],
+      sections: [
+        {
+          id: sectionId,
+          name: localized["fixture.fa1915720634"],
+          parentSectionId: null,
+        },
+      ],
     });
     const path = `/${kind === "template" ? "templates" : "checklists"}/${d.id}`;
     await page.goto(path);
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
-    const picker = page.getByRole("dialog", { name: localized["Add entries"], exact: true });
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: localized["Add entries"],
+      exact: true,
+    });
     const section = picker.getByRole("combobox", {
       name: localized["Add to section"],
       exact: true,
@@ -348,32 +433,45 @@ for (const kind of ["template", "checklist"]) {
     await section.fill(localized["fixture.fa1915720634"]);
     await section.press("Enter");
     await group(page, f.food);
-    await picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }).fill(localized["fixture.e9f5b71a472d"]);
+    await picker
+      .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
+      .fill(localized["fixture.e9f5b71a472d"]);
     const newButton = picker.getByRole("button", {
       name: localized["New item"],
       exact: true,
     });
     await newButton.click();
-    const form = page.getByRole("dialog", { name: localized["New item"], exact: true });
+    const form = page.getByRole("dialog", {
+      name: localized["New item"],
+      exact: true,
+    });
     await expect(page.locator("dialog")).toHaveCount(1);
     await expect(page.locator("dialog:modal")).toHaveCount(1);
     const name = form.getByLabel(localized["Name"], { exact: true });
     await expect(name).toBeFocused();
     await expect(
-      form.getByRole("combobox", { name: localized["Catalog group"], exact: true }),
+      form.getByRole("combobox", {
+        name: localized["Catalog group"],
+        exact: true,
+      }),
     ).toHaveValue(f.food);
     const cancelled = "Cancelled catalog " + kind + info.project.name;
     await name.fill(cancelled);
-    await form.getByRole("button", { name: localized["Cancel"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Cancel"], exact: true })
+      .click();
     await expect(form).toHaveCount(0);
     await expect(page.locator("dialog")).toHaveCount(1);
     await expect(section).toHaveValue(localized["fixture.fa1915720634"]);
     await expect(
-      picker.getByRole("combobox", { name: localized["Filter by catalog group"], exact: true }),
+      picker.getByRole("combobox", {
+        name: localized["Filter by catalog group"],
+        exact: true,
+      }),
     ).toHaveValue(f.food);
-    await expect(picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true })).toHaveValue(
-      localized["fixture.e9f5b71a472d"],
-    );
+    await expect(
+      picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }),
+    ).toHaveValue(localized["fixture.e9f5b71a472d"]);
     await expect(newButton).toBeFocused();
     expect(
       (await (await page.request.get("/api/v1/items")).json()).some(
@@ -383,7 +481,9 @@ for (const kind of ["template", "checklist"]) {
     await newButton.click();
     const newName = "Created catalog " + kind + info.project.name;
     await name.fill(newName);
-    await form.getByLabel(localized["Note"], { exact: true }).fill("Catalog note");
+    await form
+      .getByLabel(localized["Note"], { exact: true })
+      .fill("Catalog note");
     await form
       .getByRole("checkbox", { name: f.source.name, exact: true })
       .check();
@@ -408,7 +508,9 @@ for (const kind of ["template", "checklist"]) {
       }
       await route.continue();
     });
-    await form.getByRole("button", { name: localized["Create and add"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Create and add"], exact: true })
+      .click();
     await expect(form.getByRole("alert")).toBeVisible();
     await expect(name).toHaveValue(newName);
     await page.keyboard.press("Escape");
@@ -416,7 +518,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(
       form.getByRole("button", { name: localized["Cancel"], exact: true }),
     ).toBeDisabled();
-    await form.getByRole("button", { name: localized["Retry save"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Retry save"], exact: true })
+      .click();
     await expect(form.getByRole("alert")).toBeVisible();
     await expect(
       form.getByRole("button", { name: localized["Retry save"], exact: true }),
@@ -424,7 +528,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(
       form.getByRole("button", { name: localized["Cancel"], exact: true }),
     ).toBeEnabled();
-    await form.getByRole("button", { name: localized["Retry save"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Retry save"], exact: true })
+      .click();
     await expect(name).toHaveValue("");
     await expect(name).toBeFocused();
     expect(requests).toHaveLength(2);
@@ -445,10 +551,16 @@ for (const kind of ["template", "checklist"]) {
       .toBe(1);
     const secondName = "Second catalog " + kind + info.project.name;
     await name.fill(secondName);
-    await form.getByRole("button", { name: localized["Create and add"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Create and add"], exact: true })
+      .click();
     await expect(name).toHaveValue("");
-    await form.getByRole("button", { name: localized["Cancel"], exact: true }).click();
-    await picker.getByRole("button", { name: localized["Done"], exact: true }).click();
+    await form
+      .getByRole("button", { name: localized["Cancel"], exact: true })
+      .click();
+    await picker
+      .getByRole("button", { name: localized["Done"], exact: true })
+      .click();
     await expect
       .poll(
         async () =>
@@ -463,14 +575,21 @@ for (const kind of ["template", "checklist"]) {
       saved.every((e: any) => e.itemId && e.sectionId === d.sections[0].id),
     ).toBe(true);
     expect(new Set(saved.map((e: any) => e.itemId)).size).toBe(2);
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
     await newButton.click();
     await name.fill(newName);
     await form
-      .getByRole("button", { name: localized["Select existing item:"] + newName, exact: true })
+      .getByRole("button", {
+        name: localized["Select existing item:"] + newName,
+        exact: true,
+      })
       .click();
     await expect(form).toHaveCount(0);
-    await picker.getByRole("button", { name: localized["Done"], exact: true }).click();
+    await picker
+      .getByRole("button", { name: localized["Done"], exact: true })
+      .click();
     expect(requests).toHaveLength(3);
     expect(
       (
@@ -479,15 +598,24 @@ for (const kind of ["template", "checklist"]) {
     ).toEqual(saved.map((e: any) => e.id));
     await page.reload();
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
-    await page.getByRole("button", { name: localized["Add entries"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
+    await page
+      .getByRole("button", { name: localized["Add entries"], exact: true })
+      .click();
     await newButton.click();
     await page.keyboard.press("Escape");
     await expect(form).toHaveCount(0);
     await expect(picker).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(picker).toHaveCount(0);
-    await page.getByRole("button", { name: localized["fixture.3e8e498593dc"], exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: localized["fixture.3e8e498593dc"],
+        exact: true,
+      })
+      .click();
     await page
       .getByRole("button", { name: "Add entries", exact: true })
       .click();

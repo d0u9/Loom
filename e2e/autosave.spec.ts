@@ -9,8 +9,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     const created = await page.request.post("/api/v1/documents", {
@@ -26,7 +30,9 @@ for (const kind of ["template", "checklist"]) {
     const doc = await created.json();
     await page.goto(`/${kind}s/${doc.id}`);
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     await expect(
       page
         .locator(".page-header")
@@ -47,13 +53,17 @@ for (const kind of ["template", "checklist"]) {
       }
       return route.continue();
     });
-    const quick = page.getByLabel(localized["New temporary entry"], { exact: true });
+    const quick = page.getByLabel(localized["New temporary entry"], {
+      exact: true,
+    });
     await quick.fill("First");
     await quick.press("Enter");
     await expect.poll(() => writes.length).toBe(1);
     await quick.fill("Second");
     await quick.press("Enter");
-    await page.getByRole("link", { name: localized["Item"], exact: true }).click();
+    await page
+      .getByRole("link", { name: localized["Item"], exact: true })
+      .click();
     await expect(page).toHaveURL(new RegExp(`${kind}s/${doc.id}`));
     release();
     await expect(page).toHaveURL(/\/items$/);
@@ -68,7 +78,9 @@ for (const kind of ["template", "checklist"]) {
     await page.goto(`/${kind}s/${doc.id}`);
     await expect(page.getByLabel("First", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Second", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
+    await page
+      .getByRole("button", { name: localized["More actions"], exact: true })
+      .click();
     await page
       .getByLabel(localized["Name"], { exact: true })
       .fill("Renamed automatically");
@@ -93,9 +105,15 @@ for (const kind of ["template", "checklist"]) {
         });
       return route.continue();
     });
-    await page.getByLabel(localized["Name"], { exact: true }).fill("Failed name");
-    await expect(page.getByRole("alert")).toContainText(localized["fixture.bb87c5f2cdbf"]);
-    await page.getByLabel(localized["Name"], { exact: true }).fill("Latest name");
+    await page
+      .getByLabel(localized["Name"], { exact: true })
+      .fill("Failed name");
+    await expect(page.getByRole("alert")).toContainText(
+      localized["fixture.bb87c5f2cdbf"],
+    );
+    await page
+      .getByLabel(localized["Name"], { exact: true })
+      .fill("Latest name");
     await page.keyboard.press("Escape");
     await page
       .getByRole("alert")
@@ -113,12 +131,24 @@ for (const kind of ["template", "checklist"]) {
     expect(retries[2].name).toBe("Latest name");
     expect(retries[2].version).toBe(retries[1].version + 1);
     if (kind === "template") {
-      await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
-      await page.getByLabel(localized["Name"], { exact: true }).fill("Instantiate latest");
-      await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: localized["Create checklist"], exact: true }).click();
       await page
-        .getByRole("button", { name: localized["Confirm / Retry"], exact: true })
+        .getByRole("button", { name: localized["More actions"], exact: true })
+        .click();
+      await page
+        .getByLabel(localized["Name"], { exact: true })
+        .fill("Instantiate latest");
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("button", {
+          name: localized["Create checklist"],
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: localized["Confirm / Retry"],
+          exact: true,
+        })
         .click();
       await expect
         .poll(async () =>

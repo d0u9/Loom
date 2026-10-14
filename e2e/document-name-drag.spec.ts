@@ -9,8 +9,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     let sectionId = crypto.randomUUID();
@@ -42,14 +46,22 @@ for (const kind of ["template", "checklist"]) {
     entryId = doc.entries[0].id;
     await page.goto(`/${kind}s/${doc.id}`);
     if (kind === "template")
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     else
       await page
-        .getByRole("checkbox", { name: localized["fixture.3d65f5053109"], exact: true })
+        .getByRole("checkbox", {
+          name: localized["fixture.3d65f5053109"],
+          exact: true,
+        })
         .check();
     const row = page.locator(`[data-sort-id="${entryId}"]`);
     const heading = page.locator(`[data-sort-id="${sectionId}"]`);
-    const name = row.getByRole("button", { name: localized["Entry name"], exact: true });
+    const name = row.getByRole("button", {
+      name: localized["Entry name"],
+      exact: true,
+    });
     const editor = row.locator("input.name");
     async function drag(cancel = false, touch = false) {
       const from = (await name.boundingBox())!;

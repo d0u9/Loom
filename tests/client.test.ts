@@ -95,13 +95,19 @@ test("CSRF retries stop after one refresh and unrelated failures never refresh",
     calls.push(url);
     return Response.json({ message: "Invalid origin" }, { status: 403 });
   });
-  await assert.rejects(() => api("/items", "POST", {}), new RegExp(localized["fixture.5b35e7398eb2"], ""));
+  await assert.rejects(
+    () => api("/items", "POST", {}),
+    new RegExp(localized["fixture.5b35e7398eb2"], ""),
+  );
   assert.deepEqual(calls, ["/api/v1/items"]);
   calls.length = 0;
   fetch.mock.mockImplementation(async (url: any) => {
     calls.push(url);
     return Response.json({ message: "Conflict" }, { status: 409 });
   });
-  await assert.rejects(() => api("/items", "POST", {}), new RegExp(localized["fixture.45fb95610363"], ""));
+  await assert.rejects(
+    () => api("/items", "POST", {}),
+    new RegExp(localized["fixture.45fb95610363"], ""),
+  );
   assert.deepEqual(calls, ["/api/v1/items"]);
 });

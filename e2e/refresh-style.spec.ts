@@ -8,9 +8,16 @@ test("phone layout stays stable when touch detection changes", async ({
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  const create = page.getByRole("button", { name: localized["New item"], exact: true });
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  const create = page.getByRole("button", {
+    name: localized["New item"],
+    exact: true,
+  });
   await expect(create).toBeVisible();
   const before = await create.boundingBox();
   const searchBefore = await page.locator(".page-search").boundingBox();

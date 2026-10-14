@@ -75,8 +75,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     for (const input of info.project.name === "mobile"
@@ -153,15 +157,24 @@ for (const kind of ["template", "checklist"]) {
           await page.goto(`/${kind}s/${original.id}`);
           if (kind === "template")
             await page
-              .getByRole("button", { name: localized["Edit mode"], exact: true })
+              .getByRole("button", {
+                name: localized["Edit mode"],
+                exact: true,
+              })
               .click();
           if (mode === "fold")
             await row(toName)
-              .getByRole("button", { name: localized["Collapse "] + toName, exact: true })
+              .getByRole("button", {
+                name: localized["Collapse "] + toName,
+                exact: true,
+              })
               .click();
           if (mode === "fold-source")
             await row(fromName)
-              .getByRole("button", { name: localized["Collapse "] + fromName, exact: true })
+              .getByRole("button", {
+                name: localized["Collapse "] + fromName,
+                exact: true,
+              })
               .click();
           const source = (await row(fromName)
             .locator("strong,.name")

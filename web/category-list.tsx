@@ -293,7 +293,9 @@ export function CategoryList({
         </Modal>
       )}
       {order && members.length === 0 && (
-        <p className="empty">{t(localized["This category has no items yet."])}</p>
+        <p className="empty">
+          {t(localized["This category has no items yet."])}
+        </p>
       )}
       <div className="category-members">
         <Collection>
@@ -322,8 +324,16 @@ export function CategoryList({
                           key={id}
                           variant="icon"
                           disabled={busy}
-                          aria-label={t(localized["From "]) + name + t(localized[" Remove"])}
-                          title={t(localized["From "]) + name + t(localized[" Remove"])}
+                          aria-label={
+                            t(localized["From "]) +
+                            name +
+                            t(localized[" Remove"])
+                          }
+                          title={
+                            t(localized["From "]) +
+                            name +
+                            t(localized[" Remove"])
+                          }
                           onClick={() =>
                             void update(
                               item,

@@ -3,10 +3,14 @@ export const english: Record<string, string> = {
   [localized["Filter by catalog group"]]: "Filter by catalog group",
   [localized["Delete this template? Existing checklists will be kept."]]:
     "Delete this template? Existing checklists will be kept.",
-  [localized["Save changes before creating a checklist."]]: "Save changes before creating a checklist.",
+  [localized["Save changes before creating a checklist."]]:
+    "Save changes before creating a checklist.",
   [localized["Catalog group"]]: "Catalog group",
-  [localized["Content changed. Add the category again."]]: "Content changed. Add the category again.",
-  [localized["Deleted items will be kept as temporary entries. Their content is preserved."]]:
+  [localized["Content changed. Add the category again."]]:
+    "Content changed. Add the category again.",
+  [localized[
+    "Deleted items will be kept as temporary entries. Their content is preserved."
+  ]]:
     "Deleted items will be kept as temporary entries. Their content is preserved.",
   [localized["Restore checklist"]]: "Restore checklist",
   [localized["Add from items"]]: "Add from items",
@@ -28,17 +32,21 @@ export const english: Record<string, string> = {
   [localized["Reload order"]]: "Reload order",
   [localized["Add members"]]: "Add members",
   [localized["Add existing item"]]: "Add existing item",
-  [localized["Filter items by name or pinyin"]]: "Filter items by name or pinyin",
+  [localized["Filter items by name or pinyin"]]:
+    "Filter items by name or pinyin",
   [localized["New item"]]: "New item",
   [localized["Retry save"]]: "Retry save",
   [localized["Create and add"]]: "Create and add",
-  [localized["This category has no items yet."]]: "This category has no items yet.",
+  [localized["This category has no items yet."]]:
+    "This category has no items yet.",
   [localized["From"]]: "From",
   [localized["Remove"]]: "Remove",
   [localized["References:"]]: "References:",
   [localized["Open"]]: "Open",
-  [localized["This document belongs to another page."]]: "This document belongs to another page.",
-  [localized["Discard pending changes and leave?"]]: "Discard pending changes and leave?",
+  [localized["This document belongs to another page."]]:
+    "This document belongs to another page.",
+  [localized["Discard pending changes and leave?"]]:
+    "Discard pending changes and leave?",
   [localized["Discard and leave"]]: "Discard and leave",
   [localized["Discard changes and open another checklist?"]]:
     "Discard changes and open another checklist?",
@@ -50,7 +58,8 @@ export const english: Record<string, string> = {
   [localized["New entry"]]: "New entry",
   [localized["Check saved"]]: "Check saved",
   [localized["; retry the check."]]: "; retry the check.",
-  [localized["Save changes before using history actions."]]: "Save changes before using history actions.",
+  [localized["Save changes before using history actions."]]:
+    "Save changes before using history actions.",
   [localized["Enter a name"]]: "Enter a name",
   [localized["Template"]]: "Template",
   [localized["Checklist"]]: "Checklist",
@@ -108,7 +117,8 @@ export const english: Record<string, string> = {
   [localized["Use date"]]: "Use date",
   [localized["Current content"]]: "Current content",
   [localized["Revision"]]: "Revision",
-  [localized["Discard local changes and reload?"]]: "Discard local changes and reload?",
+  [localized["Discard local changes and reload?"]]:
+    "Discard local changes and reload?",
   [localized["Reload"]]: "Reload",
   [localized["Save / Retry"]]: "Save / Retry",
   [localized["Archive"]]: "Archive",
@@ -131,7 +141,8 @@ export const english: Record<string, string> = {
   [localized["New item name"]]: "New item name",
   [localized[": choose values to keep"]]: ": choose values to keep",
   [localized["Choose"]]: "Choose",
-  [localized["Deleted; kept as a static group."]]: "Deleted; kept as a static group.",
+  [localized["Deleted; kept as a static group."]]:
+    "Deleted; kept as a static group.",
   [localized["Confirm / Retry"]]: "Confirm / Retry",
   [localized["Add to section"]]: "Add to section",
   [localized["Entry source"]]: "Entry source",
@@ -166,7 +177,8 @@ export const english: Record<string, string> = {
   [localized["Expand"]]: "Expand",
   [localized["Collapse"]]: "Collapse",
   [localized["Delete section"]]: "Delete section",
-  [localized["Delete section and move content up"]]: "Delete section and move content up",
+  [localized["Delete section and move content up"]]:
+    "Delete section and move content up",
   [localized["Entry name"]]: "Entry name",
   [localized["Check"]]: "Check",
   [localized["sources"]]: "sources",
@@ -174,12 +186,15 @@ export const english: Record<string, string> = {
   [localized["Group [399ee6934772]"]]: "Group",
   [localized["Ungrouped"]]: "Ungrouped",
   [localized["Categories"]]: "Categories",
-  [localized["No categories yet. You can add them later."]]: "No categories yet. You can add them later.",
+  [localized["No categories yet. You can add them later."]]:
+    "No categories yet. You can add them later.",
   [localized["Group and categories"]]: "Group and categories",
   [localized["Group:"]]: "Group:",
   [localized["categories"]]: "categories",
-  [localized["Incorrect username or password."]]: "Incorrect username or password.",
-  [localized["This item is referenced and cannot be deleted."]]: "This item is referenced and cannot be deleted.",
+  [localized["Incorrect username or password."]]:
+    "Incorrect username or password.",
+  [localized["This item is referenced and cannot be deleted."]]:
+    "This item is referenced and cannot be deleted.",
   [localized["This category is referenced and cannot be deleted."]]:
     "This category is referenced and cannot be deleted.",
   [localized["Untrusted request origin. Retry from the app."]]:
@@ -190,16 +205,23 @@ export const english: Record<string, string> = {
     "Category members changed. Refresh before creating a checklist.",
   [localized["Category members changed. Refresh before sorting."]]:
     "Category members changed. Refresh before sorting.",
-  [localized["Content changed. Refresh and retry."]]: "Content changed. Refresh and retry.",
-  [localized["Your session expired. Sign in again."]]: "Your session expired. Sign in again.",
+  [localized["Content changed. Refresh and retry."]]:
+    "Content changed. Refresh and retry.",
+  [localized["Your session expired. Sign in again."]]:
+    "Your session expired. Sign in again.",
   [localized["Security verification failed. Refresh and retry."]]:
     "Security verification failed. Refresh and retry.",
-  [localized["This resource does not exist or was deleted."]]: "This resource does not exist or was deleted.",
-  [localized["Content changed or the action conflicts with its current state. Refresh and retry."]]:
+  [localized["This resource does not exist or was deleted."]]:
+    "This resource does not exist or was deleted.",
+  [localized[
+    "Content changed or the action conflicts with its current state. Refresh and retry."
+  ]]:
     "Content changed or the action conflicts with its current state. Refresh and retry.",
-  [localized["Too many requests. Try again later."]]: "Too many requests. Try again later.",
-  [localized["The service could not complete this action. Retry the original request."]]:
-    "The service could not complete this action. Retry the original request.",
+  [localized["Too many requests. Try again later."]]:
+    "Too many requests. Try again later.",
+  [localized[
+    "The service could not complete this action. Retry the original request."
+  ]]: "The service could not complete this action. Retry the original request.",
   [localized["Check the submitted values and try again."]]:
     "Check the submitted values and try again.",
   [localized["Main navigation"]]: "Main navigation",
@@ -218,7 +240,8 @@ export const english: Record<string, string> = {
   [localized["Clear search"]]: "Clear search",
   [localized["Retry"]]: "Retry",
   [localized["Checking session…"]]: "Checking session…",
-  [localized["A place for everything on your checklist."]]: "A place for everything on your checklist.",
+  [localized["A place for everything on your checklist."]]:
+    "A place for everything on your checklist.",
   [localized["Username"]]: "Username",
   [localized["Password"]]: "Password",
   [localized["Sign in"]]: "Sign in",
@@ -241,16 +264,21 @@ export const english: Record<string, string> = {
   [localized["Parent category"]]: "Parent category",
   [localized["No matching options"]]: "No matching options",
   [localized["checklists"]]: "checklists",
-  [localized["returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."]]:
+  [localized[
+    "returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000)."
+  ]]:
     "returned empty or invalid JSON. Check that the server is running: pnpm dev (default port 3000).",
   [localized["items"]]: "items",
   [localized["add"]]: "add",
   [localized["Use “"]]: "Use “",
-  [localized["An item with this name already exists. Select it to avoid creating a duplicate."]]:
+  [localized[
+    "An item with this name already exists. Select it to avoid creating a duplicate."
+  ]]:
     "An item with this name already exists. Select it to avoid creating a duplicate.",
   [localized["Create a separate item"]]: "Create a separate item",
   [localized["Select existing item:"]]: "Select existing item: ",
   [localized["Already in this category:"]]: "Already in this category: ",
-  [localized["Create an item in the catalog and add it to the current section."]]:
-    "Create an item in the catalog and add it to the current section.",
+  [localized[
+    "Create an item in the catalog and add it to the current section."
+  ]]: "Create an item in the catalog and add it to the current section.",
 };

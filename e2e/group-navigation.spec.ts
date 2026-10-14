@@ -5,9 +5,15 @@ test("long group menus scroll with keyboard and long Item lists keep drop target
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   for (let i = 0; i < 25; i++) {
     const response = await page.request.post("/api/v1/items", {
@@ -30,7 +36,9 @@ test("long group menus scroll with keyboard and long Item lists keep drop target
       return { x, width };
     });
   const beforeFilter = await geometry();
-  await tabs.getByRole("tab", { name: localized["Ungrouped"], exact: true }).click();
+  await tabs
+    .getByRole("tab", { name: localized["Ungrouped"], exact: true })
+    .click();
   expect(await geometry()).toEqual(beforeFilter);
   await tabs.getByRole("tab", { name: localized["All"], exact: true }).click();
   expect(await geometry()).toEqual(beforeFilter);
@@ -128,8 +136,13 @@ test("long group menus scroll with keyboard and long Item lists keep drop target
     await expect(tabs).toHaveCSS("flex-wrap", "wrap");
     await expect(tabs).toHaveCSS("mask-image", "none");
   }
-  await page.getByRole("button", { name: localized["New item"], exact: true }).click();
-  const input = page.getByRole("combobox", { name: localized["Catalog group"], exact: true });
+  await page
+    .getByRole("button", { name: localized["New item"], exact: true })
+    .click();
+  const input = page.getByRole("combobox", {
+    name: localized["Catalog group"],
+    exact: true,
+  });
   await input.click();
   await input.press("ArrowUp");
   const options = page.locator(".combobox-options");

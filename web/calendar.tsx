@@ -34,7 +34,10 @@ export function Calendar({
       7,
   );
   return (
-    <section className="calendar" aria-label={t(localized["Checklist calendar"])}>
+    <section
+      className="calendar"
+      aria-label={t(localized["Checklist calendar"])}
+    >
       <div className="calendar-title">
         <strong>
           {month.toLocaleDateString(language === "zh" ? "zh-CN" : "en", {
@@ -64,13 +67,19 @@ export function Calendar({
         </div>
       </div>
       <div className="calendar-grid">
-        {[t(localized["Sun"]), t(localized["Mon"]), t(localized["Tue"]), t(localized["Wed"]), t(localized["Thu"]), t(localized["Fri"]), t(localized["Sat"])].map(
-          (d) => (
-            <span className="weekday" key={d}>
-              {d}
-            </span>
-          ),
-        )}
+        {[
+          t(localized["Sun"]),
+          t(localized["Mon"]),
+          t(localized["Tue"]),
+          t(localized["Wed"]),
+          t(localized["Thu"]),
+          t(localized["Fri"]),
+          t(localized["Sat"]),
+        ].map((d) => (
+          <span className="weekday" key={d}>
+            {d}
+          </span>
+        ))}
         {Array.from({ length: weeks * 7 }, (_, i) => {
           const day = new Date(
               start.getFullYear(),

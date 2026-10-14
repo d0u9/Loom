@@ -5,9 +5,15 @@ test("Item form aligns labels and accessible category choices", async ({
   page,
 }, info) => {
   await page.goto("/items");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeVisible();
   const csrf = (await (await page.request.get("/api/v1/session")).json()).csrf;
   const name = localized["fixture.0f7696319105"] + info.project.name;
   await page.request.post("/api/v1/categories", {
@@ -40,9 +46,14 @@ test("Item form aligns labels and accessible category choices", async ({
     path: `test-results/${info.project.name}-item-form.png`,
     fullPage: true,
   });
-  await dialog.getByRole("button", { name: localized["Save"], exact: true }).click();
+  await dialog
+    .getByRole("button", { name: localized["Save"], exact: true })
+    .click();
   await expect(dialog).toBeHidden();
-  const search = page.getByRole("searchbox", { name: localized["Search"], exact: true });
+  const search = page.getByRole("searchbox", {
+    name: localized["Search"],
+    exact: true,
+  });
   await search.fill("Form " + info.project.name);
   const before = await search.boundingBox();
   await page

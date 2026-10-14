@@ -9,8 +9,12 @@ for (const kind of ["template", "checklist"]) {
     await page
       .getByLabel(localized["Password"], { exact: true })
       .fill("loom-browser-password");
-    await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-    await expect(page.getByRole("button", { name: localized["New item"] })).toBeVisible();
+    await page
+      .getByRole("button", { name: localized["Sign in"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: localized["New item"] }),
+    ).toBeVisible();
     const csrf = (await (await page.request.get("/api/v1/session")).json())
       .csrf;
     const itemResponse = await page.request.post("/api/v1/items", {
@@ -69,7 +73,9 @@ for (const kind of ["template", "checklist"]) {
       });
       await expect(page.locator(".drag-preview")).toHaveCount(0);
       await page.mouse.up();
-      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
     }
     await expect(itemRow).toHaveCSS("cursor", "grab");
     const head = (name: string) =>

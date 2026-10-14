@@ -9,7 +9,9 @@ test("catalog modal layout, keyboard and autofill semantics", async ({
   await expect(password).toHaveAttribute("autocomplete", "current-password");
   await expect(password).not.toHaveAttribute("data-1p-ignore", "true");
   await password.fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   await page.getByRole("button", { name: localized["New item"] }).click();
   const modal = page.getByRole("dialog");
   const name = modal.getByLabel(localized["Name"], { exact: true });
@@ -20,7 +22,9 @@ test("catalog modal layout, keyboard and autofill semantics", async ({
     "true",
   );
   await name.fill("Egg");
-  await modal.getByLabel(localized["Note"]).fill(localized["fixture.ac9c2fb37c7b"]);
+  await modal
+    .getByLabel(localized["Note"])
+    .fill(localized["fixture.ac9c2fb37c7b"]);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -34,7 +38,9 @@ test("catalog modal layout, keyboard and autofill semantics", async ({
   });
   await page.keyboard.press("Escape");
   await expect(modal).toHaveCount(0);
-  await expect(page.getByRole("button", { name: localized["New item"] })).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: localized["New item"] }),
+  ).toBeFocused();
   await page.screenshot({
     path: `test-results/${info.project.name}-catalog.png`,
     fullPage: true,
@@ -45,11 +51,20 @@ test("all sections share header actions and sidebar geometry", async ({
   page,
 }, info) => {
   await page.goto("/");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
   let baseline: { x: number; y: number; width: number; height: number } | null =
     null;
-  for (const section of [localized["Item"], localized["Category"], localized["Template"], localized["Checklist"]]) {
+  for (const section of [
+    localized["Item"],
+    localized["Category"],
+    localized["Template"],
+    localized["Checklist"],
+  ]) {
     const navigation = page.getByRole("link", { name: section, exact: true });
     await expect(navigation).toHaveAttribute(
       "href",
@@ -98,7 +113,9 @@ test("all sections share header actions and sidebar geometry", async ({
     ).toBeVisible();
     const before = await header.boundingBox();
     const actionsBefore = await header.locator(".page-actions").boundingBox();
-    await header.getByRole("button", { name: localized["List"], exact: true }).click();
+    await header
+      .getByRole("button", { name: localized["List"], exact: true })
+      .click();
     await expect(page.locator(".records-list")).toHaveCount(1);
     expect(await header.boundingBox()).toEqual(before);
     expect(await header.locator(".page-actions").boundingBox()).toEqual(
@@ -107,7 +124,9 @@ test("all sections share header actions and sidebar geometry", async ({
     await expect(
       header.getByRole("button", { name: localized["List"], exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await header.getByRole("button", { name: localized["Cards"], exact: true }).click();
+    await header
+      .getByRole("button", { name: localized["Cards"], exact: true })
+      .click();
     await expect(page.locator(".cards")).toHaveCount(1);
     if (info.project.name === "mobile") {
       expect(
@@ -149,14 +168,21 @@ test("all sections share header actions and sidebar geometry", async ({
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expect(create).toBeFocused();
-    await expect(page.getByRole("navigation", { name: localized["Main navigation"] })).toHaveCount(
-      1,
-    );
+    await expect(
+      page.getByRole("navigation", { name: localized["Main navigation"] }),
+    ).toHaveCount(1);
   }
   // The list/cards choice is shared by every section and survives reloads.
   const shared = page.locator(".page-header");
-  await shared.getByRole("button", { name: localized["List"], exact: true }).click();
-  for (const section of [localized["Category"], localized["Template"], localized["Checklist"], localized["Item"]]) {
+  await shared
+    .getByRole("button", { name: localized["List"], exact: true })
+    .click();
+  for (const section of [
+    localized["Category"],
+    localized["Template"],
+    localized["Checklist"],
+    localized["Item"],
+  ]) {
     await page.getByRole("link", { name: section, exact: true }).click();
     await expect(
       shared.getByRole("heading", { name: section, exact: true }),
@@ -168,8 +194,12 @@ test("all sections share header actions and sidebar geometry", async ({
   }
   await page.reload();
   await expect(page.locator(".records-list")).toHaveCount(1);
-  await shared.getByRole("button", { name: localized["Cards"], exact: true }).click();
-  await page.getByRole("link", { name: localized["Category"], exact: true }).click();
+  await shared
+    .getByRole("button", { name: localized["Cards"], exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: localized["Category"], exact: true })
+    .click();
   await expect(page.locator(".cards")).toHaveCount(1);
   const account = page.locator(".sidebar-account");
   await expect(account.locator(".account-name")).toHaveText("admin");
@@ -184,7 +214,9 @@ test("all sections share header actions and sidebar geometry", async ({
     account.getByRole("button", { name: localized["Sign out"], exact: true }),
   ).toBeHidden();
   await trigger.click();
-  await page.getByRole("searchbox", { name: localized["Search"], exact: true }).click();
+  await page
+    .getByRole("searchbox", { name: localized["Search"], exact: true })
+    .click();
   await expect(
     account.getByRole("button", { name: localized["Sign out"], exact: true }),
   ).toBeHidden();
@@ -213,17 +245,36 @@ test("document actions use shared buttons with visible borders and keyboard acti
       info.project.name === "desktop" ? "192.0.2.41" : "192.0.2.42",
   });
   await page.goto("/templates");
-  await page.getByLabel(localized["Password"], { exact: true }).fill("loom-browser-password");
-  await page.getByRole("button", { name: localized["Sign in"], exact: true }).click();
-  await page.getByRole("button", { name: localized["fixture.8b6c722cd24d"], exact: true }).click();
+  await page
+    .getByLabel(localized["Password"], { exact: true })
+    .fill("loom-browser-password");
+  await page
+    .getByRole("button", { name: localized["Sign in"], exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: localized["fixture.8b6c722cd24d"],
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("dialog")
     .getByLabel(localized["Name"], { exact: true })
     .fill("Buttons " + info.project.name);
-  await page.getByRole("button", { name: localized["Create"], exact: true }).click();
-  await page.getByRole("button", { name: localized["More actions"], exact: true }).click();
-  const reload = page.getByRole("button", { name: localized["Reload"], exact: true });
-  const remove = page.getByRole("button", { name: localized["Delete template"], exact: true });
+  await page
+    .getByRole("button", { name: localized["Create"], exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: localized["More actions"], exact: true })
+    .click();
+  const reload = page.getByRole("button", {
+    name: localized["Reload"],
+    exact: true,
+  });
+  const remove = page.getByRole("button", {
+    name: localized["Delete template"],
+    exact: true,
+  });
   for (const button of [reload, remove]) {
     await expect(button).toHaveClass(/\bbutton\b/);
     await expect(button).toHaveCSS("border-top-style", "solid");
