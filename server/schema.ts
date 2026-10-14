@@ -87,11 +87,12 @@ export function responseSchema(url: string, method: string) {
   const path = url.replace("/api/v1", "");
   if (path === "/openapi.json")
     return { type: "object", additionalProperties: true };
-  if (path === "/login" || path === "/session")
+  if (path === "/login" || path === "/session" || path === "/setup")
     return object(
       {
         csrf: nullable(text),
         authEnabled: { type: "boolean" },
+        setupRequired: { type: "boolean" },
         username: text,
       },
       ["csrf"],

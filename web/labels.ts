@@ -18,6 +18,7 @@ export const resourceLabels: Record<string, string> = {
 
 export function errorKey(message: string, status: number): string {
   const messages: Record<string, string> = {
+    "Account already initialized": localized["Account already initialized"],
     "Invalid credentials": localized["Incorrect username or password."],
     "Item is referenced":
       localized["This item is referenced and cannot be deleted."],

@@ -1,10 +1,18 @@
 services:
   loom:
     build: .
+    environment:
+      LOOM_CONFIG: /etc/loom/loom.config.json
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - loom-data:/data
+      - type: bind
+        source: ./config
+        target: /etc/loom
+        read_only: true
+        bind:
+          create_host_path: false
     restart: unless-stopped
 volumes:
   loom-data:

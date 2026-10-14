@@ -1,5 +1,12 @@
 import localized from "../locales/zh.json" with { type: "json" };
 export const english: Record<string, string> = {
+  [localized["Create account"]]: "Create account",
+  [localized["Create your account to get started."]]:
+    "Create your account to get started.",
+  [localized["Use at least 10 characters for your password."]]:
+    "Use at least 10 characters for your password.",
+  [localized["Account already initialized"]]:
+    "An account already exists. Sign in.",
   [localized["Filter by catalog group"]]: "Filter by catalog group",
   [localized["Delete this template? Existing checklists will be kept."]]:
     "Delete this template? Existing checklists will be kept.",

@@ -142,7 +142,10 @@ test("anonymous mode works without an account, preserves CSRF and re-enabling au
     await server.close();
     server = await app(store);
     assert.equal((await server.inject("/api/v1/items")).statusCode, 401);
-    assert.equal((await server.inject("/api/v1/session")).statusCode, 401);
+    assert.equal(
+      (await server.inject("/api/v1/session")).json().setupRequired,
+      true,
+    );
     assert.equal(store.all("SELECT * FROM items").length, 1);
   } finally {
     await server.close();

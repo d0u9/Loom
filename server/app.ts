@@ -13,7 +13,15 @@ import staticFiles from "@fastify/static";
 import swagger from "@fastify/swagger";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { Store, Problem, requireThat, id, hash, verify } from "./db.js";
+import {
+  Store,
+  Problem,
+  requireThat,
+  id,
+  hash,
+  verify,
+  password,
+} from "./db.js";
 import { registerHistory } from "./history.js";
 import { registerDocuments } from "./documents.js";
 import { randomBytes } from "node:crypto";
@@ -62,7 +70,9 @@ export async function app(store: Store, config: Config = defaultConfig) {
         429: errorSchema,
         500: errorSchema,
       },
-      ...(route.url === "/api/v1/login" ? { security: [] } : {}),
+      ...(["/api/v1/login", "/api/v1/setup"].includes(route.url)
+        ? { security: [] }
+        : {}),
     };
   });
   api.setErrorHandler((error: any, _req, reply) => {
@@ -90,6 +100,27 @@ export async function app(store: Store, config: Config = defaultConfig) {
       );
       return;
     }
+    const path = req.url.split("?")[0];
+    if (path === "/api/v1/setup") {
+      requireThat(
+        !req.headers.origin ||
+          req.headers.origin === `${req.protocol}://${req.headers.host}`,
+        "Invalid origin",
+        403,
+      );
+      requireThat(
+        req.headers["x-csrf-token"] === anonymousCsrf,
+        "Invalid CSRF token",
+        403,
+      );
+      return;
+    }
+    if (
+      path === "/api/v1/session" &&
+      config.auth.enabled &&
+      !store.get("SELECT username FROM account")
+    )
+      return;
     if (!config.auth.enabled) {
       if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
         requireThat(
@@ -127,7 +158,7 @@ export async function app(store: Store, config: Config = defaultConfig) {
       url: "/api/v1" + url,
       schema: body ? { body } : undefined,
       config:
-        url === "/login"
+        url === "/login" || url === "/setup"
           ? {
               rateLimit: {
                 max: config.auth.loginRateLimit ?? 10,
@@ -137,6 +168,49 @@ export async function app(store: Store, config: Config = defaultConfig) {
           : undefined,
       handler: fn,
     });
+  function createSession(username: string, req: any, reply: any) {
+    const token = randomBytes(32).toString("hex"),
+      csrf = randomBytes(32).toString("hex");
+    store.run("DELETE FROM sessions WHERE expires<?", Date.now());
+    store.run(
+      "INSERT INTO sessions VALUES(?,?,?)",
+      hash(token),
+      csrf,
+      Date.now() + 7 * 86400000,
+    );
+    reply.setCookie("session", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: req.protocol === "https",
+      path: "/",
+    });
+    return { csrf, username };
+  }
+  route(
+    "POST",
+    "/setup",
+    obj({
+      username: str,
+      password: { type: "string", minLength: 10, maxLength: 1000 },
+    }),
+    (req: any, reply: any) =>
+      store.tx(() => {
+        requireThat(config.auth.enabled, "Login is disabled", 409);
+        requireThat(
+          !store.get("SELECT username FROM account"),
+          "Account already initialized",
+          409,
+        );
+        const username = req.body.username.trim();
+        requireThat(username, "Username is required");
+        store.run(
+          "INSERT INTO account VALUES(?,?)",
+          username,
+          password(req.body.password),
+        );
+        return createSession(username, req, reply);
+      }),
+  );
   route(
     "POST",
     "/login",
@@ -158,28 +232,15 @@ export async function app(store: Store, config: Config = defaultConfig) {
         "Invalid credentials",
         401,
       );
-      const token = randomBytes(32).toString("hex"),
-        csrf = randomBytes(32).toString("hex");
-      store.run("DELETE FROM sessions WHERE expires<?", Date.now());
-      store.run(
-        "INSERT INTO sessions VALUES(?,?,?)",
-        hash(token),
-        csrf,
-        Date.now() + 7 * 86400000,
-      );
-      reply.setCookie("session", token, {
-        httpOnly: true,
-        sameSite: "strict",
-        secure: req.protocol === "https",
-        path: "/",
-      });
-      return { csrf, username: account.username };
+      return createSession(account.username, req, reply);
     },
   );
   route("GET", "/session", null, (req: any, reply: any) => {
     reply.header("cache-control", "no-store");
     if (!config.auth.enabled)
       return { csrf: anonymousCsrf, authEnabled: false };
+    if (!store.get("SELECT username FROM account"))
+      return { csrf: anonymousCsrf, authEnabled: true, setupRequired: true };
     const s = store.get(
       "SELECT csrf FROM sessions WHERE hash=?",
       hash(req.cookies.session || ""),

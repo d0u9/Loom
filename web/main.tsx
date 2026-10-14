@@ -69,6 +69,8 @@ function App() {
   }
   const refreshSchedule = async () => setSchedule(await api("/documents"));
   const [authEnabled, setAuthEnabled] = useState(true);
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [username, setUsername] = useState("");
   const [logged, setLogged] = useState<boolean | null>(null),
     [items, setItems] = useState<any[]>([]),
@@ -91,10 +93,16 @@ function App() {
       setCsrf(s.csrf);
       setAuthEnabled(s.authEnabled !== false);
       setUsername(s.username ?? "");
+      setSetupRequired(s.setupRequired === true);
+      if (s.setupRequired) {
+        setLogged(false);
+        return;
+      }
       route.resolveRoot(s.authEnabled === false ? "/checklists" : "/items");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         route.resolveRoot("/items");
+        setSetupRequired(false);
         setLogged(false);
       } else setError(errorText(e));
       return;
@@ -105,6 +113,7 @@ function App() {
       setError(errorText(e));
     }
     setLogged(true);
+    return true;
   }
   useEffect(() => {
     void loadSession();
@@ -210,19 +219,41 @@ function App() {
       <main className="login">
         <h1>Loom</h1>
         <LanguageSwitch />
-        <p>{t(localized["A place for everything on your checklist."])}</p>
+        <p>
+          {t(
+            localized[
+              setupRequired
+                ? "Create your account to get started."
+                : "A place for everything on your checklist."
+            ],
+          )}
+        </p>
         <form
           method="post"
           onSubmit={(e) => {
             e.preventDefault();
+            if (signingIn) return;
             const f = new FormData(e.currentTarget);
+            setSigningIn(true);
             void attempt(async () => {
-              const s = await api("/login", "POST", Object.fromEntries(f));
+              let s;
+              try {
+                s = await api(
+                  setupRequired ? "/setup" : "/login",
+                  "POST",
+                  Object.fromEntries(f),
+                );
+              } catch (error) {
+                if (setupRequired && (await loadSession())) return;
+                throw error;
+              }
+              setSetupRequired(false);
+              route.resolveRoot("/items");
               setCsrf(s.csrf);
               setUsername(s.username ?? "");
               setLogged(true);
               await refresh();
-            });
+            }).finally(() => setSigningIn(false));
           }}
         >
           <label>
@@ -231,6 +262,8 @@ function App() {
               name="username"
               defaultValue="admin"
               autoComplete="username"
+              maxLength={200}
+              disabled={signingIn}
               required
             />
           </label>
@@ -239,12 +272,20 @@ function App() {
             <input
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete={setupRequired ? "new-password" : "current-password"}
+              minLength={setupRequired ? 10 : undefined}
+              maxLength={1000}
+              disabled={signingIn}
               required
             />
           </label>
-          <Button type="submit" variant="primary">
-            {t(localized["Sign in"])}
+          {setupRequired && (
+            <p>
+              {t(localized["Use at least 10 characters for your password."])}
+            </p>
+          )}
+          <Button type="submit" variant="primary" disabled={signingIn}>
+            {t(localized[setupRequired ? "Create account" : "Sign in"])}
           </Button>
         </form>
         <p role="alert">{t(error)}</p>
@@ -622,7 +663,9 @@ function App() {
                             onClick={async () => {
                               if (
                                 await ask(
-                                  t(localized["Delete "]) + x.name + localized["Question mark"],
+                                  t(localized["Delete "]) +
+                                    x.name +
+                                    localized["Question mark"],
                                   t(localized["Delete"]),
                                 )
                               )
