@@ -1,7 +1,51 @@
 import localized from "../locales/zh.json" with { type: "json" };
 import { t } from "./i18n.js";
 import React from "react";
+import { CircleAlert } from "lucide-react";
 import { Select } from "./select.js";
+import { Button } from "./button.js";
+export const sameName = (items: any[], name?: string) =>
+  name?.trim() ? items.filter((item) => item.name.trim() === name.trim()) : [];
+
+export function ItemNameMatches({
+  items,
+  categories,
+  categoryId,
+  onSelect,
+}: {
+  items: any[];
+  categories: any[];
+  categoryId?: string;
+  onSelect: (item: any) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <div className="item-name-notice" role="status">
+      <p>
+        <CircleAlert className="icon" aria-hidden="true" />
+        <span>{t(localized["An item with this name already exists. Select it to avoid creating a duplicate."])}</span>
+      </p>
+      {items.map((item) => (
+        <Button
+          key={item.id}
+          disabled={!!categoryId && item.categoryIds.includes(categoryId)}
+          title={[
+            item.itemGroup || t(localized["Ungrouped"]),
+            ...item.categoryIds.map(
+              (id: string) => categories.find((c) => c.id === id)?.name,
+            ),
+          ].join(" · ")}
+          onClick={() => onSelect(item)}
+        >
+          {categoryId && item.categoryIds.includes(categoryId)
+            ? t(localized["Already in this category:"])
+            : t(localized["Select existing item:"])}
+          {item.name}
+        </Button>
+      ))}
+    </div>
+  );
+}
 export function ItemFields({
   value,
   onChange,

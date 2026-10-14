@@ -547,3 +547,65 @@ This section records design-stage plans; implementation/verification appears in 
 - User agreed to directly change schema version 1 without increasing user_version: delete groups, entry_sources, template_revisions (including immutable triggers), and entries.direct; make item_categories.position NOT NULL, appending new members last. Old databases incompatible; development data rebuilt.
 - API removes groups/direct/groupIds/sourceCount, revision queries, the history revision parameter and missing categories, and the category-add endpoint. Whole-category addition now uses client addItems followed by document PUT. Removed startup source conversion and backup logic.
 - Verification: `pnpm run check`, 32 `pnpm test` tests, and 67 `pnpm exec playwright test` tests passed (1 mobile skipped). Development tables changed in place, integrity_check ok.
+
+### Shared dropdown outside-close fix (2026-10-13)
+
+- The original implementation relied only on input blur; after an arrow opened the dropdown without input focus, clicking the modal title could not close it. A new regression reproduced failure before the fix; Select reuses useOutsideClose for outside pointerdown, closing and clearing filtering while retaining target clicks, focus, option selection, and layered Escape closing.
+- Type checking, Vite build, and 8 focused desktop/simulated-mobile dropdown/group tests passed; after mobile switched to tap, 2 template/checklist tests passed again. Independent test database; user data unchanged. Full Web suite, Safari, and real phones not tested.
+
+### Narrow-screen group dragging and duplicate Category item names (2026-10-13)
+
+- Native mobile horizontal-swiping tests passed, while narrow-screen mouse-drag tests failed before changes; add narrow-screen-only mouse scrolling to the group bar, capturing the pointer only after the threshold, avoiding selection after dragging, retaining touch scrolling, fades, keyboard, and Item drops.
+- Read-only actual database inspection confirms "Ginger" was independently created twice with different IDs: the original has no category and the new record belongs to Stir-fry ingredients. No user data changed or deleted. Category creation provides same-name warnings, explicit existing-item selection, and a clear independent-creation button, reusing member addition and retaining existing fields/categories, without merging by name.
+- Type checking, 6 server/translation focused tests, and 6 desktop/simulated-mobile group-scrolling/category/Item-drop tests passed; after adding reverse mouse scrolling and disabling existing category candidates, 4 tests passed again. Vite test build passed. Full suite, Safari, and real phones not tested.
+
+### Create catalog Items within templates (2026-10-13)
+
+- Shared Documents addition modal adds "New item", reusing ResourceDialog, ItemFields, and ItemNameMatches extracted from category creation. Defaults to the current catalog group; creates a catalog Item with notes/categories, then adds it by ID to the current section. Templates still save explicitly; checklists retain autosaving. Success clears the form and focuses the name for consecutive additions; closing returns to the original selection modal and trigger focus.
+- Uncertain creation failures retain input and a frozen requestId; if catalog refresh fails after confirmed creation, retry reuses the known Item without another POST, and cancellation can return to the document. Same-name selection reuses existing IDs and merge rules without adding catalog records. Catalog items persist immediately; abandoning a template draft does not delete created items.
+- Type checking, translation coverage, Vite build, and 12 desktop/simulated-mobile addition/adjacent-category regressions passed; desktop/mobile creation-form screenshots checked. Cover cancellation without writes, section/catalog identity, group/notes/categories, consecutive creation, failed creation responses and refresh 401 retries, avoiding same-name duplication, saving/refreshing, nested Escape/focus, and English presentation. API/schema unchanged; independent database. Full suite, Safari, and real phones not tested.
+
+### Switch add-item views within one dialog (2026-10-13)
+
+- Correct the above new-item dual-Modal implementation: switch candidate list and ResourceForm within one Modal, retaining one dialog/backdrop. Cancel, Escape, and same-name selection return to the candidate list, retaining section, group, search, and focus on the New button. Consecutive creation and frozen-request retries remain.
+- Add single-dialog/native-modal count assertions: reproduce 2 dialogs before changes and pass afterward. Type checking, Vite build, and 10 desktop/simulated-mobile focused addition tests passed; screenshots at both sizes checked. API/schema/user data unchanged. Full suite, Safari, and real phones not tested.
+
+### Independent root entries and consistent mobile row height (2026-10-13)
+
+- Template/Checklist top-level entries outside Sections become independent white rows with complete borders/rounded corners and 12px spacing; section boundaries include subsequent root entries, and empty sections and final section rows close correctly, without changing section ownership or order data.
+- Only mobile formal entries and all section levels use 44px rows, 32px controls, and 4px vertical padding; long sections truncate on one line with full title/accessible names. Mobile hides entry notes under existing rules, retaining note data and editing. Desktop row heights remain.
+- New layout regression reproduces root entries missing top borders before changes; afterward type checking, Vite build, and 7 desktop/simulated-mobile layout/checking/section-drop tests passed, with 1 existing mouse-drag test skipped on mobile. Cover root entries before/after/consecutive entries, empty/two-level sections, long titles, viewing/editing row heights, desktop dimensions, and saved notes; screenshots at both sizes checked. API/schema/user data unchanged; full suite, Safari, and real devices not tested.
+
+### Temporary entry name drag fix (2026-10-13)
+
+- Regression confirmed that SortableRow's action-control detection blocked temporary-name buttons in editing mode, preventing dragging from names. Shared detection allows only name-display buttons; names inherit the row grab cursor. Click-to-edit, input text selection, and action buttons retain original behavior.
+- Type checking, Vite build, formatting, and diff checks passed; 9 desktop/simulated-mobile name-dragging and adjacent quick-edit/section/catalog-drop tests passed, with 1 existing mobile section mouse test skipped. Enhanced 4 focused name tests passed again, covering actual narrow-screen desktop mouse drops, mobile long press, Escape cleanup, keyboard movement, no dragging from editing inputs, and retained sections/quantities/units/notes/checked states after saving. Independent database; user data unchanged. Full suite, Safari, and real devices not tested.
+- Subsequent actual browser diagnosis and user confirmation: templates could not drag because editing mode had not been entered; after entering, pointer events worked and actual catalog-item order changed. Temporary logging removed; viewing mode loses the misleading grab cursor. Section dragging regressions extend to templates/checklists and desktop/narrow-screen mouse, starting from catalog-item names and section titles; add cursor/behavior assertions for viewing prohibiting dragging and editing allowing it. Type checking, Vite build, and all 8 focused drag tests passed without skips. Full suite, Safari, and real devices not tested; user test drafts were not proactively saved.
+
+### Drag landing positions and complete combination regression
+
+- Failing tests separately reproduce a downward drag above a target showing a below insertion line, gaps between independent rows without drop positions, and category sorting discarding after and moving according to original direction. SortableRow now judges target upper/lower halves; same-column gaps choose before the next row. RecordCard and CategoryList pass before/after parameters completely; keyboard movement retains semantics.
+- tests/move-matrix.test.ts enumerates 243 before/after/into combinations among 9 root/first-level/second-level entries and sections, verifying self-drops, missing targets, own subtrees, third-level rejection, and preservation of identity, fields, subtrees, unmoved positions, and remaining order.
+- e2e/drag-positions.spec.ts defines 40 actual drop positions, covering templates/checklists with desktop mouse, narrow-screen mouse, and long-press touch, totaling 240 drops. Coverage includes upward/downward directions and halves, adjacency, first/last, cross-level/cross-section, empty/collapsed sections, collapsed subtrees, gaps, midlines, invalid moves, self-drops, external containers, Escape, and pointer/touch cancel, checking saved order, fields, and unmoved positions.
+- e2e/drag-save.spec.ts verifies that ordinary mobile swiping still scrolls without sorting; a drag save returning 503 retains the draft and original server content, retries reuse the identical request and requestId, and order persists after refresh. Ordering-specific coverage adds reverse before/after drops for Category cards; existing focused tests still cover catalog items, name clicks/editing, keyboard, Group drops, errors, and viewing mode.
+- e2e/drag-rerender.spec.ts verifies that when the previous save returns during dragging, the preview and drag continue, completion uses the latest structural version, and the newly added entry remains. Templates/checklists, desktop mouse, narrow-screen mouse, and long-press touch all passed. The original implementation already handled this timing correctly; no additional product code.
+- Final verification: all 33 server tests passed (including the 243-combination matrix), full Web 90 tests passed, and 4 new focused dragging-during-saving tests passed. Build (including type checking), formatting, and diff checks passed. Old template tests in full regression now enter/finish editing and refresh. Tests use independent databases; API/schema/user data unchanged. Safari/real devices not tested.
+
+### Unified template and checklist autosave (2026-10-14)
+
+- User confirmed templates/checklists both autosave: additions/removals/drags submit immediately; text submits after 500ms pause. Template editing removes everyday Save buttons; finishing editing only switches to reading state.
+- Shared save queue retains new edits made while saving and continues submitting after success updates the structural version. Failure retains the frozen request and requestId, with Retry beside the error; retry the original request before saving later edits, without silently overriding version conflicts.
+- In-app navigation first waits for saves; failures still confirm discarding through shared Modal. Creating a checklist from a template drains the queue and reads latest content; browser close/refresh retains unsaved protection. Category loading merges the latest draft without falsely reporting content changes when background saves complete.
+- Verification: 33 business/shared tests and complete 98 desktop/mobile Web regressions passed. Final 14 additional regressions for continued editing/original-request retry after failure, immediate saves before creation, and category addition passed; type checking passed. Independent database, no user data/schema changes. Real phones/offline persistence not verified.
+
+### Checklist status filtering (2026-10-14)
+
+- Shared Documents checklist list offers Active/Archived/All buttons, defaulting to Active; entering by date defaults to All, while navigating back to all checklists resets Active. Reuse item-sort button appearance, aria-pressed, and keyboard behavior.
+- Verify desktop/mobile status, search intersection, date entry, keyboard, and calendar regressions; type/translation checks passed. Full Web regression not rerun.
+
+### Uncommitted change cleanup and pre-commit review (2026-10-14)
+
+- Checked shared Documents autosave queue, frozen-request retries, leave protection, item addition, and drag callers; found no product-code issues blocking submission. Synchronize current descriptions of template autosaving.
+- Earlier template-edit cases caused by default viewing mode now include entering editing, finishing editing, and post-refresh steps in this batch; this full run did not reproduce those template failures.
+- Full Web regression ran 100 tests: 98 passed, and 2 layout cases failed because new checklist-status filters made `.view-switch` match two controls. Locate by accessible name "View", retaining geometry assertions; both desktop/simulated-mobile retests passed. The other 98 were not rerun.
+- All 33 `pnpm test` tests passed; `pnpm run build` (including type checking), Prettier checks for Web/e2e/tests, and `git diff --check` passed. API/schema and user data were not changed; Safari, real phones, and Docker were not verified.

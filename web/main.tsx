@@ -24,6 +24,8 @@ function App() {
   const [query, setQuery] = useState("");
   const [movingItem, setMovingItem] = useState(false);
   const groupTabs = useRef<HTMLDivElement>(null);
+  const groupDrag = useRef<{ x: number; left: number } | null>(null);
+  const groupDragged = useRef(false);
   const [itemSort, setItemSort] = useState("name");
   const [itemSortDirection, setItemSortDirection] = useState("asc");
   const [itemGroup, setItemGroup] = useState<string | null>(null);
@@ -403,6 +405,44 @@ function App() {
                   className="item-group-tabs"
                   role="tablist"
                   aria-label={t(localized["Item groups"])}
+                  onPointerDown={(event) => {
+                    groupDragged.current = false;
+                    if (
+                      event.pointerType !== "mouse" ||
+                      event.button !== 0 ||
+                      !matchMedia("(max-width: 650px)").matches
+                    )
+                      return;
+                    groupDrag.current = {
+                      x: event.clientX,
+                      left: event.currentTarget.scrollLeft,
+                    };
+                  }}
+                  onPointerMove={(event) => {
+                    const drag = groupDrag.current;
+                    if (!drag || event.buttons !== 1) return;
+                    const delta = event.clientX - drag.x;
+                    if (!groupDragged.current && Math.abs(delta) < 6) return;
+                    groupDragged.current = true;
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    event.currentTarget.scrollLeft = drag.left - delta;
+                  }}
+                  onPointerUp={() => {
+                    groupDrag.current = null;
+                    setTimeout(() => {
+                      groupDragged.current = false;
+                    }, 0);
+                  }}
+                  onPointerCancel={() => {
+                    groupDrag.current = null;
+                    groupDragged.current = false;
+                  }}
+                  onClickCapture={(event) => {
+                    if (groupDragged.current) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }
+                  }}
                 >
                   {[null, "", ...itemGroups].map((group) => (
                     <Button

@@ -125,6 +125,89 @@ test("category single rows sort with keyboard and pointer and survive reload", a
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await session.detach();
   }
+  // Card grids use the same upper/lower drop zones as rows, including horizontal moves.
+  await page.getByRole("button", { name: localized["Cards"], exact: true }).click();
+  const cardOrder = (
+    await (await page.request.get(`/api/v1/categories/${c.id}/order`)).json()
+  ).itemIds;
+  await expect
+    .poll(() =>
+      rows.evaluateAll((nodes) =>
+        nodes.map((n) => n.getAttribute("data-sort-id")),
+      ),
+    )
+    .toEqual(cardOrder);
+  // These placements retain the order, even though the drag direction is opposite.
+  for (const part of [0.2, 0.8]) {
+    const from = (await (
+      part < 0.5 ? handles.first() : handles.last()
+    ).boundingBox())!;
+    const target = (await (
+      part < 0.5 ? rows.last() : rows.first()
+    ).boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      target.x + target.width / 2,
+      target.y + target.height * part,
+      { steps: 8 },
+    );
+    await expect(part < 0.5 ? rows.last() : rows.first()).toHaveClass(
+      new RegExp(part < 0.5 ? "drop-before" : "drop-after"),
+    );
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/v1/categories/${c.id}/order`) &&
+        response.request().method() === "PUT",
+    );
+    await page.mouse.up();
+    await saved;
+    expect(
+      (
+        await (
+          await page.request.get(`/api/v1/categories/${c.id}/order`)
+        ).json()
+      ).itemIds,
+    ).toEqual(cardOrder);
+  }
+  for (const part of [0.2, 0.8]) {
+    const order = await rows.evaluateAll((nodes) =>
+      nodes.map((n) => n.getAttribute("data-sort-id")),
+    );
+    const from = (await (
+      part < 0.5 ? handles.last() : handles.first()
+    ).boundingBox())!;
+    const target = (await (
+      part < 0.5 ? rows.first() : rows.last()
+    ).boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      target.x + target.width / 2,
+      target.y + target.height * part,
+      { steps: 8 },
+    );
+    await expect(page.locator(".drag-preview")).toBeVisible();
+    await page.mouse.up();
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await page.request.get(`/api/v1/categories/${c.id}/order`)
+            ).json()
+          ).itemIds,
+      )
+      .toEqual([...order].reverse());
+    await expect
+      .poll(() =>
+        rows.evaluateAll((nodes) =>
+          nodes.map((n) => n.getAttribute("data-sort-id")),
+        ),
+      )
+      .toEqual([...order].reverse());
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
   await page.screenshot({
     path: `test-results/${info.project.name}-sorted-category.png`,
     fullPage: true,

@@ -34,6 +34,21 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await page.goto(
       "/" + (kind === "template" ? "templates" : "checklists") + "/" + d.id,
     );
+    if (kind === "template")
+      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
+    await expect(
+      page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: localized["fixture.3e8e498593dc"], exact: true }).click();
+    await expect(
+      page.getByPlaceholder("Add to “Parent”…", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Switch to Chinese", exact: true })
+      .click();
+    await expect(
+      page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
+    ).toBeVisible();
     const quick = page.getByLabel(localized["New temporary entry"], { exact: true });
     await expect(quick).toBeVisible();
     if (kind === "checklist") {
@@ -71,16 +86,12 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await expect(
       page.getByRole("button", { name: localized["fixture.d2774989deec"], exact: true }),
     ).toHaveCount(0);
-    if (kind === "template")
-      await page.getByRole("button", { name: localized["Save"], exact: true }).click();
     await expect(page.getByRole("status")).toContainText(localized["Saved"]);
     await page.getByRole("button", { name: localized["Entry name"], exact: true }).click();
     const input = page.getByLabel(localized["Entry name"], { exact: true });
     await input.fill("Renamed");
     await input.press("Enter");
     await expect(page.locator(localized["fixture.5c1684296f6f"])).toHaveCount(0);
-    if (kind === "template")
-      await page.getByRole("button", { name: localized["Save"], exact: true }).click();
     await expect
       .poll(
         async () =>
@@ -109,8 +120,6 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         "Parent",
         "Child",
       ]);
-      if (kind === "template")
-        await page.getByRole("button", { name: localized["Save"], exact: true }).click();
       await expect
         .poll(
           async () =>
@@ -156,6 +165,8 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       page.getByRole("button", { name: localized["fixture.82d440e5f3ee"], exact: true }),
     ).toHaveCount(0);
     await page.reload();
+    if (kind === "template")
+      await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
     await expect(
       page
         .getByLabel(localized["Entry name"], { exact: true })

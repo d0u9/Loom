@@ -86,7 +86,7 @@ test("all sections share header actions and sidebar geometry", async ({
       );
       await expect(page.locator(".page-search")).toHaveCSS("height", "32px");
     }
-    await expect(header.locator(".view-switch")).toHaveCSS(
+    await expect(header.locator(localized["fixture.d0abdd267a35"])).toHaveCSS(
       "height",
       info.project.name === "mobile" ? "32px" : "28px",
     );

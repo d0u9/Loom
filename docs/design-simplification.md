@@ -11,24 +11,24 @@ A template is the current reusable recipe; a checklist is one execution. Users n
 ## Trade-offs
 
 | Existing mechanism | Proposal | Cost and rationale |
-| ---------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Every template save generates a revision, and checklist creation depends on a revision | Templates save only current content; checklist creation copies saved content | New saves no longer leave old templates to revisit; existing history remains. Independent checklist content already meets execution-record needs |
 | Whole-category addition leaves category sources; updates handle additions, removals, exclusions, and source counts | Categories provide only one-time batch selection; additions become normal document entries | Category changes cannot synchronize into a template in one click; adding again fills missing items without deleting existing content |
 | Item Group, Category, and Section all resemble "groups" | Clarify them as catalog groups, reusable category collections, and document sections; all are optional | Do not automatically merge existing data or add another label/collection resource system |
 | Historical restoration puts three missing-item treatments in the main flow | Retain temporary entries by default; link or add to the catalog later when organizing | Restoration does not create catalog items for the user or establish identity by matching names |
 | Every entry permanently displays technical metadata such as source counts | Prioritize names, checked states, and necessary notes; view catalog information as needed | Clearer document content; retain shared display components across pages |
-| Checklists autosave, templates save explicitly | Keep current behavior, simply call the template action "Save" | Template edits affect the next creation; explicit saving avoids treating experiments as the final recipe; do not expand autosaving merely for consistency |
+| Templates and checklists both autosave | Save operations immediately and text after a pause; retain status and failure retries | Confirmed by the user on 2026-10-14; wait for the latest template save before creating a checklist |
 
 ## Templates: Maintain Only Current Content
 
 - Creation, editing, and renaming all save to the current template, without automatically generating revisions or adding a "Save revision" button or switch.
-- The primary top action is "Save", alongside "Create checklist". Creation is allowed only without unsaved edits; otherwise clearly ask the user to save first. Avoid introducing a separate "Save and create" transaction flow.
+- Templates autosave and retain "Create checklist" at the top; drain the save queue before creating, retaining edits and offering a retry after failure.
 - Creating a checklist uses the current template saved on the server, copying entries, notes, positions, and sections, and resetting every checked state. Source information records at most the template ID and its name at that time, without requiring a revision binding.
 - Later template edits or deletion do not change existing checklists. Current rules for latest active Item names and archived name snapshots still apply; independence means independent content, positions, and checked states, without removing shared Item identity.
 - Converting a checklist to a template creates a normal template without needing an initial revision. Copying a checklist still resets checked states; restoring the original still retains them.
 - No new template revision history. Existing revisions are neither overwritten nor deleted; APIs for querying old records and creating from old revisions remain during the transition, and normal template editing neither loads nor depends on them.
 
-Example: replace milk with oat milk in "Weekly shopping" and click Save. Old shopping checklists retain milk; the next new checklist uses oat milk.
+Example: replace milk with oat milk in "Weekly shopping"; edits autosave. Old shopping checklists retain milk; the next new checklist uses oat milk.
 
 ## Categories: Selection Only, Not Ongoing Document Management
 
@@ -64,7 +64,7 @@ Temporary entries remain directly enterable. The previously discussed sidebar or
 
 ## Streamlining the Interface
 
-Templates retain Back, name, More, Add, New section, Save, and Create checklist; settings retain name, Reload, and Delete, removing everyday revision selection. Checklists retain the current reading/editing toggle, Hide completed, date, addition, and section operations; Copy, Archive, Restore, Convert to template, and Delete go under More.
+Templates retain Back, name, More, Add, New section, and Create checklist; settings retain name, Reload, and Delete, removing everyday revision selection. Checklists retain the current reading/editing toggle, Hide completed, date, addition, and section operations; Copy, Archive, Restore, Convert to template, and Delete go under More.
 
 Normal autosaving requires no user action; only failures offer a retry of the original request. The main flow does not expose internal structural versions, source numbers, or storage details. Continue using shared Page, Button, Modal, Documents, bilingual support, and lucide icons, retaining current colors and mobile dimensions.
 

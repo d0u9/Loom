@@ -8,7 +8,7 @@ import { Collection, RecordCard } from "./collection.js";
 import { Modal } from "./modal.js";
 import { Select } from "./select.js";
 import { ResourceForm } from "./resource-dialog.js";
-import { ItemFields } from "./item-fields.js";
+import { ItemFields, ItemNameMatches, sameName } from "./item-fields.js";
 import { ItemGroupFilter, matchesItemGroup } from "./item-group-filter.js";
 import { api, ApiError } from "./client.js";
 import React, { useState, useEffect, useRef } from "react";
@@ -116,13 +116,13 @@ export function CategoryList({
       setBusy(false);
     }
   }
-  function move(key: string, target: string) {
+  function move(key: string, target: string, after: boolean) {
     const ids = members.map((i) => i.id),
       from = ids.indexOf(key),
       to = ids.indexOf(target);
     if (from < 0 || to < 0 || from === to || pendingOrder.current) return;
     ids.splice(from, 1);
-    ids.splice(to, 0, key);
+    ids.splice(ids.indexOf(target) + (after ? 1 : 0), 0, key);
     void saveOrder(ids);
   }
 
@@ -133,6 +133,7 @@ export function CategoryList({
     (i) =>
       !i.categoryIds.includes(category.id) && matchesItemGroup(i, itemGroup),
   );
+  const sameNameItems = sameName(items, draft?.name);
   async function update(item: any, ids: string[]) {
     setBusy(true);
     try {
@@ -184,6 +185,19 @@ export function CategoryList({
               setSelected("");
             }}
           />
+          {itemGroup !== null && availableItems.length > 0 && (
+            <Button
+              disabled={busy || !!createPending.current}
+              onClick={() =>
+                void (async () => {
+                  for (const item of availableItems)
+                    await update(item, [...item.categoryIds, category.id]);
+                })()
+              }
+            >
+              {t(localized["Add whole group"]) + ` (${availableItems.length})`}
+            </Button>
+          )}
           <div className="member-picker">
             <label>
               {t(localized["Add existing item"])}
@@ -244,7 +258,11 @@ export function CategoryList({
                   submitDisabled={busy}
                   cancelDisabled={busy || !!createPending.current}
                   submitLabel={
-                    createPending.current ? t(localized["Retry save"]) : t(localized["Create and add"])
+                    createPending.current
+                      ? t(localized["Retry save"])
+                      : sameNameItems.length
+                        ? t(localized["Create a separate item"])
+                        : t(localized["Create and add"])
                   }
                   onSubmit={() => void createMember()}
                   onClose={() => {
@@ -252,6 +270,16 @@ export function CategoryList({
                     setCreateError("");
                   }}
                 >
+                  <ItemNameMatches
+                    items={sameNameItems}
+                    categories={categories}
+                    categoryId={category.id}
+                    onSelect={(item) => {
+                      setItemGroup(null);
+                      setSelected(item.id);
+                      setDraft(null);
+                    }}
+                  />
                   <ItemFields
                     value={draft}
                     onChange={setDraft}
@@ -276,11 +304,11 @@ export function CategoryList({
               sort={{
                 id: item.id,
                 disabled: busy || !order || !!pendingOrder.current,
-                onMove: (target) => move(item.id, target),
+                onMove: (target, after) => move(item.id, target, after),
                 onStep: (direction) => {
                   const index = members.findIndex((i) => i.id === item.id);
                   const target = members[index + direction];
-                  if (target) move(item.id, target.id);
+                  if (target) move(item.id, target.id, direction > 0);
                 },
               }}
               actions={

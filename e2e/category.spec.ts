@@ -64,8 +64,6 @@ test("category details show direct members and remove only the chosen membership
     ),
   ).toBeLessThan(2);
   // Mobile folds card actions behind a more toggle.
-  if (info.project.name === "mobile")
-    await parentRow.locator(".action-tools summary").click();
   await parentRow.getByRole("button", { name: localized["Edit"], exact: true }).click();
   await expect(page.getByRole("dialog", { name: localized["fixture.b46f0b9bd727"] })).toBeVisible();
   // Touch has no Escape: tapping the backdrop closes the Modal.
@@ -93,8 +91,6 @@ test("category details show direct members and remove only the chosen membership
     has: page.getByRole("heading", { name: item.name, exact: true }),
   });
   await expect(member).toHaveCount(1);
-  if (info.project.name === "mobile")
-    await member.locator(".action-tools summary").click();
   await expect(
     member.getByRole("button", {
       name: localized["From "] + parent.name + localized[" Remove"],
@@ -126,7 +122,7 @@ test("category details show direct members and remove only the chosen membership
   const title = (await member.locator(".item-summary-name").boundingBox())!;
   // Mobile shows the folded actions toggle beside the title.
   const remove = (await member
-    .locator(".record-actions summary, .record-actions button")
+    .locator(".record-actions button")
     .first()
     .boundingBox())!;
   if (info.project.name === "mobile") {
@@ -142,8 +138,6 @@ test("category details show direct members and remove only the chosen membership
     path: `test-results/${info.project.name}-member-cards.png`,
     fullPage: true,
   });
-  if (info.project.name === "mobile")
-    await member.locator(".action-tools summary").click();
   await member
     .getByRole("button", { name: localized["From "] + parent.name + localized[" Remove"], exact: true })
     .click();
@@ -211,6 +205,41 @@ test("category details show direct members and remove only the chosen membership
   await expect(
     creation.getByRole("checkbox", { name: parent.name, exact: true }),
   ).toBeChecked();
+  await creation
+    .getByLabel(localized["Name"], { exact: true })
+    .fill(" " + item.name + " ");
+  await expect(
+    creation.getByText(localized["An item with this name already exists. Select it to avoid creating a duplicate."], {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    creation.getByRole("button", { name: localized["Create a separate item"], exact: true }),
+  ).toBeVisible();
+  await creation
+    .getByRole("button", { name: localized["Select existing item:"] + item.name, exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: localized["Add members"], exact: true })
+    .click();
+  const reused = (
+    await (await page.request.get("/api/v1/items")).json()
+  ).filter((i: any) => i.name === item.name);
+  expect(reused).toHaveLength(1);
+  expect(reused[0].id).toBe(item.id);
+  expect(reused[0].note).toBe("Updated note");
+  expect(reused[0].categoryIds.sort()).toEqual(
+    [parent.id, child.id, outside.id].sort(),
+  );
+  await openCreate();
+  await creation.getByLabel(localized["Name"], { exact: true }).fill(item.name);
+  await expect(
+    creation.getByRole("button", {
+      name: localized["Already in this category:"] + item.name,
+      exact: true,
+    }),
+  ).toBeDisabled();
   await creation.getByLabel(localized["Name"], { exact: true }).fill("Cancelled member");
   await creation.getByRole("button", { name: localized["Cancel"], exact: true }).click();
   expect(

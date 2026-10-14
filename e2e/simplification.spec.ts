@@ -30,13 +30,15 @@ test("template saves replace current content without revisions and history defau
   await page.getByRole("button", { name: localized["Create"], exact: true }).click();
   await expect(page).toHaveURL(/\/templates\/[\w-]+$/);
   const create = page.getByRole("button", { name: localized["Create checklist"], exact: true });
+  await expect(create).toHaveCount(0);
+  await page.getByRole("button", { name: localized["Done editing"], exact: true }).click();
   await expect(create).toBeEnabled();
   for (const name of ["First", "Second"]) {
+    await page.getByRole("button", { name: localized["Edit mode"], exact: true }).click();
     await page.getByLabel(localized["New temporary entry"], { exact: true }).fill(name);
     await page.getByLabel(localized["New temporary entry"], { exact: true }).press("Enter");
-    await expect(create).toBeDisabled();
-    await expect(create).toHaveAttribute("title", localized["Save changes before creating a checklist."]);
-    await page.getByRole("button", { name: localized["Save"], exact: true }).click();
+    await expect(create).toHaveCount(0);
+    await page.getByRole("button", { name: localized["Done editing"], exact: true }).click();
     await expect(page.getByRole("status")).toHaveText(localized["Saved"]);
     await expect(create).toBeEnabled();
   }

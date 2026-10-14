@@ -37,6 +37,68 @@ test("long group menus scroll with keyboard and long Item lists keep drop target
 
   if (info.project.name === "mobile") {
     await expect(tabs).toHaveCSS("flex-wrap", "nowrap");
+    const first = (await tabs
+      .getByRole("tab", { name: localized["All"], exact: true })
+      .boundingBox())!;
+    const session = await page.context().newCDPSession(page);
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: first.x + first.width / 2, y: first.y + first.height / 2 },
+      ],
+    });
+    for (let distance = 10; distance <= 35; distance += 5) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            x: first.x + first.width / 2 - distance,
+            y: first.y + first.height / 2,
+          },
+        ],
+      });
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await session.detach();
+    await expect
+      .poll(() => tabs.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(0);
+    // Let the native swipe's inertia finish before setting precise positions.
+    await page.waitForTimeout(500);
+    await tabs.evaluate((el) => {
+      el.scrollLeft = 0;
+    });
+    const bounds = (await tabs.boundingBox())!;
+    await page.mouse.move(
+      bounds.x + bounds.width - 20,
+      bounds.y + bounds.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + 100, bounds.y + bounds.height / 2, {
+      steps: 8,
+    });
+    await page.mouse.up();
+    await expect
+      .poll(() => tabs.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(0);
+    await expect(
+      tabs.getByRole("tab", { name: localized["All"], exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await page.mouse.move(bounds.x + 100, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      bounds.x + bounds.width - 20,
+      bounds.y + bounds.height / 2,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await expect.poll(() => tabs.evaluate((el) => el.scrollLeft)).toBe(0);
+    await tabs.evaluate((el) => {
+      el.scrollLeft = 0;
+    });
     const heights = await tabs
       .getByRole("tab")
       .evaluateAll((elements) =>

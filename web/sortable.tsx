@@ -14,7 +14,7 @@ export function SortableRow({
 }: React.HTMLAttributes<HTMLElement> & {
   id?: string;
   disabled?: boolean;
-  /** `after` is true when the row lands after the target (moving down). */
+  /** `after` is true when the row lands on the target's lower half. */
   onMove?: (target: string, after: boolean) => void;
   onStep?: (direction: number) => void;
   dragLabel?: string;
@@ -34,9 +34,20 @@ export function SortableRow({
   const enabled = !!(onMove || drop) && !disabled;
   // Sibling row under the pointer that accepts this row, if any.
   function sortTarget(x: number, y: number) {
-    const target = document
-      .elementFromPoint(x, y)
-      ?.closest<HTMLElement>("[data-sort-id]");
+    const hit = document.elementFromPoint(x, y);
+    const parent = ref.current?.parentElement;
+    let target = hit?.closest<HTMLElement>("[data-sort-id]");
+    // Gaps between cards still mean before the next row in this column.
+    if (!target && parent && hit === parent) {
+      const rows = (Array.from(parent.children) as HTMLElement[]).filter(
+        (row) => {
+          const box = row.getBoundingClientRect();
+          return row.dataset.sortId && x >= box.left && x <= box.right;
+        },
+      );
+      target =
+        rows.find((row) => y < row.getBoundingClientRect().top) ?? rows.at(-1);
+    }
     return target &&
       target !== ref.current &&
       target.parentElement === ref.current?.parentElement
@@ -44,7 +55,7 @@ export function SortableRow({
       : null;
   }
   // Where a drop at (x, y) lands: lower half of a data-nest row nests into
-  // it; otherwise moving down lands after the target, moving up before it.
+  // it; otherwise the pointer's upper/lower half selects before/after.
   function landing(x: number, y: number) {
     const target = sortTarget(x, y);
     if (!target) return null;
@@ -52,12 +63,12 @@ export function SortableRow({
     const place =
       onNest &&
       target.dataset.nest !== undefined &&
-      y > box.top + box.height / 2
+      y <= box.bottom &&
+      y >= box.top + box.height / 2
         ? "into"
-        : ref.current!.compareDocumentPosition(target) &
-            Node.DOCUMENT_POSITION_FOLLOWING
-          ? "after"
-          : "before";
+        : y < box.top + box.height / 2
+          ? "before"
+          : "after";
     return { target, place };
   }
   function hover(x: number, y: number) {
@@ -136,6 +147,7 @@ export function SortableRow({
     return (
       !!control &&
       !control.classList.contains("card-open") &&
+      !control.classList.contains("entry-name-display") &&
       !(control as HTMLInputElement).disabled
     );
   }

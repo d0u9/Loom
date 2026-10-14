@@ -90,13 +90,11 @@ test("Item category badges and reserved note space align cards", async ({
       true,
     );
     await expect(a.locator(".record-actions")).toHaveCSS("gap", "0px");
-    await a.locator(".action-tools summary").click();
     for (const button of await a.locator(".record-actions button").all()) {
       const bounds = (await button.boundingBox())!;
       expect(bounds.width).toBe(32);
       expect(bounds.height).toBe(32);
     }
-    await a.locator(".action-tools summary").click();
   }
   const noteHeight = info.project.name === "mobile" ? 18 : 36;
   expect((await a.locator(".item-note").boundingBox())!.height).toBe(

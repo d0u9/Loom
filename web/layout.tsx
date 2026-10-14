@@ -192,6 +192,7 @@ export function Page({
   onBack,
   onMore,
   showView = true,
+  filter,
   search,
   status,
   children,
@@ -203,7 +204,7 @@ export function Page({
     disabled?: boolean;
     // Keeps its slot so neighbouring actions do not shift.
     hidden?: boolean;
-    icon?: "save" | "add";
+    icon?: "save" | "add" | "checklist";
   };
   secondaryActions?: {
     label: string;
@@ -218,6 +219,12 @@ export function Page({
   onBack?: () => void;
   onMore?: () => void;
   showView?: boolean;
+  filter?: {
+    label: string;
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+  };
   search?: { value: string; onChange: (value: string) => void };
   /** Short save state beside the title; the header keeps its height. */
   status?: LocalizedText;
@@ -253,6 +260,24 @@ export function Page({
             )}
           </div>
           <div className="page-actions">
+            {filter && (
+              <div
+                className="view-switch page-filter"
+                role="group"
+                aria-label={filter.label}
+              >
+                {filter.options.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant="ghost"
+                    aria-pressed={filter.value === option.value}
+                    onClick={() => filter.onChange(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            )}
             {showView && (
               <div className="view-switch" aria-label={t(localized["View"])}>
                 <Button

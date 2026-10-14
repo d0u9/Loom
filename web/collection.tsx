@@ -27,7 +27,7 @@ export function RecordCard({
   sort?: {
     id: string;
     disabled: boolean;
-    onMove: (target: string) => void;
+    onMove: (target: string, after: boolean) => void;
     onStep: (direction: number) => void;
   };
   drop?: {
@@ -57,7 +57,7 @@ export function RecordCard({
         <div className="record-main">{children}</div>
         {actions && (
           <div className="record-actions">
-            <ActionTools name={name}>{actions}</ActionTools>
+            <ActionTools>{actions}</ActionTools>
           </div>
         )}
       </div>

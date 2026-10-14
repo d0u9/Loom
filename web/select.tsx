@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import React, { useId, useState, useRef, useEffect } from "react";
 import { Button } from "./button.js";
 import { matchesText } from "./router.js";
+import { useOutsideClose } from "./action-tools.js";
 
 export type Option = { value: string; label: string };
 
@@ -37,6 +38,10 @@ export function Select({
   const [active, setActive] = useState(-1);
   const menu = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  useOutsideClose(box, open, () => {
+    setOpen(false);
+    setQuery("");
+  });
   const [place, setPlace] = useState<React.CSSProperties>();
   // Fixed to the viewport so a modal's scroll area never clips the list.
   useEffect(() => {

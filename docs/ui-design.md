@@ -108,6 +108,7 @@ Collections share [Collection / RecordCard](../web/collection.tsx):
 - The Category add-member dialog offers a collapsible New Item action below, expanding shared ResourceForm/ItemFields inside the same dialog and defaulting to the current category; after saving, the Item appears in the current member list.
 - Sort by dragging cards/rows directly, without handles; retain keyboard ordering. Internal actions do not start dragging, and finishing a drag does not open records.
 - Template/Checklist entries and sections share mixed ordering: dragging any row before/after another makes them siblings (entries/child sections may interleave, and sections can change depth this way). Dropping on a section title's lower half inserts first inside it (subject to two levels; ignore drops into its own subtree or beyond depth). Arrow keys move entries row by row in visible order, entering/leaving sections, while sections move among siblings.
+- Before/after placement follows pointer position: upper half of an ordinary row means before; lower half, including midpoint, means after. A section title's lower half, including midpoint, means insert inside; do not infer from the starting row's relative position. Same-column gaps between standalone rows show an insertion line above the next row, and saving matches that line; inputs/other containers do not accept gap drops. Category member cards/lists follow the same before/after targets.
 
 ## 6. Editor and dialogs
 
@@ -143,9 +144,9 @@ Item cards/list rows show a Group icon and group-name tag in metadata; no group 
 
 Cards/list rows show no mouse-selection outline; hover fades background over 180ms. Keyboard focus uses a thin inward dashed outline to avoid container clipping. Opening/closing the Item edit dialog preserves search bar, query, and Group filter without moving background list/title; reset queries only on switching business pages or Category details.
 
-Group input uses shared web/combobox.tsx, never native datalist. Dropdown matches input width with white background, thin border, and light shadow; options reuse public Button and green current/keyboard-focus styling. Support filtering, existing groups, new names, Ungrouped, and arrows/Enter. Escape closes the dropdown before the dialog; leaving the field closes it; disable browser autofill.
+Group input uses shared web/select.tsx, never native datalist. Dropdown matches input width with white background, thin border, and light shadow; options reuse public Button and green current/keyboard-focus styling. Support filtering, existing groups, new names, Ungrouped, and arrows/Enter. Escape closes the dropdown before the dialog. Leaving the field or clicking/touching outside closes it and clears filter text without blocking targets or stealing focus; option clicks select normally, and browser autofill is disabled.
 
-The group bar sticks to the top while long Item lists scroll, with maximum height min(35dvh, 240px) and internal overflow scrolling so it does not cover all phone content. Combobox arrow navigation scrolls only the options panel to reveal the active option; initial ArrowUp selects the last option and ArrowDown the first. On mouse down, capture the original target pointer to prevent losing drag when initial fast movement leaves the entry.
+The group bar sticks to the top while long Item lists scroll, with maximum height min(35dvh, 240px) and internal overflow scrolling so it does not cover all phone content. Narrow screens retain single-line native touch scrolling/edge fades and support horizontal mouse dragging only after a movement threshold, without selecting a group after drag; desktop still wraps. Combobox arrow navigation scrolls only the options panel to reveal the active option; initial ArrowUp selects the last option and ArrowDown the first. On mouse down, capture the original target pointer to prevent losing drag when initial fast movement leaves the entry.
 
 ## Shared Item presentation
 
@@ -177,11 +178,10 @@ Account menus close on outside click without mistakenly closing on internal clic
 
 Shared mobile Collection list rows use 4px vertical padding and a normal 32px content line height, retaining 16px horizontal whitespace, consistently for all four resources and Category members.
 
-Mobile entry/card/document-section actions share ActionTools, collapsed to More by default. Expanding translates the entire content left over 180ms by actual button width to expose right actions without covering tags; collapse restores position. Escape collapses/restores focus, and summary starts neither dragging nor section collapse. Desktop displays existing actions directly; reduced motion disables animation.
+Inline entry, card, Category-member, and document-section actions consistently use ActionTools from `web/action-tools.tsx`, directly expanded on desktop/phone rather than collapsed to More.
 
 Mobile pages consistently prohibit zoom: entry viewport fixes initial/maximum scale at 1 with user-scalable=no; narrow-screen touch-action retains horizontal/vertical scrolling but disables pinch/double-tap zoom. Browser/system forced accessibility zoom may still override page limits.
 
-When mobile ActionTools is expanded, clicking anywhere outside closes it without blocking that area's own action. Clicking another entry's tools closes the original, while internal action buttons remain usable; clicking More again or Escape also closes it.
 
 All delete/remove actions consistently use shared Icon's trash icon on desktop/phone, including category members, document entries, category sources, sections, Item/Category, and template/checklist deletion. Larger delete buttons may retain text with trash. Closing/clearing search is not deletion and retains close. Icon changes do not alter removal/deletion semantics.
 
@@ -195,11 +195,13 @@ Latest confirmation and implementation (2026-10-12): Template/Checklist have at 
 
 Use confirmed section hierarchy styling: independent level-one blocks with 18px/700 pale warm-gray titles, level-two 15px/650 pale titles/content, and 14px regular-weight Items. Level-two circles/content indent together by 16px, replacing the old all-circles-left-aligned desktop rule. Collapse adds only a slight shadow without delaying its change. Apply first on desktop (>=651px); phone styling retains current behavior pending separate adjustment.
 
+2026-10-13 mobile adjustment: template/checklist normal entries and section titles at every level use 44px rows with 32px controls and 4px vertical padding. Long section names ellipsize on one line, retaining full title/accessible name; entry notes are hidden on phones with editing retained. Desktop row heights remain. Top-level entries outside sections are independent white rows at every screen size, with full borders, four rounded corners, and 12px gaps; preceding sections close fully before top-level entries instead of connecting root entries to section panels.
+
 ### Temporary-entry quick input (2026-10-13)
 
-Shared Documents provides a pale empty-input row at the end of active documents; header Add temporary entry focuses it directly, and source-add dialogs no longer offer that action. Blank input or input not confirmed with Enter creates no entry. Enter confirms a root temporary entry, clears input, and retains focus for continuous entry. Enter for Chinese IME composition does not submit; Escape clears unconfirmed input. Checklist immediately uses autosave/requestId retries; Enter on an existing temporary name saves immediately and ends editing. Template Enter confirms only the client draft, still requiring explicit saving of current content. Remove the inline Save as Item button.
+Shared Documents provides a pale empty-input row at the end of active documents; header Add temporary entry focuses it directly, and source-add dialogs no longer offer that action. Blank input or input not confirmed with Enter creates no entry. Enter confirms a root temporary entry, clears input, and retains focus for continuous entry. Enter for Chinese IME composition does not submit; Escape clears unconfirmed input. Checklist immediately uses autosave/requestId retries; Enter on an existing temporary name saves immediately and ends editing. Template Enter confirms the entry and immediately autosaves current content. Remove the inline Save as Item button.
 
-Section quick input: expanded level-one/level-two sections each end with a pale temporary-entry input labeled by target section. Enter adds there and retains focus for continuous entry. Root input remains independent; collapsed sections hide their inputs. Checklist autosaves; Template retains explicit revision saving.
+Section quick input: expanded level-one/level-two sections each end with a pale temporary-entry input labeled by target section. Enter adds there and retains focus for continuous entry. Root input remains independent; collapsed sections hide their inputs. Checklist and Template autosave; finishing editing only switches to reading mode.
 
 After confirmation, temporary entries display ordinary names without input appearance. Clicking the name or keyboard activation resumes editing; Enter confirms and exits, blur exits. Quick-add empty rows retain pale hints.
 
@@ -220,6 +222,7 @@ Completed Checklist entries display after incomplete entries and child sections 
 Mobile Item Group bar occupies one horizontally scrollable line; show each edge's 24px fade only when tags remain offscreen on that side. Desktop retains wrapping. Keyboard selection scrolls into view, first/last tags reach the boundary, and group drag/drop remains.
 
 - Category member addition supports continuous operations: successful addition of existing or newly created Items keeps the Modal open. Clear name, notes, and Group in the creation form, restore the current category default, and focus name. Failure retains input and original requestId for retry; exit only when the user explicitly cancels or closes.
+- When creating an Item in Category, entering a name shows catalog candidates with the same trimmed name. Explicitly select an existing Item to add membership while retaining its fields and other categories; candidates already in the current category are disabled. The continue-creation button explicitly says Create a new item anyway; matching names trigger neither automatic merging nor cleanup of existing records.
 
 - A Checklist can be created directly from the Category detail header, defaulting its name to the category name and offering an optional execution date. Within a transaction, the server validates the Category version and member set, then creates independent entries without category sources. Deduplicate with requestId so retrying the original request does not create duplicates; subsequent category changes do not synchronize automatically.
 
@@ -236,3 +239,14 @@ History restoration dialogs retain name, date, and confirmation; missing Items o
 Language switching consistently uses shared LanguageSwitch and Lucide Languages, with shared icon Button on login/account bars. Chinese/English dimensions match, retaining 28px desktop/32px phone heights; title/aria-label name the target language, preserving focus, persistence, and anonymous access.
 
 Item-add candidates consistently offer a Filter catalog group dropdown (All, Ungrouped, existing groups) reusing shared Select with Chinese/English copy and pinyin/keyboard selection. Template/checklist Item search, picking within Category, and adding existing category members intersect group/search. Switching category filters clears old candidates; successful addition retains filters. The category-source tab disables this Item filter but retains its space; whole-category addition still uses all members. Source switching preserves dialog size/position.
+
+Template/checklist Add from items offers New item at the bottom, replacing candidates with ResourceForm + ItemFields inside the same Modal and reusing ItemNameMatches to suggest/select same-name catalog Items. Keep exactly one dialog/backdrop without a second Modal. Default current catalog group; after creation add to current section, clear the form, and focus name for continuous addition. Cancel/close returns to the original add dialog, retaining section/filters and restoring trigger focus. Failure retains input/original request. If creation is confirmed but catalog refresh failed, cancel or retry refresh without recreating. If creation result is unknown, lock fields/cancel and retry with requestId.
+
+Temporary-entry names in edit mode also serve as drag areas: click to edit, drag after mouse threshold or touch long-press, without inadvertently opening editing afterward. Displayed names share the whole-row grab cursor. Active name inputs/inline action buttons retain normal interaction without dragging. View mode disables dragging/grab cursors; only sortable edit-mode rows show grab cursors.
+
+Whole-group addition: in template/checklist Add from items dialogs, divide candidates by catalog group (Ungrouped first, others by name), with thin separators labeled by group name and a + icon button accessible as Add entire group group name. One click adds all that group's Items under current filtering/search to the target section, skipping existing Item IDs. Category add-member dialogs offer Add entire group (N) after selecting a group, adding missing members individually. Compute locally without new API endpoints.
+
+
+2026-10-14: Template and Checklist share autosave. One-off operations submit immediately; text submits after a 500ms pause. Further edits during saving submit serially; failures retain the draft and original requestId for explicit retry. Remove the routine save button; finishing editing only switches to reading mode. Drain the save queue before leaving within the app or creating a checklist from a template, and report failures; browser close/refresh still protects unsaved content. This overrides the earlier explicit template save requirement, without adding revisions or database changes.
+
+2026-10-14: Checklist collections use shared view-switch Active/Archived/All filters, defaulting to Active for normal navigation and intersecting with search. Calendar-date entry defaults to All to retain that day's archives, with state switching still available. Direct detail links are unaffected by list filters.

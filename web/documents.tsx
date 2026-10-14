@@ -3,10 +3,11 @@ import { t, message, type LocalizedText } from "./i18n.js";
 import { errorText, resourceLabels } from "./labels.js";
 import { ActionTools } from "./action-tools.js";
 import { ItemSummary } from "./item-summary.js";
+import { ItemFields, ItemNameMatches, sameName } from "./item-fields.js";
 import { ItemGroupFilter, matchesItemGroup } from "./item-group-filter.js";
 import { Button } from "./button.js";
 import { matchesSearch } from "./router.js";
-import { ResourceDialog } from "./resource-dialog.js";
+import { ResourceDialog, ResourceForm } from "./resource-dialog.js";
 import { Icon, Page } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { Modal, ask } from "./modal.js";
@@ -47,11 +48,13 @@ export function Documents({
 }) {
   const [list, setList] = useState<any[]>([]),
     [doc, setDoc] = useState<any>(null),
-    [dirty, setDirty] = useState(false),
+    [statusFilter, setStatusFilter] = useState(date ? "all" : "active"),
+    [dirty, updateDirty] = useState(false),
     // Collapsed sections are a view choice only; never saved.
     [hideDone, setHideDone] = useState(false),
     // Checklist read mode: tick only, no add rows or add actions; view choice, never saved.
-    [reading, setReading] = useState(false),
+    // Templates open read-only; the pencil enters edit mode.
+    [reading, setReading] = useState(kind === "template"),
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState<LocalizedText>(""),
     [editingName, setEditingName] = useState<string | null>(null),
@@ -75,8 +78,14 @@ export function Documents({
     [creating, setCreating] = useState(false),
     [newName, setNewName] = useState(""),
     [createBusy, setCreateBusy] = useState(false),
+    [newItem, setNewItem] = useState<any>(null),
+    [newItemBusy, setNewItemBusy] = useState(false),
+    [newItemError, setNewItemError] = useState<LocalizedText>(""),
     [pickerOpen, setPickerOpen] = useState(false),
     [sectionError, setSectionError] = useState<LocalizedText>("");
+  useEffect(() => {
+    setStatusFilter(date ? "all" : "active");
+  }, [date]);
   const latest = useRef<any>(null),
     saving = useRef(false),
     pending = useRef<any>(null),
@@ -86,6 +95,27 @@ export function Documents({
     savedIds = useRef(new Set<string>()),
     saveDelay = useRef(0),
     failedChecks = useRef(new Map<string, { docId: string; request: any }>());
+  const dirtyNow = useRef(false);
+  const saveTask = useRef<Promise<void> | null>(null);
+  const setDirty = (value: boolean) => {
+    dirtyNow.current = value;
+    updateDirty(value);
+  };
+  const newItemRequest = useRef<any>(null);
+  const newItemCreated = useRef<any>(null);
+  const newItemSaving = useRef(false);
+  const newItemHost = useRef<HTMLDivElement>(null);
+  const newItemMatches = sameName(items, newItem?.name);
+  useEffect(() => {
+    if (!newItemBusy && newItem?.name === "")
+      newItemHost.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [newItemBusy]);
+  useEffect(() => {
+    if (!newItem)
+      newItemHost.current
+        ?.querySelector<HTMLButtonElement>(".form-actions .button")
+        ?.focus();
+  }, [!!newItem]);
   const refresh = async () => {
     setList(await api("/documents"));
     await onScheduleChange();
@@ -96,6 +126,8 @@ export function Documents({
     setDirty(false);
     setMenuOpen(false);
     setAddOpen(false);
+    setNewItem(null);
+    setNewItemError("");
     setTargetSection("");
     setItemGroup(null);
     setSectionEditor(null);
@@ -125,14 +157,24 @@ export function Documents({
   }, [kind, date, documentId]);
   useEffect(() => {
     const leave = (e: BeforeUnloadEvent) => {
-      if (dirty || checks.current.size || failedChecks.current.size) {
+      if (
+        dirty ||
+        newItemSaving.current ||
+        newItemRequest.current ||
+        checks.current.size ||
+        failedChecks.current.size
+      ) {
         e.preventDefault();
       }
     };
-    leaveGuard.guard = () =>
-      !saving.current &&
-      ((!dirty && !checks.current.size && !failedChecks.current.size) ||
-        ask(t(localized["Discard pending changes and leave?"]), t(localized["Discard and leave"])));
+    leaveGuard.guard = async () => {
+      if (newItemSaving.current || newItemRequest.current) return false;
+      if (await flush()) {
+        await Promise.all([...checks.current.values()]);
+        if (!failedChecks.current.size) return true;
+      }
+      return ask(t(localized["Discard pending changes and leave?"]), t(localized["Discard and leave"]));
+    };
     window.addEventListener("beforeunload", leave);
     return () => {
       window.removeEventListener("beforeunload", leave);
@@ -161,15 +203,14 @@ export function Documents({
       }
     }
   }
+  // Each template opens read-only, except one just created.
+  const editNext = useRef(false);
+  useEffect(() => {
+    setReading(kind === "template" && !editNext.current);
+    editNext.current = false;
+  }, [documentId, kind]);
   const open = async (key: string) => {
-    if (
-      (dirty ||
-        saving.current ||
-        checks.current.size ||
-        failedChecks.current.size) &&
-      !(await ask(t(localized["Discard changes and open another checklist?"]), t(localized["Discard changes"])))
-    )
-      return;
+    if (!(await leaveGuard.guard())) return;
     if (key !== documentId) {
       onNavigate(key);
       return;
@@ -198,7 +239,24 @@ export function Documents({
     setDoc(next);
     setDirty(true);
   };
-  async function save() {
+  function save(): Promise<void> {
+    if (saveTask.current) return saveTask.current;
+    const task = performSave().finally(() => {
+      saveTask.current = null;
+      if (dirtyNow.current && !pending.current) void save();
+    });
+    saveTask.current = task;
+    return task;
+  }
+  async function flush() {
+    if (saveTask.current) await saveTask.current;
+    while (dirtyNow.current) {
+      await save();
+      if (pending.current) return false;
+    }
+    return true;
+  }
+  async function performSave() {
     if (saving.current || !latest.current) return;
     saving.current = true;
     setStatus(localized["Saving…"]);
@@ -249,7 +307,7 @@ export function Documents({
     }
   }
   useEffect(() => {
-    if (dirty && kind === "checklist") {
+    if (dirty && !pending.current) {
       const timer = setTimeout(() => void save(), saveDelay.current);
       return () => clearTimeout(timer);
     }
@@ -273,6 +331,51 @@ export function Documents({
       return;
     }
     change({ ...current, entries: [...current.entries, newEntry(item)] });
+  }
+  function closeNewItem() {
+    if (
+      newItemSaving.current ||
+      (newItemRequest.current && !newItemCreated.current)
+    )
+      return;
+    newItemRequest.current = null;
+    newItemCreated.current = null;
+    setNewItem(null);
+  }
+  async function createItem() {
+    if (newItemSaving.current) return;
+    newItemSaving.current = true;
+    setNewItemBusy(true);
+    setNewItemError("");
+    newItemRequest.current ??= {
+      ...newItem,
+      name: newItem.name.trim(),
+      itemGroup: newItem.itemGroup?.trim() || null,
+      requestId: crypto.randomUUID(),
+    };
+    try {
+      const item =
+        newItemCreated.current ??
+        (await api("/items", "POST", newItemRequest.current));
+      newItemCreated.current = item;
+      add(item);
+      await refreshCatalog();
+      newItemRequest.current = null;
+      newItemCreated.current = null;
+      setNewItem({
+        name: "",
+        note: "",
+        itemGroup: itemGroup || null,
+        categoryIds: [],
+      });
+    } catch (e) {
+      if (!newItemCreated.current && e instanceof ApiError && e.status < 500)
+        newItemRequest.current = null;
+      setNewItemError(errorText(e));
+    } finally {
+      newItemSaving.current = false;
+      setNewItemBusy(false);
+    }
   }
   const updateEntry = (key: string, patch: any, typing = false) =>
     change(
@@ -322,20 +425,26 @@ export function Documents({
     });
   }
   async function addCategory(categoryId: string) {
-    const d = latest.current;
     const { itemIds } = await api("/categories/" + categoryId + "/order");
     const byId = new Map(items.map((i) => [i.id, i]));
     const members = itemIds.map((k: string) => byId.get(k)).filter(Boolean);
-    // Do not overwrite edits made while the category request was in flight.
-    if (latest.current !== d) throw new Error(localized["Content changed. Add the category again."]);
+    addMembers(members);
+  }
+  // Merge into the latest draft, including edits and saves completed during loading.
+  function addMembers(members: any[]) {
     change(
-      addItems(d, members, () => crypto.randomUUID(), targetSection || null),
+      addItems(
+        latest.current,
+        members,
+        () => crypto.randomUUID(),
+        targetSection || null,
+      ),
     );
   }
   async function startHistory(action: string) {
     setMenuOpen(false);
     if (
-      dirty ||
+      dirtyNow.current ||
       saving.current ||
       checks.current.size ||
       failedChecks.current.size
@@ -385,6 +494,7 @@ export function Documents({
       setStatus("");
       setCreating(false);
       await refresh();
+      editNext.current = true;
       await open(d.id);
     } catch (e) {
       if (e instanceof ApiError && e.status < 500) creation.current = null;
@@ -515,7 +625,7 @@ export function Documents({
         <input
           aria-label={label ? t(localized["New temporary entry · "]) + label : t(localized["New temporary entry"])}
           placeholder={
-            label ? t(localized["Add to “"]) + label + localized["Add prompt suffix"] : t(localized["Add temporary entry…"])
+            label ? t(localized["Add to “"]) + label + t(localized["Add prompt suffix"]) : t(localized["Add temporary entry…"])
           }
           value={value}
           data-1p-ignore="true"
@@ -553,6 +663,9 @@ export function Documents({
   const records = list.filter(
     (d) =>
       d.kind === kind &&
+      (kind !== "checklist" ||
+        statusFilter === "all" ||
+        d.status === statusFilter) &&
       (kind !== "checklist" || !date || d.useDate === date) &&
       matchesSearch(
         query,
@@ -602,18 +715,23 @@ export function Documents({
                     },
                   ]
                 : []),
-              {
-                label: t(localized["New section"]),
-                icon: "sectionAdd",
-                iconOnly: true,
-                hidden: reading,
-                onClick: () => {
-                  setSectionEditor({});
-                  setSectionName("");
-                  setSectionParent("");
-                },
-              },
-              ...(kind === "template"
+              // Templates drop edit actions instead of keeping blank slots.
+              ...(kind === "template" && reading
+                ? []
+                : [
+                    {
+                      label: t(localized["New section"]),
+                      icon: "sectionAdd" as const,
+                      iconOnly: true,
+                      hidden: reading,
+                      onClick: () => {
+                        setSectionEditor({});
+                        setSectionName("");
+                        setSectionParent("");
+                      },
+                    },
+                  ]),
+              ...(kind === "template" && !reading
                 ? [
                     {
                       label: t(localized["Add entries"]),
@@ -621,17 +739,16 @@ export function Documents({
                       iconOnly: true,
                       onClick: () => setAddOpen(true),
                     },
-                    // Instantiate saved current content; unsaved drafts stay local.
+                  ]
+                : []),
+              ...(kind === "template"
+                ? [
                     {
-                      label: t(localized["Create checklist"]),
-                      title: dirty
-                        ? t(localized["Save changes before creating a checklist."])
-                        : t(localized["Create checklist"]),
-                      icon: "checklist" as const,
+                      label: reading ? t(localized["Edit mode"]) : t(localized["Done editing"]),
+                      icon: reading ? ("edit" as const) : ("check" as const),
+                      pressed: !reading,
                       iconOnly: true,
-                      disabled: dirty || saving.current || !!pending.current,
-                      onClick: () =>
-                        void attempt(() => startHistory("instantiate")),
+                      onClick: () => setReading((value) => !value),
                     },
                   ]
                 : []),
@@ -645,12 +762,18 @@ export function Documents({
               onClick: create,
             }
           : kind === "template"
-            ? {
-                label: t(localized["Save"]),
-                icon: "save",
-                onClick: () => void save(),
-                disabled: saving.current,
-              }
+            ? reading
+              ? // Flush pending edits before instantiating the current template.
+                {
+                  label: t(localized["Create checklist"]),
+                  icon: "checklist",
+                  disabled: !!pending.current && !saving.current,
+                  onClick: () =>
+                    void attempt(async () => {
+                      if (await flush()) await startHistory("instantiate");
+                    }),
+                }
+              : undefined
             : doc.status === "active"
               ? {
                   label: t(localized["Add entries"]),
@@ -658,6 +781,20 @@ export function Documents({
                   onClick: () => setAddOpen(true),
                 }
               : undefined
+      }
+      filter={
+        !doc && kind === "checklist"
+          ? {
+              label: t(localized["Checklist status"]),
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: [
+                { value: "active", label: t(localized["Active"]) },
+                { value: "archived", label: t(localized["Archived"]) },
+                { value: "all", label: t(localized["All"]) },
+              ],
+            }
+          : undefined
       }
       showView={!doc}
       // The list's date filter uses the same small grey slot beside the title.
@@ -668,6 +805,9 @@ export function Documents({
       {!quiet && status && (
         <p role="alert" className="error">
           {t(status)}
+          {pending.current && !saving.current && (
+            <Button onClick={() => void save()}>{t(localized["Retry save"])}</Button>
+          )}
         </p>
       )}
       {creating && (
@@ -743,7 +883,6 @@ export function Documents({
                   variant="ghost"
                   onClick={() => {
                     add(i);
-                    setPickerOpen(false);
                   }}
                 >
                   {i.name}
@@ -756,7 +895,7 @@ export function Documents({
               </p>
             )}
           </div>
-          <Button onClick={() => setPickerOpen(false)}>{t(localized["Cancel"])}</Button>
+          <Button onClick={() => setPickerOpen(false)}>{t(localized["Done"])}</Button>
         </Modal>
       )}
       {noteEditor && (
@@ -983,14 +1122,6 @@ export function Documents({
                   </Button>
                 </div>
                 <div className="toolbar">
-                  {kind === "checklist" && doc.status === "active" && (
-                    <Button
-                      disabled={saving.current}
-                      onClick={() => void save()}
-                    >
-                      {t(localized["Save / Retry"])}
-                    </Button>
-                  )}
                   {kind === "checklist" && doc.status === "active" && (
                     <Button
                       disabled={
@@ -1235,127 +1366,222 @@ export function Documents({
             </p>
           )}
           {addOpen && doc.status === "active" && (
-            <Modal aria-label={t(localized["Add entries"])} onClose={() => setAddOpen(false)}>
-              <h3>{t(localized["Add entries"])}</h3>
-              <label>
-                {t(localized["Add to section"])}
-                <Select
-                  aria-label={t(localized["Add to section"])}
-                  value={targetSection}
-                  onChange={setTargetSection}
-                  options={sectionOptions()}
-                />
-              </label>
-              {/* One source at a time: pick an Item, or act on a whole Category. */}
-              <div className="add-sources">
-                <div
-                  className="view-switch source-switch"
-                  role="tablist"
-                  aria-label={t(localized["Entry source"])}
-                >
-                  {(["Item", "Category"] as const).map((mode) => (
-                    <Button
-                      key={mode}
-                      variant="ghost"
-                      role="tab"
-                      aria-label={
-                        mode === "Item" ? t(localized["Add from items"]) : t(localized["Add from categories"])
-                      }
-                      aria-selected={addMode === mode}
-                      onClick={() => {
-                        setAddMode(mode);
-                        setItemQuery("");
+            <Modal
+              aria-label={newItem ? t(localized["New item"]) : t(localized["Add entries"])}
+              onClose={() => (newItem ? closeNewItem() : setAddOpen(false))}
+            >
+              <div ref={newItemHost}>
+                {newItem ? (
+                  <ResourceForm
+                    title={t(localized["New item"])}
+                    name={newItem.name}
+                    onNameChange={(name) => setNewItem({ ...newItem, name })}
+                    error={newItemError}
+                    fieldsDisabled={newItemBusy || !!newItemRequest.current}
+                    submitDisabled={newItemBusy}
+                    cancelDisabled={
+                      newItemBusy ||
+                      (!!newItemRequest.current && !newItemCreated.current)
+                    }
+                    submitLabel={
+                      newItemRequest.current
+                        ? t(localized["Retry save"])
+                        : newItemMatches.length
+                          ? t(localized["Create a separate item"])
+                          : t(localized["Create and add"])
+                    }
+                    onSubmit={() => void createItem()}
+                    onClose={closeNewItem}
+                  >
+                    <ItemNameMatches
+                      items={newItemMatches}
+                      categories={categories}
+                      onSelect={(item) => {
+                        add(item);
+                        setNewItem(null);
                       }}
-                    >
-                      <Icon name={mode === "Item" ? "item" : "category"} />
-                      {mode === "Item" ? t(localized["Item"]) : t(localized["Category"])}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <ItemGroupFilter
-                groups={itemGroups}
-                value={itemGroup}
-                onChange={setItemGroup}
-                disabled={addMode === "Category"}
-              />
-              <input
-                aria-label={t(localized["Search "]) + resourceLabels[addMode]}
-                placeholder={t(localized["Search by name or pinyin "]) + resourceLabels[addMode]}
-                data-1p-ignore="true"
-                autoComplete="off"
-                value={itemQuery}
-                onChange={(e) => setItemQuery(e.target.value)}
-              />
-              <div className="add-list" role="tabpanel">
-                {addMode === "Item" &&
-                  matchingItems.map((i) => (
-                    <Button
-                      variant="ghost"
-                      key={i.id}
-                      onClick={() => {
-                        add(i);
-                        setAddOpen(false);
-                      }}
-                    >
-                      <span>{i.name}</span>
-                      <Icon name="add" />
-                    </Button>
-                  ))}
-                {addMode === "Category" &&
-                  categories
-                    .filter((c) => matchesSearch(itemQuery, c.name))
-                    .map((c) => (
-                      <div key={c.id} className="add-category">
-                        <span>{c.name}</span>
-                        <Button
-                          variant="ghost"
-                          aria-label={t(localized["From "]) + c.name + t(localized[" Choose item"])}
-                          onClick={() =>
-                            void attempt(async () => {
-                              const members = await api(
-                                "/categories/" + c.id + "/members",
-                              );
-                              setPicker(
-                                items.filter((i) =>
-                                  members.itemIds.includes(i.id),
-                                ),
-                              );
-                              setAddOpen(false);
-                              setPickerQuery("");
-                              setPickerOpen(true);
-                            })
-                          }
-                        >
-                          {t(localized["Choose item [f00f6cfadf64]"])}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          aria-label={t(localized["Add category "]) + c.name}
-                          onClick={() =>
-                            void attempt(async () => {
-                              await addCategory(c.id);
-                              setAddOpen(false);
-                            })
-                          }
-                        >
-                          {t(localized["Add category"])}
-                        </Button>
+                    />
+                    <p>{t(localized["Create an item in the catalog and add it to the current section."])}</p>
+                    <ItemFields
+                      value={newItem}
+                      onChange={setNewItem}
+                      categories={categories}
+                      itemGroups={itemGroups}
+                    />
+                  </ResourceForm>
+                ) : (
+                  <>
+                    <h3>{t(localized["Add entries"])}</h3>
+                    <label>
+                      {t(localized["Add to section"])}
+                      <Select
+                        aria-label={t(localized["Add to section"])}
+                        value={targetSection}
+                        onChange={setTargetSection}
+                        options={sectionOptions()}
+                      />
+                    </label>
+                    {/* One source at a time: pick an Item, or act on a whole Category. */}
+                    <div className="add-sources">
+                      <div
+                        className="view-switch source-switch"
+                        role="tablist"
+                        aria-label={t(localized["Entry source"])}
+                      >
+                        {(["Item", "Category"] as const).map((mode) => (
+                          <Button
+                            key={mode}
+                            variant="ghost"
+                            role="tab"
+                            aria-label={
+                              mode === "Item"
+                                ? t(localized["Add from items"])
+                                : t(localized["Add from categories"])
+                            }
+                            aria-selected={addMode === mode}
+                            onClick={() => {
+                              setAddMode(mode);
+                              setItemQuery("");
+                            }}
+                          >
+                            <Icon
+                              name={mode === "Item" ? "item" : "category"}
+                            />
+                            {mode === "Item" ? t(localized["Item"]) : t(localized["Category"])}
+                          </Button>
+                        ))}
                       </div>
-                    ))}
-                {(addMode === "Item"
-                  ? matchingItems.length === 0
-                  : !categories.some((x) =>
-                      matchesSearch(itemQuery, x.name),
-                    )) && (
-                  <p>
-                    {t(localized["No matching"])}
-                    {" " + resourceLabels[addMode]}
-                  </p>
+                    </div>
+                    <ItemGroupFilter
+                      groups={itemGroups}
+                      value={itemGroup}
+                      onChange={setItemGroup}
+                      disabled={addMode === "Category"}
+                    />
+                    <input
+                      aria-label={t(localized["Search "]) + resourceLabels[addMode]}
+                      placeholder={
+                        t(localized["Search by name or pinyin "]) + resourceLabels[addMode]
+                      }
+                      data-1p-ignore="true"
+                      autoComplete="off"
+                      value={itemQuery}
+                      onChange={(e) => setItemQuery(e.target.value)}
+                    />
+                    <div className="add-list" role="tabpanel">
+                      {addMode === "Item" &&
+                        [
+                          ...new Set(
+                            matchingItems.map((i) => i.itemGroup ?? ""),
+                          ),
+                        ]
+                          .sort((a, b) =>
+                            a ? (b ? a.localeCompare(b) : 1) : -1,
+                          )
+                          .map((group) => {
+                            const members = matchingItems.filter(
+                              (i) => (i.itemGroup ?? "") === group,
+                            );
+                            const label = group || t(localized["Ungrouped"]);
+                            return (
+                              <React.Fragment key={"group:" + group}>
+                                <div className="add-group">
+                                  <span>{label}</span>
+                                  <Button
+                                    variant="icon"
+                                    aria-label={t(localized["Add whole group "]) + label}
+                                    title={t(localized["Add whole group "]) + label}
+                                    onClick={() => addMembers(members)}
+                                  >
+                                    <Icon name="add" />
+                                  </Button>
+                                </div>
+                                {members.map((i) => (
+                                  <Button
+                                    variant="ghost"
+                                    key={i.id}
+                                    onClick={() => add(i)}
+                                  >
+                                    <span>{i.name}</span>
+                                    <Icon name="add" />
+                                  </Button>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
+                      {addMode === "Category" &&
+                        categories
+                          .filter((c) => matchesSearch(itemQuery, c.name))
+                          .map((c) => (
+                            <div key={c.id} className="add-category">
+                              <span>{c.name}</span>
+                              <Button
+                                variant="ghost"
+                                aria-label={t(localized["From "]) + c.name + t(localized[" Choose item"])}
+                                onClick={() =>
+                                  void attempt(async () => {
+                                    const members = await api(
+                                      "/categories/" + c.id + "/members",
+                                    );
+                                    setPicker(
+                                      items.filter((i) =>
+                                        members.itemIds.includes(i.id),
+                                      ),
+                                    );
+                                    setAddOpen(false);
+                                    setPickerQuery("");
+                                    setPickerOpen(true);
+                                  })
+                                }
+                              >
+                                {t(localized["Choose item [f00f6cfadf64]"])}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                aria-label={t(localized["Add category "]) + c.name}
+                                onClick={() =>
+                                  void attempt(async () => {
+                                    await addCategory(c.id);
+                                  })
+                                }
+                              >
+                                {t(localized["Add category"])}
+                              </Button>
+                            </div>
+                          ))}
+                      {(addMode === "Item"
+                        ? matchingItems.length === 0
+                        : !categories.some((x) =>
+                            matchesSearch(itemQuery, x.name),
+                          )) && (
+                        <p>
+                          {t(localized["No matching"])}
+                          {" " + resourceLabels[addMode]}
+                        </p>
+                      )}
+                    </div>
+                    <div className="form-actions">
+                      {addMode === "Item" && (
+                        <Button
+                          onClick={() => {
+                            setNewItem({
+                              name: "",
+                              note: "",
+                              itemGroup: itemGroup || null,
+                              categoryIds: [],
+                            });
+                            setNewItemError("");
+                          }}
+                        >
+                          {t(localized["New item"])}
+                        </Button>
+                      )}
+                      <Button onClick={() => setAddOpen(false)}>
+                        {t(localized["Done"])}
+                      </Button>
+                    </div>
+                  </>
                 )}
-              </div>
-              <div className="form-actions">
-                <Button onClick={() => setAddOpen(false)}>{t(localized["Cancel"])}</Button>
               </div>
             </Modal>
           )}
@@ -1373,8 +1599,7 @@ export function Documents({
                   data-nest=""
                   data-group-end={
                     index === rows.length - 1 ||
-                    (rows[index + 1].depth === 0 &&
-                      !!rows[index + 1].section) ||
+                    rows[index + 1].depth === 0 ||
                     undefined
                   }
                   id={row.section.id}
@@ -1422,9 +1647,9 @@ export function Documents({
                   >
                     <Icon name="forward" />
                   </Button>
-                  <strong>{row.section.name}</strong>
+                  <strong title={row.section.name}>{row.section.name}</strong>
                   {doc.status === "active" && !reading && (
-                    <ActionTools name={row.section.name}>
+                    <ActionTools>
                       <Button
                         variant="icon"
                         aria-label={t(localized["Edit section "]) + row.section.name}
@@ -1522,8 +1747,7 @@ export function Documents({
                       data-depth={row.depth}
                       data-group-end={
                         index === rows.length - 1 ||
-                        (rows[index + 1].depth === 0 &&
-                          !!rows[index + 1].section) ||
+                        rows[index + 1].depth === 0 ||
                         undefined
                       }
                       dragLabel={e.name}
@@ -1562,7 +1786,8 @@ export function Documents({
                           <Icon name="check" />
                         </span>
                       )}
-                      {linkedItem ? (
+                      {/* Template edit mode drops Item info to focus on editing. */}
+                      {linkedItem && !(kind === "template" && !reading) ? (
                         <ItemSummary
                           item={linkedItem}
                           categories={categories}
@@ -1573,7 +1798,7 @@ export function Documents({
                         nameControl
                       )}
                       {editable && (
-                        <ActionTools name={e.name}>
+                        <ActionTools>
                           {editable && (
                             <Button
                               variant="icon"

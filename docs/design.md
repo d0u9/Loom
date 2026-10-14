@@ -25,11 +25,13 @@ All resource, entry, and section IDs are UUIDs and never reused. A document has 
 
 Template/Checklist share the Documents editor, supporting Item selection, single-item or whole-category addition from Category, temporary entries, notes, ordering, and sections. Quantities/units remain in the API and data but are currently neither shown nor edited on the Web.
 
-Template saves explicitly, with unsaved drafts only on the client; saving replaces current content and increments structural version in a transaction. Leaving an unsaved page requires confirmation. Checklist creation copies the server's saved current template; unsaved operations must first be saved, and the creation action is disabled with an explanation. New checklist entries/sections receive new IDs and reset checkmarks; subsequent template edits or deletion do not change its content structure.
+Template and Checklist autosave, saving current content and incrementing structural version in a transaction. Wait for saving to finish before leaving within the app or creating a checklist from a template; failures retain the draft and notify the user. Checklist creation copies the server's saved current template. New checklist entries/sections receive new IDs and reset checkmarks; subsequent template edits or deletion do not change its content structure.
 
-Checklist autosaves: one-off operations save immediately, text after a 500ms pause; show save status, errors, and retry of the original request. Structural writes do not overwrite checkmarks; existing entries remain checkable while saving, and only new entries not yet persisted cannot be checked. Check operations serialize per entry without validating structural version; across devices, the last submission wins.
+Shared saving behavior: one-off operations save immediately, text after a 500ms pause; show save status, errors, and retry of the original request. Structural writes do not overwrite checkmarks; existing entries remain checkable while saving, and only new entries not yet persisted cannot be checked. Check operations serialize per entry without validating structural version; across devices, the last submission wins.
 
 Adding Items supports catalog-group filtering intersected with name/pinyin search, including templates, checklists, category members, and single-item selection within categories. Filter only candidates; whole-category addition is not truncated and group/member data is unchanged.
+
+Template/checklist addition switches to the catalog-item creation form inside the same dialog, reusing catalog fields (name, notes, catalog group, categories) and defaulting the current catalog group. Creation uses existing Item API/requestId; success adds by Item ID to the selected section and supports continuous creation. Same-name candidates require explicit selection, never automatic merging. Items immediately enter the catalog; template entries autosave with the document. Discarding unsaved changes does not delete already-created catalog Items.
 
 Renaming an Item shows its latest name in active Templates/Checklists; archives use the name snapshot from saving. Temporary entries use their own names. Checklist independence does not remove shared Item identity.
 
@@ -46,6 +48,8 @@ A Category can directly create a checklist, defaulting to the category name and 
 Template/Checklist sections have at most two levels, excluding the root container and Items. Sections serve only layout and have no Item identity, category source, or checked state. The server prohibits cycles, cross-document references, and subtree moves exceeding the depth limit.
 
 Entries and sections under the same parent share one order: afterEntryId anchors a section to a sibling entry, null means first, and omitted/invalid anchors mean last. Dragging and arrow keys share ordering logic. Deleting nonempty sections promotes content to the parent while retaining relative order, without implicit deletion. Copying, archiving, restoring, and conversion to templates retain section structure and remap IDs.
+
+Dropping on the upper half of an ordinary target row inserts before it; the lower half, including the midpoint, inserts after it. The lower half of a section title instead inserts first inside the section, without inferring direction from the drag origin. Gaps between entries in the same column count as before the next row; input areas and outer containers are not gap drop targets. Category member ordering uses the same before/after target parameters; movement changes only position, not identity or entry fields.
 
 ## Dates and history
 
@@ -86,3 +90,6 @@ For rollback, stop the service, save a separate copy of the upgraded database, t
 Retain AGENTS.md and UI Design's shared AppLayout/Page, Documents, Button/Modal/Select/SortableRow, lucide icons, bilingual interface, and existing colors/dimensions. Navigation keeps real href and leave protection; router manages paths, and unknown API routes return JSON 404. Template settings show no revision, entries no source counts, and checklist creation uses only saved content.
 
 Database and global configuration live in data/, excluded from Git and images. After stopping the service, copying all of data migrates to a project of the same version; custom paths need separate copying. Actually verify backup/restore and provide desktop, simulated phone, keyboard, failure-retry, and history-reading regressions. Record real-device, Docker, and resource measurements separately, without promises in advance.
+
+
+2026-10-14: Template and Checklist share autosave. One-off operations submit immediately; text submits after a 500ms pause. Further edits during saving submit serially; failures retain the draft and original requestId for explicit retry. Remove the routine save button; finishing editing only switches to reading mode. Drain the save queue before leaving within the app or creating a checklist from a template, and report failures; browser close/refresh still protects unsaved content. This overrides the earlier explicit template save requirement, without adding revisions or database changes.

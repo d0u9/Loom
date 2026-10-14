@@ -104,6 +104,15 @@ test("resource URLs restore details, date filters and browser history", async ({
     .getByRole("button", { name: localized["Open "] + template.name, exact: true })
     .click();
   await page.getByRole("button", { name: localized["More actions"] }).click();
+  await page.route(`**/api/v1/documents/${template.id}`, async (route) => {
+    if (route.request().method() === "PUT")
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Save unavailable" }),
+      });
+    return route.continue();
+  });
   await page.getByLabel(localized["Name"], { exact: true }).fill("Unsaved name");
   await page.keyboard.press("Escape");
   await page.goBack();
