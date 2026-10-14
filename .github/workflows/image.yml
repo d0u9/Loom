@@ -44,7 +44,7 @@ jobs:
         run: |
           trap 'docker logs loom-smoke; docker rm -fv loom-smoke' EXIT
           docker run -d --name loom-smoke -p 127.0.0.1:3000:3000 "$IMAGE"
-          curl --fail --retry 15 --retry-connrefused --retry-delay 1 \
+          curl --fail --retry 15 --retry-all-errors --retry-delay 1 --max-time 3 \
             http://127.0.0.1:3000/api/v1/session > "$RUNNER_TEMP/session.json"
           python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["authEnabled"] is True and s["setupRequired"] is True and s["csrf"]' "$RUNNER_TEMP/session.json"
           curl --fail http://127.0.0.1:3000/checklists > /dev/null
@@ -54,7 +54,7 @@ jobs:
           docker run -d --name loom-smoke -p 127.0.0.1:3000:3000 \
             --mount "type=bind,source=$RUNNER_TEMP/loom-config,target=/etc/loom,readonly" \
             -e LOOM_CONFIG=/etc/loom/loom.config.json "$IMAGE"
-          curl --fail --retry 15 --retry-connrefused --retry-delay 1 \
+          curl --fail --retry 15 --retry-all-errors --retry-delay 1 --max-time 3 \
             http://127.0.0.1:3000/api/v1/session > "$RUNNER_TEMP/session.json"
           python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["authEnabled"] is False and s["csrf"] and not s.get("setupRequired")' "$RUNNER_TEMP/session.json"
           docker image inspect "$IMAGE" --format 'Image size: {{.Size}} bytes'
