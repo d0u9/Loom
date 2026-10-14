@@ -641,3 +641,9 @@ This section records design-stage plans; implementation/verification appears in 
 - Documentation review found no concrete lost constraints, changed numeric evidence, or incorrect verification claims. Historical snapshots were not individually built or tested; physical devices and Docker remain unverified.
 
 - Publication completed with explicit user authorization: GitHub `dev` and `master` were updated atomically with exact force-with-lease checks, and `v0.0.1` was published. A fresh fetch and remote-reference check confirmed the rewritten targets. The published graph audit covered 47 reachable commits, 617 distinct text objects, and 2,511 text-file snapshots with zero Chinese outside `locales/zh.json`; resource references, filenames, commit messages, author names, and tag annotations passed. Original history remains recoverable from `.git/loom-before-final-english-rewrite.bundle`. Other clones must synchronize with the rewritten history.
+
+### First GitHub Actions image (2026-10-14)
+
+- Added a GHCR workflow: pushes to `dev` publish the development image; `image-vMAJOR.MINOR.PATCH` tags reachable from `dev` publish versioned Linux amd64 images. The first image version is `0.0.1`, independent of package metadata and the existing historical release tag. Checkout is pinned to a verified action commit; registry credentials use the scoped GitHub token.
+- The workflow builds the production Dockerfile, starts a fresh non-root container, checks Web setup and SPA routing, then verifies authentication-disabled startup using a read-only host configuration mount. Image size and idle container resource usage are recorded in the run logs before publication. README includes standalone `docker run`, persistent database volume, host config, and GHCR visibility instructions.
+- Publication and real container verification are pending the first Actions run. ARM64, physical devices, full E2E, and container backup/restore are not covered by this workflow.

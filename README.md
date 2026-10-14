@@ -46,6 +46,36 @@ Backup uses the SQLite online backup API and supports running WAL databases. Res
 
 ## Containers
 
+### Published image
+
+GitHub Actions builds `dev` as `ghcr.io/d0u9/loom:dev`. Version tags such as `image-v0.0.1`, created on a commit reachable from `dev`, publish `ghcr.io/d0u9/loom:0.0.1`. Image versions are independent of package versions and the historical `v0.0.1` Git tag. Builds currently target Linux amd64. Each build checks fresh startup and authentication-disabled host configuration before publishing.
+
+From the repository directory, using the supplied host `config/`:
+
+```sh
+docker pull ghcr.io/d0u9/loom:0.0.1
+docker run -d --name loom-dev --restart unless-stopped \
+  -p 127.0.0.1:3000:3000 \
+  -v loom-dev-data:/data \
+  --mount type=bind,source="$(pwd)/config",target=/etc/loom,readonly \
+  -e LOOM_CONFIG=/etc/loom/loom.config.json \
+  ghcr.io/d0u9/loom:0.0.1
+```
+
+Reuse the existing database volume name when replacing a container. To access the service from LAN devices, bind the port to the appropriate host interface instead of localhost. A new GHCR package may be private initially: its owner must set package visibility to public for anonymous pulls, or consumers must log in to GHCR with a token granting `read:packages`.
+
+To publish another image version from `dev`:
+
+```sh
+git switch dev
+git tag image-v0.0.2
+git push origin dev image-v0.0.2
+```
+
+Use a new version tag for each release; do not move published image tags. Image builds use the existing Dockerfile with the pinned pnpm version and frozen lockfile. The workflow uses `GITHUB_TOKEN` with package-write permission, requiring no separate registry secret.
+
+### Build locally
+
 ```sh
 docker compose build
 docker compose up -d

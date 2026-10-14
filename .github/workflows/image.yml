@@ -1,0 +1,67 @@
+name: Container image
+
+on:
+  push:
+    branches: [dev]
+    tags: [image-v*]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select image tag
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          version=dev
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            version="${GITHUB_REF_NAME#image-v}"
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/dev
+          fi
+          echo "IMAGE=$image:$version" >> "$GITHUB_ENV"
+          echo "IMAGE_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Build production image
+        run: |
+          docker build --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$IMAGE_VERSION" .
+      - name: Verify startup and host configuration
+        shell: bash
+        run: |
+          trap 'docker logs loom-smoke; docker rm -fv loom-smoke' EXIT
+          docker run -d --name loom-smoke -p 127.0.0.1:3000:3000 "$IMAGE"
+          curl --fail --retry 15 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:3000/api/v1/session > "$RUNNER_TEMP/session.json"
+          python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["authEnabled"] is True and s["setupRequired"] is True and s["csrf"]' "$RUNNER_TEMP/session.json"
+          curl --fail http://127.0.0.1:3000/checklists > /dev/null
+          docker rm -fv loom-smoke
+          mkdir "$RUNNER_TEMP/loom-config"
+          echo '{"auth":{"enabled":false}}' > "$RUNNER_TEMP/loom-config/loom.config.json"
+          docker run -d --name loom-smoke -p 127.0.0.1:3000:3000 \
+            --mount "type=bind,source=$RUNNER_TEMP/loom-config,target=/etc/loom,readonly" \
+            -e LOOM_CONFIG=/etc/loom/loom.config.json "$IMAGE"
+          curl --fail --retry 15 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:3000/api/v1/session > "$RUNNER_TEMP/session.json"
+          python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["authEnabled"] is False and s["csrf"] and not s.get("setupRequired")' "$RUNNER_TEMP/session.json"
+          docker image inspect "$IMAGE" --format 'Image size: {{.Size}} bytes'
+          docker stats --no-stream loom-smoke
+      - name: Publish to GHCR
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
