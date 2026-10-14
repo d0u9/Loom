@@ -80,10 +80,6 @@ for (const kind of ["template", "checklist"]) {
     await page.goto(
       `/${kind === "template" ? "templates" : "checklists"}/${d.id}`,
     );
-    if (kind === "checklist")
-      await page
-        .getByRole("button", { name: localized["Reading mode"], exact: true })
-        .click();
     const row = (name: string) => page.getByLabel(name, { exact: true });
     const root = row("Root after section");
     await expect(root).toBeVisible();

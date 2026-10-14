@@ -41,10 +41,9 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await page.goto(
       "/" + (kind === "template" ? "templates" : "checklists") + "/" + d.id,
     );
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await expect(
       page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
     ).toBeVisible();
@@ -69,15 +68,17 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await expect(quick).toBeVisible();
     if (kind === "checklist") {
       const mode = page.getByRole("button", {
-        name: new RegExp(localized["fixture.8ff72e270b7e"], ""),
+        name: new RegExp(
+          `^(${localized["Done editing"]}|${localized["Edit mode"]})$`,
+        ),
       });
-      await expect(mode).toHaveAttribute("aria-pressed", "false");
-      await expect(mode.locator("svg.lucide-list-checks")).toHaveCount(1);
+      await expect(mode).toHaveAttribute("aria-pressed", "true");
+      await expect(mode.locator("svg.lucide-check")).toHaveCount(1);
       const inactive = await mode.evaluate(
         (el) => getComputedStyle(el).backgroundColor,
       );
       await mode.click();
-      await expect(mode).toHaveAttribute("aria-pressed", "true");
+      await expect(mode).toHaveAttribute("aria-pressed", "false");
       await expect(mode.locator("svg.lucide-pencil")).toHaveCount(1);
       await expect(quick).toBeHidden();
       const active = await mode.evaluate(
@@ -89,7 +90,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         await expect(mode).toHaveCSS("background-color", active);
       }
       await mode.click();
-      await expect(mode).toHaveAttribute("aria-pressed", "false");
+      await expect(mode).toHaveAttribute("aria-pressed", "true");
       await expect(quick).toBeVisible();
     }
     await quick.press("Enter");
@@ -170,6 +171,20 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         "aria-label",
         "Renamed",
       );
+      await expect(
+        page.getByRole("button", {
+          name: localized["Hide completed"],
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        page
+          .getByRole("button", {
+            name: localized["Hide completed"],
+            exact: true,
+          })
+          .locator("svg.lucide-circle-check"),
+      ).toHaveCount(1);
       await page
         .getByRole("button", { name: localized["Hide completed"], exact: true })
         .click();
@@ -187,14 +202,14 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
           name: localized["Show completed"],
           exact: true,
         }),
-      ).toHaveAttribute("aria-pressed", "true");
+      ).toHaveAttribute("aria-pressed", "false");
       await expect(
         page
           .getByRole("button", {
             name: localized["Show completed"],
             exact: true,
           })
-          .locator("svg.lucide-list-filter"),
+          .locator("svg.lucide-circle-check"),
       ).toHaveCount(1);
       await page
         .getByRole("button", { name: localized["Show completed"], exact: true })
@@ -213,10 +228,9 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       }),
     ).toHaveCount(0);
     await page.reload();
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await expect(
       page
         .getByLabel(localized["Entry name"], { exact: true })

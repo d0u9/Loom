@@ -45,11 +45,10 @@ for (const kind of ["template", "checklist"]) {
     sectionId = doc.sections[0].id;
     entryId = doc.entries[0].id;
     await page.goto(`/${kind}s/${doc.id}`);
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
-    else
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
+    if (kind === "checklist")
       await page
         .getByRole("checkbox", {
           name: localized["fixture.3d65f5053109"],

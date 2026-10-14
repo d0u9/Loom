@@ -59,7 +59,7 @@ for (const kind of ["template", "checklist"]) {
     const itemRow = page
       .locator(".entry[data-sort-id]:not(.section-heading)")
       .first();
-    if (kind === "template") {
+    {
       await expect(itemRow).toHaveCSS("cursor", "auto");
       const source = (await itemRow.locator("input.name").boundingBox())!;
       const target = (await page

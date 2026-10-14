@@ -3,7 +3,9 @@ import { t, type LocalizedText, useLanguage, setLanguage } from "./i18n.js";
 import { resourceLabels } from "./labels.js";
 import {
   Check,
-  ListFilter,
+  Archive,
+  ArchiveRestore,
+  CircleCheck,
   ListPlus,
   Tag,
   LockKeyholeOpen,
@@ -386,7 +388,9 @@ export function Page({
 
 const icons = {
   check: Check,
-  filter: ListFilter,
+  archive: Archive,
+  activate: ArchiveRestore,
+  completed: CircleCheck,
   sectionAdd: ListPlus,
   group: Tag,
   unlock: LockKeyholeOpen,

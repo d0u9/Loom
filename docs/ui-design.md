@@ -254,3 +254,9 @@ Whole-group addition: in template/checklist Add from items dialogs, divide candi
 ## First-run setup
 
 An authenticated installation without an account reuses the login form for first-run setup. The page offers username, password, a minimum-length hint, and Create account, with the existing language switch and error display. Password autocomplete uses new-password during setup and current-password for login. Submission signs in immediately; existing installations show normal login, and anonymous mode goes straight to the application.
+
+2026-10-14: Active Checklist and Template detail headers share icon actions in the order New section, Add entries, Done editing. Reading mode removes section/add actions and offers the pencil Edit mode action. Checklist retains its completion filter and default editing mode; Template retains Create checklist in reading mode. Archives remain read-only.
+
+2026-10-14: Checklist details always open in reading mode, including newly created checklists. Enter structural editing explicitly with Edit mode; checking remains available while reading. The completion toggle uses a fixed CircleCheck icon for completed entries; highlighted/pressed means visible and muted/unpressed means hidden. Retain Hide completed / Show completed tooltips and accessible names. Newly created Templates retain editing mode.
+
+2026-10-14: Active Checklist collection rows/cards offer a compact Archive icon action in the shared record-actions area. Activation archives without opening the record; archived records show ArchiveRestore in the same position, titled Activate. Reuse the settings archive operation, version checks, and original requestId on retries.

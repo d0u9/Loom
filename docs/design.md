@@ -93,3 +93,11 @@ Local database and global configuration live in data/, excluded from Git and ima
 
 
 2026-10-14: Template and Checklist share autosave. One-off operations submit immediately; text submits after a 500ms pause. Further edits during saving submit serially; failures retain the draft and original requestId for explicit retry. Remove the routine save button; finishing editing only switches to reading mode. Drain the save queue before leaving within the app or creating a checklist from a template, and report failures; browser close/refresh still protects unsaved content. This overrides the earlier explicit template save requirement, without adding revisions or database changes.
+
+2026-10-14: Active Checklist and Template detail headers share icon actions in the order New section, Add entries, Done editing. Reading mode removes section/add actions and offers the pencil Edit mode action. Checklist retains its completion filter and default editing mode; Template retains Create checklist in reading mode. Archives remain read-only.
+
+2026-10-14: Checklist details always open in reading mode, including newly created checklists. Enter structural editing explicitly with Edit mode; checking remains available while reading. The completion toggle uses a fixed CircleCheck icon for completed entries; highlighted/pressed means visible and muted/unpressed means hidden. Retain Hide completed / Show completed tooltips and accessible names. Newly created Templates retain editing mode.
+
+2026-10-14: Active Checklists can also be archived directly from their collection row/card. This uses the existing archive API and preserves snapshot content, date, and checked states. Failures remain visible and retry the original request.
+
+2026-10-14: Archived Checklist collection rows/cards offer Activate in the same action slot, restoring the original checklist through history-apply with its name, date, checked states, and sections preserved. Missing Items remain temporary entries by default. Both transitions retry with the original requestId and version.

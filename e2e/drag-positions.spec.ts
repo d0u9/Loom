@@ -155,13 +155,12 @@ for (const kind of ["template", "checklist"]) {
           const row = (name: string) =>
             page.locator(`[data-sort-id="${idFor(name)}"]`);
           await page.goto(`/${kind}s/${original.id}`);
-          if (kind === "template")
-            await page
-              .getByRole("button", {
-                name: localized["Edit mode"],
-                exact: true,
-              })
-              .click();
+          await page
+            .getByRole("button", {
+              name: localized["Edit mode"],
+              exact: true,
+            })
+            .click();
           if (mode === "fold")
             await row(toName)
               .getByRole("button", {

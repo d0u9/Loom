@@ -90,10 +90,9 @@ for (const kind of ["template", "checklist"]) {
     await page.goto(
       `/${kind === "template" ? "templates" : "checklists"}/${d.id}`,
     );
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await page
       .getByRole("button", { name: localized["Add entries"], exact: true })
       .click();
@@ -415,10 +414,9 @@ for (const kind of ["template", "checklist"]) {
     });
     const path = `/${kind === "template" ? "templates" : "checklists"}/${d.id}`;
     await page.goto(path);
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await page
       .getByRole("button", { name: localized["Add entries"], exact: true })
       .click();
@@ -597,10 +595,9 @@ for (const kind of ["template", "checklist"]) {
       ).entries.map((e: any) => e.id),
     ).toEqual(saved.map((e: any) => e.id));
     await page.reload();
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await page
       .getByRole("button", { name: localized["Add entries"], exact: true })
       .click();

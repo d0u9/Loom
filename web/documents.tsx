@@ -52,9 +52,8 @@ export function Documents({
     [dirty, updateDirty] = useState(false),
     // Collapsed sections are a view choice only; never saved.
     [hideDone, setHideDone] = useState(false),
-    // Checklist read mode: tick only, no add rows or add actions; view choice, never saved.
-    // Templates open read-only; the pencil enters edit mode.
-    [reading, setReading] = useState(kind === "template"),
+    // Documents open in reading mode; the pencil enters edit mode.
+    [reading, setReading] = useState(true),
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState<LocalizedText>(""),
     [editingName, setEditingName] = useState<string | null>(null),
@@ -75,6 +74,7 @@ export function Documents({
     [picker, setPicker] = useState<any[]>([]),
     [addOpen, setAddOpen] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
+    [archiving, setArchiving] = useState(false),
     [creating, setCreating] = useState(false),
     [newName, setNewName] = useState(""),
     [createBusy, setCreateBusy] = useState(false),
@@ -116,6 +116,7 @@ export function Documents({
         ?.querySelector<HTMLButtonElement>(".form-actions .button")
         ?.focus();
   }, [!!newItem]);
+  const archiveRequests = useRef(new Map<string, any>());
   const refresh = async () => {
     setList(await api("/documents"));
     await onScheduleChange();
@@ -207,10 +208,40 @@ export function Documents({
       }
     }
   }
-  // Each template opens read-only, except one just created.
+  const changeChecklistStatus = async (target: any) => {
+    if (archiving) return;
+    setArchiving(true);
+    try {
+      await Promise.all([...checks.current.values()]);
+      const request = archiveRequests.current.get(target.id) ?? {
+        version: target.version,
+        requestId: crypto.randomUUID(),
+        ...(target.status === "archived"
+          ? { action: "restore", name: target.name }
+          : {}),
+      };
+      archiveRequests.current.set(target.id, request);
+      const result = await api(
+        target.status === "archived"
+          ? "/documents/" + target.id + "/history-apply"
+          : "/checklists/" + target.id + "/archive",
+        "POST",
+        request,
+      );
+      archiveRequests.current.delete(target.id);
+      if (doc?.id === target.id) {
+        latest.current = result;
+        savedIds.current = new Set(result.entries.map((e: any) => e.id));
+        setDoc(result);
+      }
+      await refresh();
+    } finally {
+      setArchiving(false);
+    }
+  };
   const editNext = useRef(false);
   useEffect(() => {
-    setReading(kind === "template" && !editNext.current);
+    setReading(kind !== "template" || !editNext.current);
     editNext.current = false;
   }, [documentId, kind]);
   const open = async (key: string) => {
@@ -730,36 +761,24 @@ export function Documents({
               ...(kind === "checklist"
                 ? [
                     {
-                      label: reading
-                        ? t(localized["Edit mode"])
-                        : t(localized["Reading mode"]),
-                      icon: reading
-                        ? ("edit" as const)
-                        : ("checklist" as const),
-                      pressed: reading,
-                      iconOnly: true,
-                      onClick: () => setReading((value) => !value),
-                    },
-                    {
                       label: hideDone
                         ? t(localized["Show completed"])
                         : t(localized["Hide completed"]),
-                      icon: "filter" as const,
-                      pressed: hideDone,
+                      icon: "completed" as const,
                       iconOnly: true,
+                      pressed: !hideDone,
                       onClick: () => setHideDone((value) => !value),
                     },
                   ]
                 : []),
-              // Templates drop edit actions instead of keeping blank slots.
-              ...(kind === "template" && reading
+              // Reading mode drops edit actions instead of keeping blank slots.
+              ...(reading
                 ? []
                 : [
                     {
                       label: t(localized["New section"]),
                       icon: "sectionAdd" as const,
                       iconOnly: true,
-                      hidden: reading,
                       onClick: () => {
                         setSectionEditor({});
                         setSectionName("");
@@ -767,7 +786,7 @@ export function Documents({
                       },
                     },
                   ]),
-              ...(kind === "template" && !reading
+              ...(!reading
                 ? [
                     {
                       label: t(localized["Add entries"]),
@@ -777,19 +796,15 @@ export function Documents({
                     },
                   ]
                 : []),
-              ...(kind === "template"
-                ? [
-                    {
-                      label: reading
-                        ? t(localized["Edit mode"])
-                        : t(localized["Done editing"]),
-                      icon: reading ? ("edit" as const) : ("check" as const),
-                      pressed: !reading,
-                      iconOnly: true,
-                      onClick: () => setReading((value) => !value),
-                    },
-                  ]
-                : []),
+              {
+                label: reading
+                  ? t(localized["Edit mode"])
+                  : t(localized["Done editing"]),
+                icon: reading ? ("edit" as const) : ("check" as const),
+                pressed: !reading,
+                iconOnly: true,
+                onClick: () => setReading((value) => !value),
+              },
             ]
           : undefined
       }
@@ -816,13 +831,7 @@ export function Documents({
                     }),
                 }
               : undefined
-            : doc.status === "active"
-              ? {
-                  label: t(localized["Add entries"]),
-                  hidden: reading,
-                  onClick: () => setAddOpen(true),
-                }
-              : undefined
+            : undefined
       }
       filter={
         !doc && kind === "checklist"
@@ -1083,6 +1092,31 @@ export function Documents({
                 key={d.id}
                 name={d.name}
                 onOpen={() => void attempt(() => open(d.id))}
+                actions={
+                  kind === "checklist" ? (
+                    <Button
+                      variant="icon"
+                      aria-label={t(
+                        localized[
+                          d.status === "archived" ? "Activate" : "Archive"
+                        ],
+                      )}
+                      title={t(
+                        localized[
+                          d.status === "archived" ? "Activate" : "Archive"
+                        ],
+                      )}
+                      disabled={archiving}
+                      onClick={() =>
+                        void attempt(() => changeChecklistStatus(d))
+                      }
+                    >
+                      <Icon
+                        name={d.status === "archived" ? "activate" : "archive"}
+                      />
+                    </Button>
+                  ) : undefined
+                }
               >
                 <h3>{d.name}</h3>
                 <p
@@ -1202,23 +1236,7 @@ export function Documents({
                         failedChecks.current.size > 0
                       }
                       onClick={() =>
-                        void attempt(async () => {
-                          await Promise.all([...checks.current.values()]);
-                          const result = await api(
-                            "/checklists/" + doc.id + "/archive",
-                            "POST",
-                            {
-                              version: doc.version,
-                              requestId: crypto.randomUUID(),
-                            },
-                          );
-                          latest.current = result;
-                          savedIds.current = new Set(
-                            result.entries.map((e: any) => e.id),
-                          );
-                          setDoc(result);
-                          await refresh();
-                        })
+                        void attempt(() => changeChecklistStatus(doc))
                       }
                     >
                       {t(localized["Archive"])}

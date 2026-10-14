@@ -40,10 +40,9 @@ for (const kind of ["template", "checklist"]) {
       expect(response.ok()).toBe(true);
       const doc = await response.json();
       await page.goto(`/${kind}s/${doc.id}`);
-      if (kind === "template")
-        await page
-          .getByRole("button", { name: localized["Edit mode"], exact: true })
-          .click();
+      await page
+        .getByRole("button", { name: localized["Edit mode"], exact: true })
+        .click();
       let release!: () => void;
       const gate = new Promise<void>((resolve) => {
         release = resolve;

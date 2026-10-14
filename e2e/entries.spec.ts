@@ -36,6 +36,9 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
     })
   ).json();
   await page.goto("/checklists/" + doc.id);
+  await page
+    .getByRole("button", { name: localized["Edit mode"], exact: true })
+    .click();
   const names = () =>
     page.locator(".entry[data-sort-id] .name").evaluateAll((els) =>
       // Idle temporary names render as buttons, editing ones as inputs.
@@ -138,6 +141,9 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
     })
   ).json();
   await page.goto("/checklists/" + sectioned.id);
+  await page
+    .getByRole("button", { name: localized["Edit mode"], exact: true })
+    .click();
   const headings = () =>
     page.locator(".section-heading strong").allTextContents();
   await expect.poll(headings).toEqual(["S1", "S2"]);
@@ -220,6 +226,9 @@ test("document entries reorder by keyboard and drag, notes edit in a modal", asy
       })
     ).json();
     await page.goto("/checklists/" + linked.id);
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await expect.poll(names).toEqual(["P", "L"]);
     const from = (await page
       .locator(".entry[data-sort-id] .name")

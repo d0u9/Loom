@@ -37,10 +37,9 @@ for (const kind of ["template", "checklist"]) {
     expect(response.ok()).toBe(true);
     const doc = await response.json();
     await page.goto(`/${kind}s/${doc.id}`);
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     const rows = page.locator(".entries > .entry");
     const read = async () =>
       await (await page.request.get(`/api/v1/documents/${doc.id}`)).json();

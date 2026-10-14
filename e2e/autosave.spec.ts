@@ -29,15 +29,57 @@ for (const kind of ["template", "checklist"]) {
     expect(created.ok()).toBe(true);
     const doc = await created.json();
     await page.goto(`/${kind}s/${doc.id}`);
-    if (kind === "template")
-      await page
-        .getByRole("button", { name: localized["Edit mode"], exact: true })
-        .click();
+    await expect(
+      page.getByRole("button", {
+        name: localized["Done editing"],
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: localized["Add entries"], exact: true }),
+    ).toHaveCount(0);
+    if (kind === "checklist")
+      await expect(
+        page.getByRole("button", {
+          name: localized["Hide completed"],
+          exact: true,
+        }),
+      ).toHaveAttribute("title", localized["Hide completed"]);
+
+    await page
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     await expect(
       page
         .locator(".page-header")
         .getByRole("button", { name: localized["Save"], exact: true }),
     ).toHaveCount(0);
+    const header = page.locator(".page-header");
+    const editActions = ["New section", "Add entries", "Done editing"] as const;
+    for (const label of editActions)
+      await expect(
+        header.getByRole("button", { name: localized[label], exact: true }),
+      ).toBeVisible();
+    expect(
+      await header
+        .locator(".page-actions button")
+        .evaluateAll((buttons) =>
+          buttons.slice(-3).map((button) => button.getAttribute("aria-label")),
+        ),
+    ).toEqual(editActions.map((label) => localized[label]));
+    const done = header.getByRole("button", {
+      name: localized["Done editing"],
+      exact: true,
+    });
+    await done.focus();
+    await done.press("Enter");
+    for (const label of editActions)
+      await expect(
+        header.getByRole("button", { name: localized[label], exact: true }),
+      ).toHaveCount(0);
+    await header
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;

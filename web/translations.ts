@@ -128,6 +128,7 @@ export const english: Record<string, string> = {
     "Discard local changes and reload?",
   [localized["Reload"]]: "Reload",
   [localized["Save / Retry"]]: "Save / Retry",
+  [localized["Activate"]]: "Activate",
   [localized["Archive"]]: "Archive",
   [localized["Restore archive"]]: "Restore archive",
   [localized["Copy checklist"]]: "Copy checklist",
