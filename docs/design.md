@@ -21,6 +21,8 @@ An Item's catalog group itemGroup is a nullable name field used only for catalog
 
 All resource, entry, and section IDs are UUIDs and never reused. A document has at most one entry per non-null Item ID; adding an existing Item preserves position, quantity, unit, notes, and checked state without accumulating quantity. Temporary entries have null itemId, are never merged by name, and can stand alone.
 
+2026-10-16: Template/Checklist entry creation starts with a name and matching catalog Items. Selecting an Item explicitly links it; the default action adds only to the current document as a temporary entry, even for identical names. An alternative creates a catalog Item through the existing form and adds it to the selected section. Inline add rows confirm temporary entries directly on Enter, clear the name, and retain focus without opening a dialog. Catalog search and creation stay in the header add dialog. Creation retains original requests for safe retries; successful additions clear input for continued entry. Category batch addition remains available. No API or schema changes are required.
+
 ## Editing and saving
 
 Template/Checklist share the Documents editor, supporting Item selection, single-item or whole-category addition from Category, temporary entries, notes, ordering, and sections. Quantities/units remain in the API and data but are currently neither shown nor edited on the Web.
@@ -101,3 +103,14 @@ Local database and global configuration live in data/, excluded from Git and ima
 2026-10-14: Active Checklists can also be archived directly from their collection row/card. This uses the existing archive API and preserves snapshot content, date, and checked states. Failures remain visible and retry the original request.
 
 2026-10-14: Archived Checklist collection rows/cards offer Activate in the same action slot, restoring the original checklist through history-apply with its name, date, checked states, and sections preserved. Missing Items remain temporary entries by default. Both transitions retry with the original requestId and version.
+
+
+2026-10-16: Inline entry input also offers live Item candidates through shared Select. Explicit candidate selection adds that Item by ID. Enter without selecting a candidate adds temporary content by default; an unchecked-by-default Save to item catalog checkbox instead creates an Item and adds it, entirely inline. Retain name, frozen requestId, and inline retry after failure; prevent leaving while catalog creation is unresolved. Same-name catalog creation shows a warning without implicit merging. Root and section inputs share this behavior; no database changes.
+
+
+2026-10-16: With explicit user consent, Category collection organization adds one level of independent display sections and manual ordering. Categories remain peers; sections do not change memberships, document sections, or history. Store sections and category positions in SQLite with foreign keys and a singleton layout version. The category-layout API replaces the complete layout transactionally with version/requestId protection. Section deletion promotes categories to Ungrouped. Reuse SortableRow for category/section dragging and keyboard ordering; retain card/list views and shared Page actions. Add the tables directly to the version-1 schema and upgrade the current database once after a verified backup; do not retain startup migrations or compatibility code.
+
+
+2026-10-16: Category collection Ungrouped is an ordered built-in heading rather than a fixed first group. category_layout.rootPosition records its slot among section headings; all group moves continue through SortableRow and the shared CategorySections move handler. Section deletion adjusts this slot. This extends the directly upgraded version-1 layout storage under the user's existing approval, with no retained migration code.
+
+2026-10-16: Template collections use the same CollectionSections and collection-layout service as Categories, with flat organization sections, a sortable/collapsible Ungrouped section, drag feedback, keyboard ordering, and version/requestId saves. Template organization is independent of document content and internal sections. Version-1 template_sections/template_positions/template_layout tables store layout; document insert/delete triggers append new Templates ungrouped and invalidate stale layouts, including copy/conversion paths. Under existing direct-upgrade authorization, back up and update the current database without retained migration code. Checklist collections remain unchanged.

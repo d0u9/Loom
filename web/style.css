@@ -1734,7 +1734,7 @@ body.sorting {
 .drop-after {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
-.section-heading.drop-hover {
+[data-nest].drop-hover {
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--focus);
 }
@@ -1800,6 +1800,23 @@ body.sorting {
   color: var(--accent);
 }
 
+.collection-section-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--font-md);
+}
+.collection-section-heading strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
 /* Row actions always sit inline beside the row content. */
 .action-tools {
   display: flex;
@@ -1968,17 +1985,41 @@ body.sorting {
 }
 .quick-entry {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-top: 8px;
   padding: var(--space-1) var(--space-4);
   color: var(--muted);
 }
+.quick-entry > .combobox {
+  flex: 1;
+  min-width: 0;
+}
+.quick-entry .combobox-toggle {
+  display: none;
+}
+.quick-save {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+.quick-save input {
+  margin: 0;
+}
+.quick-notice,
+.quick-error {
+  flex-basis: 100%;
+  font-size: var(--font-xs);
+}
 .quick-entry > .icon {
   opacity: 0.45;
   flex-shrink: 0;
 }
-.quick-entry input {
+.quick-entry input:not([type="checkbox"]) {
   /* Add rows are secondary: one step smaller than entries, same on touch. */
   height: var(--control-h);
   min-height: var(--control-h);
@@ -1986,10 +2027,10 @@ body.sorting {
   border-color: transparent;
   background: transparent;
 }
-.quick-entry input:hover {
+.quick-entry input:not([type="checkbox"]):hover {
   border-color: var(--line);
 }
-.quick-entry input:focus {
+.quick-entry input:not([type="checkbox"]):focus {
   border-color: var(--focus);
   background: var(--surface);
 }

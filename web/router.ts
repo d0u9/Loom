@@ -79,10 +79,11 @@ export function useRoute() {
 // Plain substring, or pinyin initials/full spelling such as "jid" for eggs.
 export function matchesText(text: string, query: string) {
   const q = query.trim().toLowerCase();
+  const pinyin = q.replace(/\s+/g, "");
   return (
     !q ||
     text.toLowerCase().includes(q) ||
-    (/^[a-z]+$/.test(q) && !!match(text, q))
+    (/^[a-z]+$/.test(pinyin) && !!match(text, pinyin))
   );
 }
 export function matchesSearch(

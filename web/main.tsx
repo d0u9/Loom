@@ -6,6 +6,7 @@ import { ItemFields } from "./item-fields.js";
 import { Button } from "./button.js";
 import { useRoute, resourcePath, matchesSearch } from "./router.js";
 import { CategoryList } from "./category-list.js";
+import { CollectionSections } from "./collection-sections.js";
 import { AppLayout, Page, Icon, LanguageSwitch } from "./layout.js";
 import { Collection, RecordCard } from "./collection.js";
 import { ResourceDialog } from "./resource-dialog.js";
@@ -29,6 +30,9 @@ function App() {
   const [itemSort, setItemSort] = useState("name");
   const [itemSortDirection, setItemSortDirection] = useState("asc");
   const [itemGroup, setItemGroup] = useState<string | null>(null);
+  const [categorySectionOpen, setCategorySectionOpen] = useState(false);
+  const [categoryLayoutStatus, setCategoryLayoutStatus] =
+    useState<LocalizedText>("");
   const [categoryCreation, setCategoryCreation] = useState<any>(null);
   const [categoryCreateBusy, setCategoryCreateBusy] = useState(false);
   const [categoryCreateError, setCategoryCreateError] =
@@ -197,6 +201,104 @@ function App() {
     });
   }
 
+  const renderRecord = (
+    x: any,
+    sort?: React.ComponentProps<typeof RecordCard>["sort"],
+  ) => (
+    <RecordCard
+      key={x.id}
+      name={x.name}
+      sort={sort}
+      drop={
+        section === "Item"
+          ? {
+              disabled: movingItem,
+              selector: "[data-item-group]",
+              onDrop: (target) => {
+                const group = target.dataset.itemGroup || null;
+                if (movingItem || (x.itemGroup ?? null) === group) return;
+                setMovingItem(true);
+                void attempt(async () => {
+                  try {
+                    await api("/items/" + x.id, "PUT", {
+                      name: x.name,
+                      note: x.note,
+                      categoryIds: x.categoryIds,
+                      itemGroup: group,
+                      version: x.version,
+                    });
+                    await refresh();
+                  } finally {
+                    setMovingItem(false);
+                  }
+                });
+              },
+            }
+          : undefined
+      }
+      onOpen={() => route.navigate(resourcePath(section, x.id))}
+      actions={
+        <>
+          <Button
+            variant="icon"
+            aria-label={t(localized["Edit"])}
+            title={t(localized["Edit"])}
+            onClick={() => {
+              if (section === "Item")
+                route.navigate(resourcePath(section, x.id));
+              else {
+                setEditingKind(section);
+                setEditing({ ...x });
+              }
+            }}
+          >
+            <Icon name="edit" />
+          </Button>
+          <Button
+            variant="icon"
+            className="danger"
+            aria-label={t(localized["Delete"])}
+            title={t(localized["Delete"])}
+            onClick={async () => {
+              if (
+                await ask(
+                  t(localized["Delete "]) + x.name + localized["Question mark"],
+                  t(localized["Delete"]),
+                )
+              )
+                void attempt(async () => {
+                  await api(
+                    "/" +
+                      (section === "Item" ? "items" : "categories") +
+                      "/" +
+                      x.id,
+                    "DELETE",
+                    { version: x.version },
+                  );
+                  await refresh();
+                });
+            }}
+          >
+            <Icon name="trash" />
+          </Button>
+        </>
+      }
+    >
+      {section === "Item" ? (
+        <ItemSummary item={x} categories={categories} />
+      ) : (
+        <>
+          <h3>{x.name}</h3>
+          <div
+            className="category-tags"
+            aria-label={t(localized["Parent category"])}
+          >
+            <span className="empty">{t(localized["Category"])}</span>
+          </div>
+        </>
+      )}
+    </RecordCard>
+  );
   if (logged === null)
     return error ? (
       <main className="login">
@@ -355,6 +457,11 @@ function App() {
         <p role="alert">{t(localized["Page not found."])}</p>
       ) : ["Item", "Category"].includes(section) ? (
         <Page
+          status={
+            section === "Category" && !currentCategory
+              ? categoryLayoutStatus
+              : undefined
+          }
           search={
             section === "Item" || !route.id
               ? { value: query, onChange: setQuery }
@@ -388,7 +495,15 @@ function App() {
                     },
                   },
                 ]
-              : undefined
+              : section === "Category" && !route.id
+                ? [
+                    {
+                      label: t(localized["New collection section"]),
+                      icon: "add",
+                      onClick: () => setCategorySectionOpen(true),
+                    },
+                  ]
+                : undefined
           }
           primaryAction={
             currentCategory && section === "Category"
@@ -601,112 +716,19 @@ function App() {
                     : undefined
                 }
               >
-                <Collection>
-                  {records.map((x) => (
-                    <RecordCard
-                      key={x.id}
-                      name={x.name}
-                      drop={
-                        section === "Item"
-                          ? {
-                              disabled: movingItem,
-                              selector: "[data-item-group]",
-                              onDrop: (target) => {
-                                const group = target.dataset.itemGroup || null;
-                                if (
-                                  movingItem ||
-                                  (x.itemGroup ?? null) === group
-                                )
-                                  return;
-                                setMovingItem(true);
-                                void attempt(async () => {
-                                  try {
-                                    await api("/items/" + x.id, "PUT", {
-                                      name: x.name,
-                                      note: x.note,
-                                      categoryIds: x.categoryIds,
-                                      itemGroup: group,
-                                      version: x.version,
-                                    });
-                                    await refresh();
-                                  } finally {
-                                    setMovingItem(false);
-                                  }
-                                });
-                              },
-                            }
-                          : undefined
-                      }
-                      onOpen={() => route.navigate(resourcePath(section, x.id))}
-                      actions={
-                        <>
-                          <Button
-                            variant="icon"
-                            aria-label={t(localized["Edit"])}
-                            title={t(localized["Edit"])}
-                            onClick={() => {
-                              if (section === "Item")
-                                route.navigate(resourcePath(section, x.id));
-                              else {
-                                setEditingKind(section);
-                                setEditing({ ...x });
-                              }
-                            }}
-                          >
-                            <Icon name="edit" />
-                          </Button>
-                          <Button
-                            variant="icon"
-                            className="danger"
-                            aria-label={t(localized["Delete"])}
-                            title={t(localized["Delete"])}
-                            onClick={async () => {
-                              if (
-                                await ask(
-                                  t(localized["Delete "]) +
-                                    x.name +
-                                    localized["Question mark"],
-                                  t(localized["Delete"]),
-                                )
-                              )
-                                void attempt(async () => {
-                                  await api(
-                                    "/" +
-                                      (section === "Item"
-                                        ? "items"
-                                        : "categories") +
-                                      "/" +
-                                      x.id,
-                                    "DELETE",
-                                    { version: x.version },
-                                  );
-                                  await refresh();
-                                });
-                            }}
-                          >
-                            <Icon name="trash" />
-                          </Button>
-                        </>
-                      }
-                    >
-                      {section === "Item" ? (
-                        <ItemSummary item={x} categories={categories} />
-                      ) : (
-                        <>
-                          <h3>{x.name}</h3>
-                          <div
-                            className="category-tags"
-                            aria-label={t(localized["Parent category"])}
-                          >
-                            <span className="empty">
-                              {t(localized["Category"])}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </RecordCard>
-                  ))}
-                </Collection>
+                {section === "Category" ? (
+                  <CollectionSections
+                    records={categories}
+                    kind="category"
+                    query={query}
+                    creating={categorySectionOpen}
+                    onCloseCreate={() => setCategorySectionOpen(false)}
+                    onStatus={setCategoryLayoutStatus}
+                    renderCard={renderRecord}
+                  />
+                ) : (
+                  <Collection>{records.map((x) => renderRecord(x))}</Collection>
+                )}
               </div>
               {query.trim() && records.length === 0 && (
                 <p className="empty">{t(localized["No matching results."])}</p>

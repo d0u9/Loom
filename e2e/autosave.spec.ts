@@ -95,7 +95,7 @@ for (const kind of ["template", "checklist"]) {
       }
       return route.continue();
     });
-    const quick = page.getByLabel(localized["New temporary entry"], {
+    const quick = page.getByLabel(localized["New entry"], {
       exact: true,
     });
     await quick.fill("First");

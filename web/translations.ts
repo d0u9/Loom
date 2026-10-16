@@ -1,5 +1,17 @@
 import localized from "../locales/zh.json" with { type: "json" };
 export const english: Record<string, string> = {
+  [localized["New collection section"]]: "New collection section",
+  [localized["Edit collection section"]]: "Edit collection section",
+  [localized["Delete section and keep content?"]]:
+    "Delete section and keep content?",
+  [localized["Matching items"]]: "Matching items",
+  [localized["Save to item catalog"]]: "Save to item catalog",
+  [localized["Same name exists; select it or create separately."]]:
+    "Same name exists; select it or create separately.",
+  [localized["New entry ·"]]: "New entry ·",
+  [localized["Add entry…"]]: "Add entry…",
+  [localized["Add to current only"]]: "Add to current only",
+  [localized["Create item and add"]]: "Create item and add",
   [localized["Create account"]]: "Create account",
   [localized["Create your account to get started."]]:
     "Create your account to get started.",

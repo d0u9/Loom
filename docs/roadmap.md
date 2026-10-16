@@ -668,3 +668,63 @@ This section records design-stage plans; implementation/verification appears in 
 
 - Added shared record-corner actions in checklist cards/list rows: Archive for active records and ArchiveRestore titled Activate for archived records. Actions do not open the document. Activation restores the original record through history-apply, retaining name/date/checkmarks/content and the default temporary-entry policy for deleted Items. Existing settings archiving reuses the same operation; requests retain version/requestId after failure.
 - Verification: type checking, Web production build, formatting, and diff checks passed. Both desktop/mobile status-filter regressions passed. Four final desktop/mobile card/list tests passed for keyboard activation, archive response-loss retry with identical request, archive/activate button switching, and unchanged date/entry fields after restoration. Early runs exposed incomplete test entry fields and an unchanged accessible label; both were corrected before the final passing run. Full E2E, physical devices, and settings archive regression were not rerun. No API/database schema changes.
+
+### Unified entry creation (2026-10-16)
+
+- Template/Checklist inline add rows use Add entry terminology. Enter opens the existing shared picker with the typed name and section; cancellation retains the inline draft. Matching Items support existing pinyin search and explicit selection. Add to current only is the default Enter action and creates a temporary entry, including when a same-name Item exists. Create item and add prefills the catalog form and retains group, notes, categories, same-name warnings, continuous creation, and original-request retries. Successful additions clear the input and retain focus. Category batch addition remains available.
+- Verification: frozen-lockfile installation, production build/type checking, translation/source-language tests, formatting, and diff checks passed. The affected desktop/simulated-mobile regression run passed 26 cases; four new full-flow cases passed after correcting their fixture to use server-generated section IDs. Coverage includes pinyin selection, duplicate Item ID preservation of position/quantity/unit/notes/checkmarks, same-name temporary entries without catalog writes, cancellation/focus restoration, new Item name prefill, catalog creation followed by document-save failure and retry, and persistence after reload. Desktop/mobile dialog screenshots were inspected.
+- Early checks exposed and fixed initial search focus and outdated test selectors/reading-mode setup. An offline dependency verification interrupted the test environment; the exact locked dependencies were restored with a successful frozen-lockfile install before the final build and reruns. Tests use independent databases; user data and API/schema are unchanged. Full E2E, Safari, physical devices, and Docker were not tested.
+
+### Inline temporary entry shortcut (2026-10-16)
+
+- User feedback restores immediate inline temporary entry creation: Enter adds at the current root/section, clears input, and retains focus without a dialog. Blank/composing Enter creates nothing; names matching Items remain temporary. Header Add entries retains explicit catalog selection, temporary addition, and catalog creation. Category organization changes are deferred; no API/schema/user data changes.
+- Type checking, Web build, formatting, diff checks, and six targeted desktop/simulated-mobile quick-entry and catalog-flow tests passed. Coverage includes no dialog, continuous input, nested sections, same-name temporary entries without catalog writes, explicit catalog selection, creation, and failed document-save retries. Full regression and physical devices were not tested.
+
+### Inline Item lookup and optional catalog creation (2026-10-16)
+
+- Root and section entry inputs now reuse shared Select for live name/pinyin candidates. Explicit click or arrow/Enter selection adds an existing Item by ID; Enter without a selection adds temporary content. Save to item catalog defaults off and creates/adds directly inline when checked, with no Modal. Same-name creation shows an inline warning. Failures retain the name and frozen requestId for inline retry; unresolved requests protect navigation, section removal/collapse/moves, and editing-mode exit. Shared Select opens candidates above inputs in the lower viewport. No schema/API/user-data changes.
+- Type checking, Web build, translation/source-language checks, and six targeted desktop/simulated-mobile cases passed. Coverage includes blank/continuous temporary input, section placement, same-name temporary entries, pinyin candidates, keyboard selection, Item ID merging, inline catalog creation with a committed-but-failed response and identical-request retry, no dialogs, and reload persistence. Full regression and physical devices were not tested.
+
+### Inline candidate keyboard highlight (2026-10-16)
+
+- Reproduced first ArrowUp selecting the redundant custom-text choice instead of the only matching Item. Inline Select now lists only actual Items (plain Enter still adds the typed name), exposes only the active keyboard candidate as selected, and resets keyboard traversal when reopening. Other custom-value Select controls retain their Use option.
+- The new regression failed before the fix and passed on desktop/simulated mobile afterward. Type checking, Web build, formatting, and diff checks passed. Full regression and real devices were not tested.
+
+### Spaced pinyin search (2026-10-16)
+
+- Reproduced compact pinyin matching while IME-style syllable spacing failed. Shared matchesText now removes whitespace only for its pinyin branch; literal text search remains unchanged.
+- The focused search test passed for compact/spaced pinyin, initials, case, literal names, and a nonmatching Item. Type checking and diff checks passed. Browser/full regression were not run; no API/schema/user-data changes.
+
+### Category collection sections and ordering (2026-10-16)
+
+- Added flat display sections to the Category collection: create/rename/collapse/delete, direct category dragging within/across sections, draggable section headings, and arrow-key ordering. Dropping on a heading places a Category first and expands it. Deleting a section confirms and promotes its Categories to Ungrouped. Shared Page, Collection/RecordCard, ResourceDialog, Icon, and SortableRow retain card/list presentation, desktop mouse/mobile long-press feedback, navigation guards, and save status/errors/retry. Category membership remains unchanged.
+- Added category-layout GET/PUT with full-set validation, global version conflicts, and persistent requestId deduplication in a transaction. SQLite stores display sections, category positions with cascading/SET NULL foreign keys and indexes, and the singleton layout version. New/deleted Categories update the layout version; new Categories append ungrouped.
+- Explicit user consent allowed direct addition to the version-1 schema and the current local database, with no retained migration/compatibility code. Backup data/backups/before-category-sections-1792121845098.sqlite was restored to a separate temporary file and compared before applying the DDL transaction. All original Item/Category/membership/document/entry/section rows were compared unchanged; integrity/foreign-key checks passed. Current service GET /category-layout returned 200 with the existing eight Categories.
+- Focused API validation/retry/membership-preservation test and desktop/simulated-mobile drag, keyboard-order, collapse, reload, and section-deletion flows passed. Type checking, production build, translations/source-language checks, formatting, and diff checks passed; desktop/mobile screenshots inspected. Full regression, Docker, and physical devices were not tested.
+
+### Category section placement above Ungrouped (2026-10-16)
+
+- Fixed a rejected top drop: Ungrouped was always prepended, and section moves targeting it were ignored. Existing CategorySections now orders the built-in heading through rootPosition; the same SortableRow and move handler accept before/after drops and keyboard moves across it. Deleting an earlier section adjusts its slot. No new drag implementation or component was added.
+- Under the existing direct-upgrade approval, added rootPosition (default 0, nonnegative) to the current version-1 layout table after a verified backup/restore. Backup: data/backups/before-category-root-position-1792122675812.sqlite. Existing catalog/document/section/position rows compared unchanged; integrity and foreign-key checks passed. No migration code retained.
+- Focused API test, type checking, Web build, and desktop/simulated-mobile drag-to-first plus reload assertions passed. Full regression and physical devices were not tested.
+
+### Shared section drop feedback (2026-10-16)
+
+- Category section headings already received SortableRow's drop-hover state, but the existing highlight CSS matched only document headings. Apply that shared green background/inset border to all data-nest targets; no new drag logic or palette.
+- Desktop/simulated-mobile category flows passed with assertions for drop-hover and a visible background change before release. Web build and diff checks passed; full regression and physical devices were not tested.
+
+### Ungrouped uses the shared section heading (2026-10-16)
+
+- Render Ungrouped through the same collapsible, sortable heading as named Category sections, even when it is the only section. Reuse the existing group move handler and rootPosition; retain built-in name/delete restrictions. Drops into collapsed Ungrouped expand it. No database/API changes.
+- Type checking, Web build, formatting, and desktop/simulated-mobile collapse/expand and root-drag assertions passed. Isolated test-created categories/sections after desktop to prevent phone gesture geometry being affected by prior fixture leftovers. Full regression and physical devices were not tested.
+
+### Reuse collection sections for Templates (2026-10-16)
+
+- Extracted CategorySections into shared CollectionSections and shared the existing layout API implementation for Category/Template collections. Template lists now offer section create/edit/delete, collapse, drag into sections with feedback, heading/Ungrouped sorting, and arrow-key ordering through existing Page, RecordCard, ResourceDialog, and SortableRow. Deletion preserves Templates in Ungrouped; internal document sections and Checklist lists are unchanged. Document leave protection only owns detail pages, preserving the collection component's pending-save guard.
+- Added version-1 template layout/section/position storage with document insert/delete triggers covering all Template creation paths. Existing Category API shape and stored layouts remain intact. Under the user's direct-upgrade authorization, verified backup and restore at data/backups/before-template-sections-1792124266255.sqlite, added storage transactionally, and initialized four existing Templates ungrouped. All 13 pre-existing tables compared unchanged; integrity and foreign-key checks passed. No migration code retained.
+- Focused API tests cover conflicts, retries, complete Template-set validation, Checklist rejection, content independence, promotion, and creation/deletion invalidation. Desktop/simulated-mobile Category and Template drag, feedback, keyboard, collapse, delete, and reload flows passed (four cases). Checks wait for save completion before the next action. Type checking, production build, translation/source checks, and diff checks passed. Full regression, physical devices, and Docker were not tested.
+
+### Preserve collection keyboard focus across sections (2026-10-16)
+
+- Flatten CollectionSections' keyed heading/record elements into one React sibling list, preserving RecordCard identity when records move between sections. Category and Template keyboard sorting retain focus without adding focus timers or changing shared dragging.
+- Existing desktop/simulated-mobile Category/Template flows now move a focused record across sections and back using page keyboard events, asserting focus after each save; all four passed. Type checking, Web build, and diff checks passed. Full regression and physical devices were not tested; no API/database changes.

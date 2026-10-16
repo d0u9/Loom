@@ -133,11 +133,9 @@ test("shared document editor creates two levels, moves items and preserves secti
     .getByRole("button", { name: localized["Done"], exact: true })
     .click();
   await page
-    .getByLabel(localized["New temporary entry"], { exact: true })
+    .getByLabel(localized["New entry"], { exact: true })
     .fill(localized["fixture.6b1311e9a899"]);
-  await page
-    .getByLabel(localized["New temporary entry"], { exact: true })
-    .press("Enter");
+  await page.getByLabel(localized["New entry"], { exact: true }).press("Enter");
   await tool(localized["fixture.1846bc6ee759"]);
   await page
     .getByLabel(localized["fixture.e35f16d27295"], { exact: true })

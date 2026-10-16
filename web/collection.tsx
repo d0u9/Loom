@@ -29,6 +29,7 @@ export function RecordCard({
     disabled: boolean;
     onMove: (target: string, after: boolean) => void;
     onStep: (direction: number) => void;
+    onNest?: (target: string) => void;
   };
   drop?: {
     disabled: boolean;
@@ -43,6 +44,8 @@ export function RecordCard({
     <SortableRow
       className="record-card"
       dragLabel={name}
+      tabIndex={sort ? 0 : undefined}
+      aria-label={sort ? name : undefined}
       {...sort}
       disabled={sort?.disabled || drop?.disabled}
       drop={drop}

@@ -140,6 +140,28 @@ function canonical(value: any): string {
 
 // Version 1 schema. sections.afterEntryId: NULL = after all sibling entries
 // '' = before all entries, otherwise the previous sibling entry.
+function collectionLayoutSchema(kind: "category" | "template") {
+  const table = kind === "category" ? "categories" : "documents";
+  return `
+CREATE TABLE ${kind}_sections(id TEXT PRIMARY KEY,name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 200),position INTEGER NOT NULL CHECK(position>=0)) STRICT;
+CREATE TABLE ${kind}_positions(${kind}Id TEXT PRIMARY KEY REFERENCES ${table}(id) ON DELETE CASCADE,sectionId TEXT REFERENCES ${kind}_sections(id) ON DELETE SET NULL,position INTEGER NOT NULL CHECK(position>=0)) STRICT;
+CREATE INDEX ${kind}_positions_section ON ${kind}_positions(sectionId);
+CREATE TABLE ${kind}_layout(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL CHECK(version>0),rootPosition INTEGER NOT NULL DEFAULT 0 CHECK(rootPosition>=0)) STRICT;
+INSERT INTO ${kind}_layout(id,version) VALUES(1,1);
+`;
+}
+export const categoryLayoutSchema = collectionLayoutSchema("category");
+export const templateLayoutSchema =
+  collectionLayoutSchema("template") +
+  `
+CREATE TRIGGER template_layout_insert AFTER INSERT ON documents WHEN NEW.kind='template' BEGIN
+  INSERT INTO template_positions(templateId,sectionId,position) SELECT NEW.id,NULL,COALESCE(MAX(position)+1,0) FROM template_positions;
+  UPDATE template_layout SET version=version+1 WHERE id=1;
+END;
+CREATE TRIGGER template_layout_delete AFTER DELETE ON documents WHEN OLD.kind='template' BEGIN
+  UPDATE template_layout SET version=version+1 WHERE id=1;
+END;
+`;
 const schema = `
 CREATE TABLE account(username TEXT PRIMARY KEY,password TEXT NOT NULL) STRICT;
 CREATE TABLE sessions(hash TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires INTEGER NOT NULL) STRICT;
@@ -155,5 +177,7 @@ CREATE INDEX sections_document ON sections(documentId);
 CREATE TABLE entries(id TEXT PRIMARY KEY,documentId TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,itemId TEXT REFERENCES items(id),sectionId TEXT REFERENCES sections(id) DEFERRABLE INITIALLY DEFERRED,name TEXT NOT NULL,quantity TEXT NOT NULL,unit TEXT NOT NULL,note TEXT NOT NULL,position INTEGER NOT NULL,checked INTEGER NOT NULL DEFAULT 0 CHECK(checked IN (0,1))) STRICT;
 CREATE INDEX entries_document ON entries(documentId);
 CREATE UNIQUE INDEX entries_item ON entries(itemId,documentId) WHERE itemId IS NOT NULL;
+${categoryLayoutSchema}
+${templateLayoutSchema}
 PRAGMA user_version=1;
 `;

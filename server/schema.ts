@@ -104,6 +104,18 @@ export function responseSchema(url: string, method: string) {
       ? list(object({ id: uuid, name: text }))
       : object({ id: uuid, token: text });
   if (path === "/items") return method === "GET" ? list(item) : item;
+  if (path === "/category-layout" || path === "/template-layout") {
+    const field = path === "/category-layout" ? "categories" : "templates";
+    return object(
+      {
+        version,
+        rootPosition: { type: "integer", minimum: 0 },
+        sections: list(object({ id: uuid, name: text })),
+        [field]: list(object({ id: uuid, sectionId: nullable(uuid) })),
+      },
+      ["version", "sections", field],
+    );
+  }
   if (path.startsWith("/items/")) return item;
   if (path.endsWith("/members")) return object({ itemIds: list(uuid) });
   if (path === "/categories")

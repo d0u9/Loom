@@ -56,11 +56,9 @@ test("template saves replace current content without revisions and history defau
     await page
       .getByRole("button", { name: localized["Edit mode"], exact: true })
       .click();
+    await page.getByLabel(localized["New entry"], { exact: true }).fill(name);
     await page
-      .getByLabel(localized["New temporary entry"], { exact: true })
-      .fill(name);
-    await page
-      .getByLabel(localized["New temporary entry"], { exact: true })
+      .getByLabel(localized["New entry"], { exact: true })
       .press("Enter");
     await expect(create).toHaveCount(0);
     await page

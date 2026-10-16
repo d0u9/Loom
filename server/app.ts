@@ -24,6 +24,7 @@ import {
 } from "./db.js";
 import { registerHistory } from "./history.js";
 import { registerDocuments } from "./documents.js";
+import { registerCollectionLayout } from "./collection-layout.js";
 import { randomBytes } from "node:crypto";
 import { defaultConfig, type Config } from "./config.js";
 export async function app(store: Store, config: Config = defaultConfig) {
@@ -421,6 +422,13 @@ export async function app(store: Store, config: Config = defaultConfig) {
       key,
       b.name,
     );
+    if (!req.params.id) {
+      store.run(
+        "INSERT INTO category_positions(categoryId,sectionId,position) SELECT ?,NULL,COALESCE(MAX(position)+1,0) FROM category_positions",
+        key,
+      );
+      store.run("UPDATE category_layout SET version=version+1 WHERE id=1");
+    }
     return store.resource("categories", key);
   };
   route("POST", "/categories", categoryBody, (req: any) =>
@@ -446,9 +454,12 @@ export async function app(store: Store, config: Config = defaultConfig) {
         );
         if (refs.length) throw new Problem(409, "Category is referenced", refs);
         store.run("DELETE FROM categories WHERE id=?", key);
+        store.run("UPDATE category_layout SET version=version+1 WHERE id=1");
         return { ok: true };
       }),
   );
+  registerCollectionLayout(route, store, "category");
+  registerCollectionLayout(route, store, "template");
   registerDocuments(route, store);
   registerHistory(route, store);
   const web = resolve("dist/web");

@@ -246,7 +246,7 @@ for (const kind of ["template", "checklist"]) {
     await expect(modal).toBeVisible();
     await expect(
       modal.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }),
-    ).toHaveValue("jid");
+    ).toHaveValue("");
     await modal
       .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
       .fill("");
@@ -435,7 +435,7 @@ for (const kind of ["template", "checklist"]) {
       .getByLabel(localized["fixture.bb732b6bd964"], { exact: true })
       .fill(localized["fixture.e9f5b71a472d"]);
     const newButton = picker.getByRole("button", {
-      name: localized["New item"],
+      name: localized["Create item and add"],
       exact: true,
     });
     await newButton.click();
@@ -470,7 +470,9 @@ for (const kind of ["template", "checklist"]) {
     await expect(
       picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }),
     ).toHaveValue(localized["fixture.e9f5b71a472d"]);
-    await expect(newButton).toBeFocused();
+    await expect(
+      picker.getByLabel(localized["fixture.bb732b6bd964"], { exact: true }),
+    ).toBeFocused();
     expect(
       (await (await page.request.get("/api/v1/items")).json()).some(
         (i: any) => i.name === cancelled,
@@ -618,7 +620,7 @@ for (const kind of ["template", "checklist"]) {
       .click();
     await page
       .getByRole("dialog", { name: "Add entries", exact: true })
-      .getByRole("button", { name: "New item", exact: true })
+      .getByRole("button", { name: "Create item and add", exact: true })
       .click();
     await expect(
       page

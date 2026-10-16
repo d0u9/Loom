@@ -62,7 +62,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     await expect(
       page.getByPlaceholder(localized["fixture.a0008103038b"], { exact: true }),
     ).toBeVisible();
-    const quick = page.getByLabel(localized["New temporary entry"], {
+    const quick = page.getByLabel(localized["New entry"], {
       exact: true,
     });
     await expect(quick).toBeVisible();
@@ -99,6 +99,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
     ).toHaveCount(0);
     await quick.fill("First");
     await quick.press("Enter");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(quick).toHaveValue("");
     await expect(quick).toBeFocused();
     await expect(
@@ -131,10 +132,9 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
       ["Parent", d.sections.find((s: any) => s.name === "Parent").id],
       ["Child", d.sections.find((s: any) => s.name === "Child").id],
     ]) {
-      const nested = page.getByLabel(
-        localized["New temporary entry · "] + name,
-        { exact: true },
-      );
+      const nested = page.getByLabel(localized["New entry · "] + name, {
+        exact: true,
+      });
       await nested.fill("In " + name);
       await nested.press("Enter");
       await expect(nested).toHaveValue("");
@@ -195,7 +195,7 @@ test("blank quick entry confirms on Enter and Checklist rename saves immediately
         }),
       ).toHaveCount(0);
       await expect(
-        page.getByLabel(localized["New temporary entry"], { exact: true }),
+        page.getByLabel(localized["New entry"], { exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", {

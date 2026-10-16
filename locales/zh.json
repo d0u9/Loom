@@ -364,5 +364,19 @@
   "Create account": "创建账户",
   "Create your account to get started.": "首次使用，请设置账户。",
   "Use at least 10 characters for your password.": "密码至少需要 10 个字符。",
-  "Account already initialized": "账户已建立，请登录。"
+  "Account already initialized": "账户已建立，请登录。",
+  "New entry · ": "新条目 · ",
+  "New entry ·": "新条目 ·",
+  "Add entry…": "添加条目…",
+  "Add to current only": "仅添加到当前",
+  "Create item and add": "新建物品并添加",
+  "Save to item catalog": "存入物品库",
+  "Same name exists; select it or create separately.": "已有同名物品，可选择已有项，或独立新建。",
+  "Matching items": "匹配物品",
+  "fixture.pinyin.sponge-gourd": "丝瓜",
+  "fixture.pinyin.watermelon": "西瓜",
+  "Delete section and keep content?": "删除分区并将内容移至未分组？",
+  "Category organization": "分类整理",
+  "New collection section": "新建分区",
+  "Edit collection section": "编辑分区"
 }

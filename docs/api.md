@@ -83,3 +83,18 @@ With authentication enabled and no account in the database, `GET /session` retur
 Account existence is checked together with account/session creation in one transaction. An initialized database returns 409 and never overwrites credentials; anonymous mode returns 409. If the response is lost, Web checks `/session` to recover an established session or returns to login when another client completed setup. CLI initialization remains optional. No schema change is required.
 
 Docker Compose reads the host's `config/loom.config.json` through a read-only directory bind mount at `/etc/loom`, with `LOOM_CONFIG=/etc/loom/loom.config.json`. The database remains in the existing `loom-data` volume. Apply new mount settings by recreating the container once; subsequent host configuration edits only require a service restart. Standalone server runs retain `data/loom.config.json` as the default path. Missing explicitly configured files fail startup.
+
+
+## Category collection organization
+
+`GET /category-layout` returns `{version,rootPosition,sections:[{id,name}],categories:[{id,sectionId}]}`. Both arrays are ordered; null sectionId means Ungrouped. Sections are flat display containers, independent of Category membership and document sections.
+
+`PUT /category-layout {version,requestId,rootPosition?,sections,categories}` replaces the complete organization in one transaction. Every current Category must occur exactly once and every non-null sectionId must refer to a supplied section; duplicate IDs, blank section names, missing sections, stale versions, and changed Category sets are rejected without partial writes. Explicit section removal submits its Categories with sectionId:null, retaining their order and memberships. UUID requestId deduplication returns the original result on retry and conflicts on changed content. Creating/deleting a Category increments the layout version; creation appends an ungrouped position and deletion cascades only its position row. Category name editing and member order remain independent.
+
+With user consent on 2026-10-16, version-1 database creation includes category_sections, category_positions, and category_layout. The current local database was upgraded directly after verified backup/restore; no startup migration or old-schema compatibility code is retained.
+
+rootPosition is the zero-based slot of the built-in Ungrouped heading among section headings, between 0 and sections.length. Omission retains the original default of 0 without changing old request bodies or deduplication digests; historical deduplicated responses may omit the field. Moving/deleting sections updates this slot transactionally.
+
+## Template collection organization
+
+`GET /template-layout` returns `{version,rootPosition,sections:[{id,name}],templates:[{id,sectionId}]}`. `PUT /template-layout {version,requestId,rootPosition?,sections,templates}` shares Category layout validation, ordering, transactional retries, and conflicts; supply every current Template exactly once. Checklist IDs are rejected. Removing a section submits its Templates with null sectionId. Creation (including copies and conversions) appends Templates ungrouped and increments layout version; deletion cascades its position and increments version. Document contents, versions, internal sections, and instantiated Checklists are independent.

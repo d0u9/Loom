@@ -143,10 +143,13 @@ test("global config opens checklists without login and auth can be re-enabled on
     await stop();
     await start(false);
     await page
-      .getByLabel(localized["New temporary entry"], { exact: true })
+      .getByRole("button", { name: localized["Edit mode"], exact: true })
+      .click();
+    await page
+      .getByLabel(localized["New entry"], { exact: true })
       .fill("Saved after backend restart");
     await page
-      .getByLabel(localized["New temporary entry"], { exact: true })
+      .getByLabel(localized["New entry"], { exact: true })
       .press("Enter");
     await expect(page.getByRole("status")).toContainText(localized["Saved"]);
     const documents = await (

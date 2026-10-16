@@ -21,6 +21,9 @@ export function Select({
   placeholder,
   disabled,
   allowCustom,
+  onChoose,
+  onSubmit,
+  onEscape,
   "aria-label": ariaLabel,
 }: {
   label?: string;
@@ -30,6 +33,9 @@ export function Select({
   placeholder?: string;
   disabled?: boolean;
   allowCustom?: boolean;
+  onChoose?: (value: string) => void;
+  onSubmit?: () => void;
+  onEscape?: () => void;
   "aria-label"?: string;
 }) {
   const id = useId();
@@ -48,7 +54,13 @@ export function Select({
     if (!open) return;
     const follow = () => {
       const r = box.current!.getBoundingClientRect();
-      setPlace({ top: r.bottom + 6, left: r.left, width: r.width });
+      setPlace({
+        ...(r.bottom < innerHeight / 2
+          ? { top: r.bottom + 6 }
+          : { bottom: innerHeight - r.top + 6 }),
+        left: r.left,
+        width: r.width,
+      });
     };
     follow();
     addEventListener("scroll", follow, true);
@@ -74,11 +86,17 @@ export function Select({
       !query.trim() || (o.value ? matchesText(o.label, query) : allowCustom),
   );
   const typed = value.trim();
-  if (allowCustom && typed && !options.some((o) => o.value === typed))
+  if (
+    allowCustom &&
+    !onSubmit &&
+    typed &&
+    !options.some((o) => o.value === typed)
+  )
     choices.push({ value: typed, label: t(localized["Use “"]) + typed + "”" });
   const name = label ?? ariaLabel ?? "";
   const choose = (option: Option) => {
-    onChange(option.value);
+    if (onChoose) onChoose(option.value);
+    else onChange(option.value);
     setQuery("");
     setOpen(false);
     setActive(-1);
@@ -134,6 +152,8 @@ export function Select({
           setOpen(true);
         }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Escape" && !open) onEscape?.();
           if (event.key === "Escape" && open) {
             event.preventDefault();
             event.stopPropagation();
@@ -144,7 +164,7 @@ export function Select({
             event.preventDefault();
             setOpen(true);
             setActive(
-              active < 0
+              !open || active < 0
                 ? event.key === "ArrowDown"
                   ? 0
                   : choices.length - 1
@@ -154,10 +174,13 @@ export function Select({
                     choices.length,
             );
           }
-          if (event.key === "Enter" && open) {
+          if (event.key === "Enter" && (open || onSubmit)) {
             event.preventDefault();
-            if (choices[active]) choose(choices[active]);
-            else setOpen(false);
+            if (open && choices[active]) choose(choices[active]);
+            else if (onSubmit) {
+              onSubmit();
+              setOpen(false);
+            } else setOpen(false);
           }
         }}
       />
@@ -177,7 +200,7 @@ export function Select({
           ref={menu}
           id={id + "-options"}
           role="listbox"
-          aria-label={name}
+          aria-label={onSubmit ? t(localized["Matching items"]) : name}
           className="combobox-options"
           style={place}
         >
@@ -191,7 +214,9 @@ export function Select({
               variant="ghost"
               role="option"
               tabIndex={-1}
-              aria-selected={option.value === value}
+              aria-selected={
+                onSubmit ? active === index : option.value === value
+              }
               className={active === index ? "active" : ""}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(option)}

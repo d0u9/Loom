@@ -9,9 +9,11 @@ import { Button } from "./button.js";
 import { matchesSearch } from "./router.js";
 import { ResourceDialog, ResourceForm } from "./resource-dialog.js";
 import { Icon, Page } from "./layout.js";
+import { CollectionSections } from "./collection-sections.js";
 import { Collection, RecordCard } from "./collection.js";
 import { Modal, ask } from "./modal.js";
 import { Select } from "./select.js";
+import { EntryInput } from "./entry-input.js";
 import { SortableRow } from "./sortable.js";
 import React, { useEffect, useState, useRef } from "react";
 import {
@@ -46,6 +48,8 @@ export function Documents({
   categories: any[];
   refreshCatalog: () => Promise<void>;
 }) {
+  const [layoutCreating, setLayoutCreating] = useState(false);
+  const [layoutStatus, setLayoutStatus] = useState<LocalizedText>("");
   const [list, setList] = useState<any[]>([]),
     [doc, setDoc] = useState<any>(null),
     [statusFilter, setStatusFilter] = useState(date ? "all" : "active"),
@@ -57,7 +61,6 @@ export function Documents({
     [collapsed, setCollapsed] = useState<Set<string>>(new Set()),
     [status, setStatus] = useState<LocalizedText>(""),
     [editingName, setEditingName] = useState<string | null>(null),
-    [quickNames, setQuickNames] = useState<Record<string, string>>({}),
     [itemQuery, setItemQuery] = useState(""),
     [itemGroup, setItemGroup] = useState<string | null>(null),
     [pickerQuery, setPickerQuery] = useState(""),
@@ -95,6 +98,7 @@ export function Documents({
     savedIds = useRef(new Set<string>()),
     saveDelay = useRef(0),
     failedChecks = useRef(new Map<string, { docId: string; request: any }>());
+  const quickRequests = useRef(new Set<string>());
   const dirtyNow = useRef(false);
   const saveTask = useRef<Promise<void> | null>(null);
   const setDirty = (value: boolean) => {
@@ -105,17 +109,15 @@ export function Documents({
   const newItemCreated = useRef<any>(null);
   const newItemSaving = useRef(false);
   const newItemHost = useRef<HTMLDivElement>(null);
+  const entrySearch = useRef<HTMLInputElement>(null);
   const newItemMatches = sameName(items, newItem?.name);
   useEffect(() => {
     if (!newItemBusy && newItem?.name === "")
       newItemHost.current?.querySelector<HTMLInputElement>("input")?.focus();
   }, [newItemBusy]);
   useEffect(() => {
-    if (!newItem)
-      newItemHost.current
-        ?.querySelector<HTMLButtonElement>(".form-actions .button")
-        ?.focus();
-  }, [!!newItem]);
+    if (addOpen && !newItem) entrySearch.current?.focus();
+  }, [addOpen, !!newItem]);
   const archiveRequests = useRef(new Map<string, any>());
   const refresh = async () => {
     setList(await api("/documents"));
@@ -158,9 +160,11 @@ export function Documents({
     };
   }, [kind, date, documentId]);
   useEffect(() => {
+    if (!doc) return;
     const leave = (e: BeforeUnloadEvent) => {
       if (
         dirty ||
+        quickRequests.current.size > 0 ||
         newItemSaving.current ||
         newItemRequest.current ||
         checks.current.size ||
@@ -170,7 +174,12 @@ export function Documents({
       }
     };
     leaveGuard.guard = async () => {
-      if (newItemSaving.current || newItemRequest.current) return false;
+      if (
+        newItemSaving.current ||
+        newItemRequest.current ||
+        quickRequests.current.size
+      )
+        return false;
       if (await flush()) {
         await Promise.all([...checks.current.values()]);
         if (!failedChecks.current.size) return true;
@@ -185,7 +194,7 @@ export function Documents({
       window.removeEventListener("beforeunload", leave);
       leaveGuard.guard = () => true;
     };
-  }, [dirty]);
+  }, [dirty, !!doc]);
   async function attempt(fn: () => Promise<any>) {
     try {
       await fn();
@@ -258,7 +267,6 @@ export function Documents({
     latest.current = d;
     setDoc(d);
     setDirty(false);
-    setQuickNames({});
     setStatus("");
   };
   // Typing waits for a pause; one-shot edits such as drags save at once.
@@ -362,7 +370,7 @@ export function Documents({
     checked: false,
     sectionId: targetSection || null,
   });
-  function add(item: any) {
+  function add(item: any, sectionId = targetSection || null, name?: string) {
     const current = latest.current;
     const same = current.entries.filter(
       (e: any) => item && e.itemId === item.id,
@@ -370,7 +378,26 @@ export function Documents({
     if (same.length) {
       return;
     }
-    change({ ...current, entries: [...current.entries, newEntry(item)] });
+    change({
+      ...current,
+      entries: [
+        ...current.entries,
+        { ...newEntry(item), sectionId, ...(name ? { name } : {}) },
+      ],
+    });
+  }
+  function clearEntryInput() {
+    setItemQuery("");
+    entrySearch.current?.focus();
+  }
+  function addTemporary() {
+    const name = itemQuery.trim();
+    if (!name) return;
+    change({
+      ...latest.current,
+      entries: [...latest.current.entries, { ...newEntry(null), name }],
+    });
+    clearEntryInput();
   }
   function closeNewItem() {
     if (
@@ -400,6 +427,7 @@ export function Documents({
       newItemCreated.current = item;
       add(item);
       await refreshCatalog();
+      clearEntryInput();
       newItemRequest.current = null;
       newItemCreated.current = null;
       setNewItem({
@@ -592,6 +620,7 @@ export function Documents({
     targetId: string,
     place: "before" | "after" | "into",
   ) {
+    if (quickRequests.current.size) return;
     const next = moveNode(doc, id, targetId, place);
     try {
       // Rejects dropping into its own subtree or past two levels.
@@ -659,59 +688,31 @@ export function Documents({
   function quickEntry(sectionId: string | null, depth: number) {
     const key = sectionId ?? "root";
     const label = doc.sections?.find((s: any) => s.id === sectionId)?.name;
-    const value = quickNames[key] ?? "";
-    const set = (name: string) =>
-      setQuickNames((names) => ({ ...names, [key]: name }));
     return (
-      <div
-        className="quick-entry"
+      <EntryInput
         key={"quick-entry:" + key}
-        data-depth={depth}
-      >
-        <Icon name="add" />
-        <input
-          aria-label={
-            label
-              ? t(localized["New temporary entry · "]) + label
-              : t(localized["New temporary entry"])
-          }
-          placeholder={
-            label
-              ? t(localized["Add to “"]) +
-                label +
-                t(localized["Add prompt suffix"])
-              : t(localized["Add temporary entry…"])
-          }
-          value={value}
-          data-1p-ignore="true"
-          autoComplete="off"
-          onChange={(event) => set(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              set("");
-              event.currentTarget.blur();
-            }
-            if (
-              event.key !== "Enter" ||
-              event.nativeEvent.isComposing ||
-              !value.trim()
-            )
-              return;
-            event.preventDefault();
-            void attempt(async () => {
-              change({
-                ...latest.current,
-                entries: [
-                  ...latest.current.entries,
-                  { ...newEntry(null), name: value.trim(), sectionId },
-                ],
-              });
-              set("");
-              if (kind === "checklist") await save();
-            });
-          }}
-        />
-      </div>
+        depth={depth}
+        label={
+          label
+            ? t(localized["New entry · "]) + label
+            : t(localized["New entry"])
+        }
+        placeholder={
+          label
+            ? t(localized["Add to “"]) +
+              label +
+              t(localized["Add prompt suffix"])
+            : t(localized["Add entry…"])
+        }
+        items={items}
+        onAdd={(item, name) => add(item, sectionId, name)}
+        onPending={(pending) => {
+          if (pending) quickRequests.current.add(key);
+          else quickRequests.current.delete(key);
+          setDoc({ ...latest.current });
+        }}
+        refreshCatalog={refreshCatalog}
+      />
     );
   }
 
@@ -730,6 +731,65 @@ export function Documents({
           ? t(localized["Archived"])
           : t(localized["Active"]),
       ),
+  );
+
+  const renderRecord = (
+    d: any,
+    sort?: React.ComponentProps<typeof RecordCard>["sort"],
+  ) => (
+    <RecordCard
+      key={d.id}
+      sort={sort}
+      name={d.name}
+      onOpen={() => void attempt(() => open(d.id))}
+      actions={
+        kind === "checklist" ? (
+          <Button
+            variant="icon"
+            aria-label={t(
+              localized[d.status === "archived" ? "Activate" : "Archive"],
+            )}
+            title={t(
+              localized[d.status === "archived" ? "Activate" : "Archive"],
+            )}
+            disabled={archiving}
+            onClick={() => void attempt(() => changeChecklistStatus(d))}
+          >
+            <Icon name={d.status === "archived" ? "activate" : "archive"} />
+          </Button>
+        ) : undefined
+      }
+    >
+      <h3>{d.name}</h3>
+      <p className={kind === "checklist" ? "checklist-meta" : undefined}>
+        {(kind === "checklist" || d.useDate) && (
+          <span className="document-date">
+            {d.useDate}
+            <span className="document-meta-separator"> · </span>
+          </span>
+        )}
+        {kind === "checklist" ? (
+          <span
+            className="document-progress"
+            aria-label={
+              t(localized["Completed "]) + d.done + "/" + d.total + ""
+            }
+            title={t(localized["Completed "]) + d.done + "/" + d.total + ""}
+          >
+            <Icon name="check" />
+            {d.done}/{d.total}
+          </span>
+        ) : (
+          "" + d.total + t(localized[" items"])
+        )}
+        {d.status === "archived" && (
+          <span className="document-archive">
+            <span className="document-meta-separator"> · </span>
+            {t(localized["Archived"])}
+          </span>
+        )}
+      </p>
+    </RecordCard>
   );
 
   return (
@@ -803,10 +863,21 @@ export function Documents({
                 icon: reading ? ("edit" as const) : ("check" as const),
                 pressed: !reading,
                 iconOnly: true,
-                onClick: () => setReading((value) => !value),
+                onClick: () => {
+                  if (!quickRequests.current.size)
+                    setReading((value) => !value);
+                },
               },
             ]
-          : undefined
+          : !doc && kind === "template"
+            ? [
+                {
+                  label: t(localized["New collection section"]),
+                  icon: "sectionAdd",
+                  onClick: () => setLayoutCreating(true),
+                },
+              ]
+            : undefined
       }
       primaryAction={
         !doc
@@ -850,7 +921,13 @@ export function Documents({
       showView={!doc}
       // The list's date filter uses the same small grey slot beside the title.
       status={
-        doc ? (quiet ? status : "") : kind === "checklist" ? (date ?? "") : ""
+        doc
+          ? quiet
+            ? status
+            : ""
+          : kind === "checklist"
+            ? (date ?? "")
+            : t(layoutStatus)
       }
     >
       {!quiet && status && (
@@ -1086,76 +1163,20 @@ export function Documents({
       )}
       {!doc ? (
         <>
-          <Collection>
-            {records.map((d) => (
-              <RecordCard
-                key={d.id}
-                name={d.name}
-                onOpen={() => void attempt(() => open(d.id))}
-                actions={
-                  kind === "checklist" ? (
-                    <Button
-                      variant="icon"
-                      aria-label={t(
-                        localized[
-                          d.status === "archived" ? "Activate" : "Archive"
-                        ],
-                      )}
-                      title={t(
-                        localized[
-                          d.status === "archived" ? "Activate" : "Archive"
-                        ],
-                      )}
-                      disabled={archiving}
-                      onClick={() =>
-                        void attempt(() => changeChecklistStatus(d))
-                      }
-                    >
-                      <Icon
-                        name={d.status === "archived" ? "activate" : "archive"}
-                      />
-                    </Button>
-                  ) : undefined
-                }
-              >
-                <h3>{d.name}</h3>
-                <p
-                  className={
-                    kind === "checklist" ? "checklist-meta" : undefined
-                  }
-                >
-                  {(kind === "checklist" || d.useDate) && (
-                    <span className="document-date">
-                      {d.useDate}
-                      <span className="document-meta-separator"> · </span>
-                    </span>
-                  )}
-                  {kind === "checklist" ? (
-                    <span
-                      className="document-progress"
-                      aria-label={
-                        t(localized["Completed "]) + d.done + "/" + d.total + ""
-                      }
-                      title={
-                        t(localized["Completed "]) + d.done + "/" + d.total + ""
-                      }
-                    >
-                      <Icon name="check" />
-                      {d.done}/{d.total}
-                    </span>
-                  ) : (
-                    "" + d.total + t(localized[" items"])
-                  )}
-                  {d.status === "archived" && (
-                    <span className="document-archive">
-                      <span className="document-meta-separator"> · </span>
-                      {t(localized["Archived"])}
-                    </span>
-                  )}
-                </p>
-              </RecordCard>
-            ))}
-          </Collection>
+          {kind === "template" ? (
+            <CollectionSections
+              kind="template"
+              records={list.filter((d) => d.kind === "template")}
+              query={query}
+              creating={layoutCreating}
+              onCloseCreate={() => setLayoutCreating(false)}
+              onStatus={setLayoutStatus}
+              renderCard={renderRecord}
+            />
+          ) : (
+            <Collection>{records.map((d) => renderRecord(d))}</Collection>
+          )}
+
           {query.trim() && records.length === 0 && (
             <p className="empty">{t(localized["No matching results."])}</p>
           )}
@@ -1231,6 +1252,7 @@ export function Documents({
                     <Button
                       disabled={
                         dirty ||
+                        quickRequests.current.size > 0 ||
                         saving.current ||
                         checks.current.size > 0 ||
                         failedChecks.current.size > 0
@@ -1272,6 +1294,7 @@ export function Documents({
                       variant="danger"
                       disabled={
                         dirty ||
+                        quickRequests.current.size > 0 ||
                         saving.current ||
                         checks.current.size > 0 ||
                         failedChecks.current.size > 0
@@ -1307,6 +1330,7 @@ export function Documents({
                       variant="danger"
                       disabled={
                         dirty ||
+                        quickRequests.current.size > 0 ||
                         saving.current ||
                         checks.current.size > 0 ||
                         failedChecks.current.size > 0
@@ -1515,6 +1539,7 @@ export function Documents({
                       categories={categories}
                       onSelect={(item) => {
                         add(item);
+                        clearEntryInput();
                         setNewItem(null);
                       }}
                     />
@@ -1584,6 +1609,8 @@ export function Documents({
                       disabled={addMode === "Category"}
                     />
                     <input
+                      ref={entrySearch}
+                      autoFocus
                       aria-label={
                         t(localized["Search "]) + resourceLabels[addMode]
                       }
@@ -1594,7 +1621,18 @@ export function Documents({
                       data-1p-ignore="true"
                       autoComplete="off"
                       value={itemQuery}
+                      maxLength={200}
                       onChange={(e) => setItemQuery(e.target.value)}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          !event.nativeEvent.isComposing &&
+                          addMode === "Item"
+                        ) {
+                          event.preventDefault();
+                          addTemporary();
+                        }
+                      }}
                     />
                     <div className="add-list" role="tabpanel">
                       {addMode === "Item" &&
@@ -1632,7 +1670,10 @@ export function Documents({
                                   <Button
                                     variant="ghost"
                                     key={i.id}
-                                    onClick={() => add(i)}
+                                    onClick={() => {
+                                      add(i);
+                                      clearEntryInput();
+                                    }}
                                   >
                                     <span>{i.name}</span>
                                     <Icon name="add" />
@@ -1701,9 +1742,18 @@ export function Documents({
                     <div className="form-actions">
                       {addMode === "Item" && (
                         <Button
+                          variant="primary"
+                          disabled={!itemQuery.trim()}
+                          onClick={addTemporary}
+                        >
+                          {t(localized["Add to current only"])}
+                        </Button>
+                      )}
+                      {addMode === "Item" && (
+                        <Button
                           onClick={() => {
                             setNewItem({
-                              name: "",
+                              name: itemQuery.trim(),
                               note: "",
                               itemGroup: itemGroup || null,
                               categoryIds: [],
@@ -1711,7 +1761,7 @@ export function Documents({
                             setNewItemError("");
                           }}
                         >
-                          {t(localized["New item"])}
+                          {t(localized["Create item and add"])}
                         </Button>
                       )}
                       <Button onClick={() => setAddOpen(false)}>
@@ -1755,6 +1805,7 @@ export function Documents({
                       )
                     )
                       return;
+                    if (quickRequests.current.size) return;
                     setCollapsed((prev) => {
                       const next = new Set(prev);
                       if (!next.delete(row.section.id))
@@ -1794,6 +1845,7 @@ export function Documents({
                           t(localized["Edit section "]) + row.section.name
                         }
                         onClick={() => {
+                          if (quickRequests.current.size) return;
                           setSectionEditor(row.section);
                           setSectionName(row.section.name);
                           setSectionParent(row.section.parentSectionId || "");
@@ -1804,6 +1856,7 @@ export function Documents({
                       <Button
                         className="danger"
                         variant="icon"
+                        disabled={quickRequests.current.size > 0}
                         aria-label={
                           t(localized["Delete section "]) + row.section.name
                         }

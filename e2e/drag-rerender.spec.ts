@@ -57,10 +57,10 @@ for (const kind of ["template", "checklist"]) {
         return route.continue();
       });
       await page
-        .getByLabel(localized["New temporary entry"], { exact: true })
+        .getByLabel(localized["New entry"], { exact: true })
         .fill("Pending");
       await page
-        .getByLabel(localized["New temporary entry"], { exact: true })
+        .getByLabel(localized["New entry"], { exact: true })
         .press("Enter");
       await expect.poll(() => writes).toBe(1);
       const row = page.locator(`[data-sort-id="${doc.entries[0].id}"]`);
